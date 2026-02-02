@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.annotations.BatchSize;
 import ovaro.plat4m.config.Constants;
@@ -28,6 +29,10 @@ public class User extends AbstractAuditingEntity<Long> implements Serializable {
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sequenceGenerator")
     @SequenceGenerator(name = "sequenceGenerator")
     private Long id;
+
+    @Column(unique = true)
+    //@GeneratedValue(strategy = GenerationType.AUTO)
+    private UUID guid;
 
     @NotNull
     @Pattern(regexp = Constants.LOGIN_REGEX)
@@ -65,6 +70,10 @@ public class User extends AbstractAuditingEntity<Long> implements Serializable {
     @Size(max = 256)
     @Column(name = "image_url", length = 256)
     private String imageUrl;
+
+    @Size(max = 3)
+    @Column(name = "local_currency", length = 3)
+    private String localCurrency;
 
     @Size(max = 20)
     @Column(name = "activation_key", length = 20)
@@ -203,6 +212,22 @@ public class User extends AbstractAuditingEntity<Long> implements Serializable {
             return false;
         }
         return id != null && id.equals(((User) o).id);
+    }
+
+    public String getLocalCurrency() {
+        return localCurrency;
+    }
+
+    public void setLocalCurrency(String localCurrency) {
+        this.localCurrency = localCurrency;
+    }
+
+    public UUID getGuid() {
+        return guid;
+    }
+
+    public void setGuid(UUID guid) {
+        this.guid = guid;
     }
 
     @Override

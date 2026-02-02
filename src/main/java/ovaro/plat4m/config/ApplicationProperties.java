@@ -33,5 +33,16 @@ public class ApplicationProperties {
             this.asyncStart = asyncStart;
         }
     }
+
     // jhipster-needle-application-properties-property-class
+
+    private String rapidapiKey;
+
+    public String getRapidapiKey() {
+        return rapidapiKey;
+    }
+
+    public void setRapidapiKey(String rapidapiKey) {
+        this.rapidapiKey = rapidapiKey;
+    }
 }

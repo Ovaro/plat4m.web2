@@ -18,14 +18,14 @@ import ovaro.plat4m.domain.User;
 import tech.jhipster.config.JHipsterProperties;
 
 /**
- * Service for sending emails asynchronously.
+ * Service for sending emails.
  * <p>
  * We use the {@link Async} annotation to send emails asynchronously.
  */
 @Service
 public class MailService {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MailService.class);
+    private final Logger log = LoggerFactory.getLogger(MailService.class);
 
     private static final String USER = "user";
 
@@ -53,11 +53,7 @@ public class MailService {
 
     @Async
     public void sendEmail(String to, String subject, String content, boolean isMultipart, boolean isHtml) {
-        sendEmailSync(to, subject, content, isMultipart, isHtml);
-    }
-
-    private void sendEmailSync(String to, String subject, String content, boolean isMultipart, boolean isHtml) {
-        LOG.debug(
+        log.debug(
             "Send email[multipart '{}' and html '{}'] to '{}' with subject '{}' and content={}",
             isMultipart,
             isHtml,
@@ -75,20 +71,16 @@ public class MailService {
             message.setSubject(subject);
             message.setText(content, isHtml);
             javaMailSender.send(mimeMessage);
-            LOG.debug("Sent email to User '{}'", to);
+            log.debug("Sent email to User '{}'", to);
         } catch (MailException | MessagingException e) {
-            LOG.warn("Email could not be sent to user '{}'", to, e);
+            log.warn("Email could not be sent to user '{}'", to, e);
         }
     }
 
     @Async
     public void sendEmailFromTemplate(User user, String templateName, String titleKey) {
-        sendEmailFromTemplateSync(user, templateName, titleKey);
-    }
-
-    private void sendEmailFromTemplateSync(User user, String templateName, String titleKey) {
         if (user.getEmail() == null) {
-            LOG.debug("Email doesn't exist for user '{}'", user.getLogin());
+            log.debug("Email doesn't exist for user '{}'", user.getLogin());
             return;
         }
         Locale locale = Locale.forLanguageTag(user.getLangKey());
@@ -97,24 +89,24 @@ public class MailService {
         context.setVariable(BASE_URL, jHipsterProperties.getMail().getBaseUrl());
         String content = templateEngine.process(templateName, context);
         String subject = messageSource.getMessage(titleKey, null, locale);
-        sendEmailSync(user.getEmail(), subject, content, false, true);
+        sendEmail(user.getEmail(), subject, content, false, true);
     }
 
     @Async
     public void sendActivationEmail(User user) {
-        LOG.debug("Sending activation email to '{}'", user.getEmail());
-        sendEmailFromTemplateSync(user, "mail/activationEmail", "email.activation.title");
+        log.debug("Sending activation email to '{}'", user.getEmail());
+        sendEmailFromTemplate(user, "mail/activationEmail", "email.activation.title");
     }
 
     @Async
     public void sendCreationEmail(User user) {
-        LOG.debug("Sending creation email to '{}'", user.getEmail());
-        sendEmailFromTemplateSync(user, "mail/creationEmail", "email.activation.title");
+        log.debug("Sending creation email to '{}'", user.getEmail());
+        sendEmailFromTemplate(user, "mail/creationEmail", "email.activation.title");
     }
 
     @Async
     public void sendPasswordResetMail(User user) {
-        LOG.debug("Sending password reset email to '{}'", user.getEmail());
-        sendEmailFromTemplateSync(user, "mail/passwordResetEmail", "email.reset.title");
+        log.debug("Sending password reset email to '{}'", user.getEmail());
+        sendEmailFromTemplate(user, "mail/passwordResetEmail", "email.reset.title");
     }
 }

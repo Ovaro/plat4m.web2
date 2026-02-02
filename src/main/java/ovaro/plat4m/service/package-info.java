@@ -1,4 +1,4 @@
 /**
- * Service layer.
+ * Service layer beans.
  */
 package ovaro.plat4m.service;

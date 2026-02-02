@@ -51,6 +51,8 @@ public class AdminUserDTO implements Serializable {
 
     private Set<String> authorities;
 
+    private String localCurrency;
+
     public AdminUserDTO() {
         // Empty constructor needed for Jackson.
     }
@@ -69,6 +71,7 @@ public class AdminUserDTO implements Serializable {
         this.lastModifiedBy = user.getLastModifiedBy();
         this.lastModifiedDate = user.getLastModifiedDate();
         this.authorities = user.getAuthorities().stream().map(Authority::getName).collect(Collectors.toSet());
+        this.localCurrency = user.getLocalCurrency();
     }
 
     public Long getId() {
@@ -173,6 +176,14 @@ public class AdminUserDTO implements Serializable {
 
     public void setAuthorities(Set<String> authorities) {
         this.authorities = authorities;
+    }
+
+    public String getLocalCurrency() {
+        return localCurrency;
+    }
+
+    public void setLocalCurrency(String localCurrency) {
+        this.localCurrency = localCurrency;
     }
 
     // prettier-ignore

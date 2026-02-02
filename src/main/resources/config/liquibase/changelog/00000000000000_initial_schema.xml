@@ -1,59 +1,383 @@
-<?xml version="1.0" encoding="utf-8"?>
-<databaseChangeLog
-    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
-    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd
-                        http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
-
-    <changeSet id="00000000000000" author="jhipster">
-        <createSequence sequenceName="sequence_generator" startValue="1050" incrementBy="50"/>
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet author="justin (generated)" id="1709369667173-1">
+        <createSequence incrementBy="50" sequenceName="source_link_id_sequence" startValue="1"/>
     </changeSet>
-
-    <!--
-        JHipster core tables.
-        The initial schema has the '00000000000001' id, so that it is over-written if we re-generate it.
-    -->
-    <changeSet id="00000000000001" author="jhipster">
-        <createTable tableName="jhi_user">
-            <column name="id" type="bigint">
-                <constraints primaryKey="true" nullable="false"/>
+    <changeSet author="justin (generated)" id="1709369667173-2">
+        <createTable tableName="fin_account">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_accountPK"/>
             </column>
-            <column name="login" type="varchar(50)">
-                <constraints unique="true" nullable="false" uniqueConstraintName="ux_user_login"/>
-            </column>
-            <column name="password_hash" type="varchar(60)"/>
-            <column name="first_name" type="varchar(50)"/>
-            <column name="last_name" type="varchar(50)"/>
-            <column name="email" type="varchar(191)">
-                <constraints unique="true" nullable="true" uniqueConstraintName="ux_user_email"/>
-            </column>
-            <column name="image_url" type="varchar(256)"/>
-            <column name="activated" type="boolean" valueBoolean="false">
-                <constraints nullable="false" />
-            </column>
-            <column name="lang_key" type="varchar(10)"/>
-            <column name="activation_key" type="varchar(20)"/>
-            <column name="reset_key" type="varchar(20)"/>
-            <column name="created_by" type="varchar(50)">
+            <column name="amount_limit" type="numeric(19, 2)"/>
+            <column name="closed" type="BOOLEAN">
                 <constraints nullable="false"/>
             </column>
-            <column name="created_date" type="timestamp"/>
-            <column name="reset_date" type="timestamp">
-                <constraints nullable="true"/>
+            <column name="credit" type="BOOLEAN">
+                <constraints nullable="false"/>
             </column>
-            <column name="last_modified_by" type="varchar(50)"/>
-            <column name="last_modified_date" type="timestamp"/>
+            <column name="currency_code" type="VARCHAR(255)"/>
+            <column name="date_closed" type="date"/>
+            <column name="date_interest_rate_changed" type="date"/>
+            <column name="date_opened" type="date"/>
+            <column name="interest_rate" type="FLOAT8"/>
+            <column name="investment_sub_type" type="INTEGER"/>
+            <column name="is401k403b" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_payments" type="INTEGER"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="related_to_account_id" type="VARCHAR(255)"/>
+            <column name="related_to_account_src_id" type="INTEGER"/>
+            <column name="retirement" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="serial_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="starting_balance" type="numeric(19, 2)"/>
+            <column name="type" type="INTEGER"/>
+            <column name="user_guid" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="institution_id" type="UUID"/>
         </createTable>
-
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-3">
+        <createTable tableName="fin_category">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_categoryPK"/>
+            </column>
+            <column name="classification_id" type="INTEGER"/>
+            <column name="comment" type="VARCHAR(255)"/>
+            <column name="level" type="INTEGER"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="user_guid" type="VARCHAR(255)"/>
+            <column name="parent_category_id" type="UUID"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-4">
+        <createTable tableName="fin_currency">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_currencyPK"/>
+            </column>
+            <column name="iso_code" type="VARCHAR(255)"/>
+            <column name="master_guid" type="VARCHAR(255)"/>
+            <column name="name" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-5">
+        <createTable tableName="fin_exchange">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_exchangePK"/>
+            </column>
+            <column name="country_code" type="VARCHAR(255)"/>
+            <column name="country_name" type="VARCHAR(255)"/>
+            <column name="currency_code" type="VARCHAR(255)"/>
+            <column name="mic" type="VARCHAR(255)"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="short_name" type="VARCHAR(255)"/>
+            <column name="suffix" type="VARCHAR(255)"/>
+            <column name="timezone" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-6">
+        <createTable tableName="fin_fx">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_fxPK"/>
+            </column>
+            <column name="date" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="from_iso_code" type="VARCHAR(255)"/>
+            <column name="rate" type="FLOAT8"/>
+            <column name="to_iso_code" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-7">
+        <createTable tableName="fin_institution">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_institutionPK"/>
+            </column>
+            <column name="comment" type="VARCHAR(255)"/>
+            <column name="icon" type="VARCHAR(255)"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="serial_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-8">
+        <createTable tableName="fin_inv_event">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_inv_eventPK"/>
+            </column>
+            <column name="base_currency_capital_delta" type="numeric(19, 5)"/>
+            <column name="base_currency_realised_gain" type="numeric(19, 5)"/>
+            <column name="capital_delta" type="numeric(19, 2)"/>
+            <column name="currency_code" type="VARCHAR(255)"/>
+            <column name="date" type="date"/>
+            <column name="fee" type="numeric(19, 2)"/>
+            <column name="fee_delta" type="numeric(19, 2)"/>
+            <column name="holding" type="FLOAT8"/>
+            <column name="income" type="numeric(19, 2)"/>
+            <column name="price" type="numeric(19, 3)"/>
+            <column name="quantity" type="FLOAT8"/>
+            <column name="rate_to_base" type="FLOAT8"/>
+            <column name="realised_currency_gain" type="numeric(19, 5)"/>
+            <column name="realised_gain" type="numeric(19, 2)"/>
+            <column name="user_guid" type="VARCHAR(255)"/>
+            <column name="user_security_id" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-9">
+        <createTable tableName="fin_payee">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_payeePK"/>
+            </column>
+            <column name="hidden" type="BOOLEAN"/>
+            <column name="master_guid" type="VARCHAR(255)"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="parent_id" type="VARCHAR(255)"/>
+            <column name="serial_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="user_guid" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-10">
+        <createTable tableName="fin_security">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_securityPK"/>
+            </column>
+            <column name="active" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="capitalization_class" type="VARCHAR(255)"/>
+            <column name="country" type="VARCHAR(255)"/>
+            <column name="currency_code" type="VARCHAR(255)"/>
+            <column name="exchange_mic" type="VARCHAR(255)"/>
+            <column name="exchange_name" type="VARCHAR(255)"/>
+            <column name="exchange_suffix" type="VARCHAR(255)"/>
+            <column name="industry" type="VARCHAR(255)"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="sector" type="VARCHAR(255)"/>
+            <column name="serial_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="short_name" type="VARCHAR(255)"/>
+            <column name="symbol" type="VARCHAR(255)"/>
+            <column name="type" type="INTEGER"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-11">
+        <createTable tableName="fin_security_details">
+            <column name="symbol" type="VARCHAR(255)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_security_detailsPK"/>
+            </column>
+            <column name="capitalization_class" type="VARCHAR(255)"/>
+            <column name="country" type="VARCHAR(255)"/>
+            <column name="dilutedeps" type="FLOAT8"/>
+            <column name="ebita" type="FLOAT8"/>
+            <column name="employees" type="VARCHAR(255)"/>
+            <column name="ex_dividend_date" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="exchangemic" type="VARCHAR(255)"/>
+            <column name="exchange_name" type="VARCHAR(255)"/>
+            <column name="five_year_dividend_rate" type="FLOAT8"/>
+            <column name="forward_annual_dividend_rate" type="FLOAT8"/>
+            <column name="forward_annual_dividend_yield" type="FLOAT8"/>
+            <column name="gross_profit" type="FLOAT8"/>
+            <column name="industry" type="VARCHAR(255)"/>
+            <column name="last_updated_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="levered_free_cash_flow" type="FLOAT8"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="operating_cash_flow" type="FLOAT8"/>
+            <column name="pc_held_insiders" type="FLOAT8"/>
+            <column name="pc_held_institutions" type="FLOAT8"/>
+            <column name="profit_margin" type="FLOAT8"/>
+            <column name="sector" type="VARCHAR(255)"/>
+            <column name="shares_outstanding" type="FLOAT8"/>
+            <column name="short_name" type="VARCHAR(255)"/>
+            <column name="total_cash" type="FLOAT8"/>
+            <column name="total_debt" type="FLOAT8"/>
+            <column name="trailing_annual_dividend_rate" type="FLOAT8"/>
+            <column name="trailing_annual_dividend_yield" type="FLOAT8"/>
+            <column name="website" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-12">
+        <createTable tableName="fin_security_price">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_security_pricePK"/>
+            </column>
+            <column name="change" type="numeric(9, 3)"/>
+            <column name="close" type="numeric(9, 3)"/>
+            <column name="comment" type="VARCHAR(255)"/>
+            <column name="date" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="high" type="numeric(9, 3)"/>
+            <column name="low" type="numeric(9, 3)"/>
+            <column name="open" type="numeric(9, 3)"/>
+            <column name="price" type="numeric(9, 3)"/>
+            <column name="serial_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="symbol" type="VARCHAR(255)"/>
+            <column name="volume" type="INTEGER"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-13">
+        <createTable tableName="fin_transaction">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_transactionPK"/>
+            </column>
+            <column name="account_id" type="VARCHAR(255)"/>
+            <column name="amount" type="numeric(19, 2)"/>
+            <column name="amount_base" type="numeric(19, 2)"/>
+            <column name="cleared" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency_code" type="VARCHAR(255)"/>
+            <column name="date" type="date"/>
+            <column name="dividend_ex_date" type="date"/>
+            <column name="dividend_franked_amount" type="numeric(19, 2)"/>
+            <column name="dividend_franking_credits" type="numeric(19, 2)"/>
+            <column name="dividendtfnwithholding_amount" type="numeric(19, 2)"/>
+            <column name="dividend_unfranked_amount" type="numeric(19, 2)"/>
+            <column name="investment" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="investment_activity_type" type="INTEGER"/>
+            <column name="master_guid" type="VARCHAR(255)"/>
+            <column name="memo" type="VARCHAR(255)"/>
+            <column name="number" type="INTEGER"/>
+            <column name="parent_id" type="UUID"/>
+            <column name="payee_id" type="VARCHAR(255)"/>
+            <column name="payee_name" type="VARCHAR(255)"/>
+            <column name="price" type="FLOAT8"/>
+            <column name="quantity" type="FLOAT8"/>
+            <column name="rate_to_base" type="FLOAT8"/>
+            <column name="reconciled" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recurring" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="security_id" type="VARCHAR(255)"/>
+            <column name="serial_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="source_payee_id" type="INTEGER"/>
+            <column name="split_child" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="split_parent" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statement_id" type="VARCHAR(255)"/>
+            <column name="status_flag" type="INTEGER"/>
+            <column name="transfer" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transfer_to" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transferred_account_id" type="VARCHAR(255)"/>
+            <column name="user_guid" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="voided" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category_id" type="UUID"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-14">
+        <createTable tableName="fin_user_security">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_user_securityPK"/>
+            </column>
+            <column name="comment" type="VARCHAR(255)"/>
+            <column name="currency_code" type="VARCHAR(255)"/>
+            <column name="events_valid" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="master_guid" type="VARCHAR(255)"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="serial_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="symbol" type="VARCHAR(255)"/>
+            <column name="type" type="INTEGER"/>
+            <column name="user_guid" type="VARCHAR(255)"/>
+            <column name="parent_id" type="UUID"/>
+            <column name="known_symbol" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-15">
+        <createTable tableName="glb_source">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="glb_sourcePK"/>
+            </column>
+            <column name="last_sync_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="last_update_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="type_id" type="INTEGER"/>
+            <column name="type_name" type="VARCHAR(255)"/>
+            <column name="user_guid" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-16">
+        <createTable tableName="glb_source_link">
+            <column autoIncrement="true" name="id" type="BIGINT">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="glb_source_linkPK"/>
+            </column>
+            <column name="local_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="master" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="original_info1" type="VARCHAR(255)"/>
+            <column name="source_entity" type="VARCHAR(255)"/>
+            <column name="source_guid" type="VARCHAR(255)"/>
+            <column name="source_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_type_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_guid" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-17">
         <createTable tableName="jhi_authority">
-            <column name="name" type="varchar(50)">
-                <constraints primaryKey="true" nullable="false"/>
+            <column name="name" type="VARCHAR(50)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="jhi_authorityPK"/>
             </column>
         </createTable>
-
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-18">
+        <createTable tableName="jhi_user">
+            <column autoIncrement="true" name="id" type="BIGINT">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="jhi_userPK"/>
+            </column>
+            <column name="created_by" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="last_modified_by" type="VARCHAR(50)"/>
+            <column name="last_modified_date" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="activated" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="activation_key" type="VARCHAR(20)"/>
+            <column name="email" type="VARCHAR(254)"/>
+            <column name="first_name" type="VARCHAR(50)"/>
+            <column name="guid" type="UUID"/>
+            <column name="image_url" type="VARCHAR(256)"/>
+            <column name="lang_key" type="VARCHAR(10)"/>
+            <column name="last_name" type="VARCHAR(50)"/>
+            <column name="local_currency" type="VARCHAR(3)"/>
+            <column name="login" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="password_hash" type="VARCHAR(60)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reset_date" type="TIMESTAMP WITHOUT TIME ZONE"/>
+            <column name="reset_key" type="VARCHAR(20)"/>
+        </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-19">
         <createTable tableName="jhi_user_authority">
-            <column name="user_id" type="bigint">
+                       <column name="user_id" type="bigint">
                 <constraints nullable="false"/>
             </column>
             <column name="authority_name" type="varchar(50)">
@@ -79,13 +403,6 @@
                                 columnDataType="varchar(60)"
                                 tableName="jhi_user"/>
         <loadData
-                  file="config/liquibase/data/authority.csv"
-                  separator=";"
-                  tableName="jhi_authority"
-                  usePreparedStatements="true">
-            <column name="name" type="string"/>
-        </loadData>
-        <loadData
                   file="config/liquibase/data/user.csv"
                   separator=";"
                   tableName="jhi_user"
@@ -94,6 +411,14 @@
             <column name="activated" type="boolean"/>
             <column name="created_date" type="timestamp"/>
         </loadData>
+        <dropDefaultValue tableName="jhi_user" columnName="created_date" columnDataType="${datetimeType}"/>
+        <loadData
+                  file="config/liquibase/data/authority.csv"
+                  separator=";"
+                  tableName="jhi_authority"
+                  usePreparedStatements="true">
+            <column name="name" type="string"/>
+        </loadData>
         <loadData
                   file="config/liquibase/data/user_authority.csv"
                   separator=";"
@@ -101,7 +426,6 @@
                   usePreparedStatements="true">
             <column name="user_id" type="numeric"/>
         </loadData>
-        <dropDefaultValue tableName="jhi_user" columnName="created_date" columnDataType="${datetimeType}"/>
     </changeSet>
 
     <changeSet author="jhipster" id="00000000000002" context="test">
@@ -117,5 +441,127 @@
             <column name="offset_time" type="time"/>
             <column name="local_date" type="date"/>
         </createTable>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-20">
+        <addUniqueConstraint columnNames="iso_code" constraintName="UC_FIN_CURRENCYISO_CODE_COL" tableName="fin_currency"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-21">
+        <addUniqueConstraint columnNames="master_guid" constraintName="UC_FIN_CURRENCYMASTER_GUID_COL" tableName="fin_currency"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-22">
+        <addUniqueConstraint columnNames="master_guid" constraintName="UC_FIN_PAYEEMASTER_GUID_COL" tableName="fin_payee"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-23">
+        <addUniqueConstraint columnNames="symbol" constraintName="UC_FIN_SECURITY_DETAILSSYMBOL_COL" tableName="fin_security_details"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-24">
+        <addUniqueConstraint columnNames="master_guid" constraintName="UC_FIN_TRANSACTIONMASTER_GUID_COL" tableName="fin_transaction"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-25">
+        <addUniqueConstraint columnNames="master_guid" constraintName="UC_FIN_USER_SECURITYMASTER_GUID_COL" tableName="fin_user_security"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-26">
+        <addUniqueConstraint columnNames="email" constraintName="UC_JHI_USEREMAIL_COL" tableName="jhi_user"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-27">
+        <addUniqueConstraint columnNames="guid" constraintName="UC_JHI_USERGUID_COL" tableName="jhi_user"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-28">
+        <addUniqueConstraint columnNames="login" constraintName="UC_JHI_USERLOGIN_COL" tableName="jhi_user"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-29">
+        <addUniqueConstraint columnNames="date, symbol" constraintName="UK3exd1d0gds5p3eo1n4jt0g4mh" tableName="fin_security_price"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-30">
+        <addUniqueConstraint columnNames="symbol" constraintName="UK_6l28n60eu5xt8nwdn95iybev1" tableName="fin_security"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-31">
+        <addUniqueConstraint columnNames="user_guid, source_type_id, source_guid, local_id" constraintName="UKjo9hsfqgv10y8tfophd2ftdpf" tableName="glb_source_link"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-32">
+        <addUniqueConstraint columnNames="date, from_iso_code, to_iso_code" constraintName="UKqlx4ncx09840ny5y8fnacm5dg" tableName="fin_fx"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-33">
+        <createIndex indexName="IDX11lx3wn3hv8t91b1sqacn6nkq" tableName="glb_source_link">
+            <column name="source_type_id"/>
+        </createIndex>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-34">
+        <createIndex indexName="IDX4mugxq7i953hy1pnjrx7csgm" tableName="glb_source_link">
+            <column name="local_id"/>
+        </createIndex>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-35">
+        <createIndex indexName="IDX6fcf97970uvh4vvx13n4ir7fw" tableName="glb_source_link">
+            <column name="source_entity"/>
+        </createIndex>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-36">
+        <createIndex indexName="IDXcxka1ire1b9wl5n6qbhbbd5t5" tableName="glb_source_link">
+            <column name="source_id"/>
+        </createIndex>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-37">
+        <createIndex indexName="IDXgo3eionakdxs80c1jo5rpphkd" tableName="glb_source">
+            <column name="user_guid"/>
+        </createIndex>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-38">
+        <createIndex indexName="IDXr2b650v8o0oqj5q6vqqudyems" tableName="glb_source_link">
+            <column name="user_guid"/>
+        </createIndex>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-39">
+        <createIndex indexName="IDXthh7ayrxvjbv3d098iv5uwm6r" tableName="fin_payee">
+            <column name="user_guid"/>
+        </createIndex>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-40">
+        <addForeignKeyConstraint baseColumnNames="user_id" baseTableName="jhi_user_authority" constraintName="FK290okww5jujghp4el5i7mgwu0" deferrable="false" initiallyDeferred="false" referencedColumnNames="id" referencedTableName="jhi_user" validate="true"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-41">
+        <addForeignKeyConstraint baseColumnNames="authority_name" baseTableName="jhi_user_authority" constraintName="FK4psxl0jtx6nr7rhqbynr6itoc" deferrable="false" initiallyDeferred="false" referencedColumnNames="name" referencedTableName="jhi_authority" validate="true"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-42">
+        <addForeignKeyConstraint baseColumnNames="parent_id" baseTableName="fin_user_security" constraintName="FKerilufxcx8961no1vbvryr49a" deferrable="false" initiallyDeferred="false" referencedColumnNames="id" referencedTableName="fin_user_security" validate="true"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-43">
+        <addForeignKeyConstraint baseColumnNames="category_id" baseTableName="fin_transaction" constraintName="FKn9toxo6tndhd1ovhtr92ndfiy" deferrable="false" initiallyDeferred="false" referencedColumnNames="id" referencedTableName="fin_category" validate="true"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-44">
+        <addForeignKeyConstraint baseColumnNames="parent_category_id" baseTableName="fin_category" constraintName="FKnbkx96u5lswfbxeuron94xf4g" deferrable="false" initiallyDeferred="false" referencedColumnNames="id" referencedTableName="fin_category" validate="true"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-45">
+        <addForeignKeyConstraint baseColumnNames="institution_id" baseTableName="fin_account" constraintName="FKoeeb0n1r09teexxuthjxmjv7d" deferrable="false" initiallyDeferred="false" referencedColumnNames="id" referencedTableName="fin_institution" validate="true"/>
+    </changeSet>
+    <changeSet author="justin (generated)" id="1709369667173-46">
+        <addForeignKeyConstraint baseColumnNames="known_symbol" baseTableName="fin_user_security" constraintName="FKt6vsh061pn2pclk32kijqiv1g" deferrable="false" initiallyDeferred="false" referencedColumnNames="symbol" referencedTableName="fin_security" validate="true"/>
+    </changeSet>
+    <changeSet author="justin.kilimnik (generated)" id="1657946012785-40">  
+        <loadData
+                  file="config/liquibase/data/fin_currency.csv"
+                  separator=","
+                  tableName="fin_currency"
+                  usePreparedStatements="true">
+            <column name="id" type="UUID"/>
+        </loadData>
+    </changeSet>
+    <changeSet author="justin.kilimnik (generated)" id="1657996012785-41">  
+        <loadData
+                  file="config/liquibase/data/fin_exchange.csv"
+                  separator=","
+                  tableName="fin_exchange"
+                  usePreparedStatements="true">
+            <column name="id" type="UUID"/>
+        </loadData>
+    </changeSet>
+    <changeSet author="justin.kilimnik (generated)" id="1657096012785-42">  
+        <loadData
+                  file="config/liquibase/data/fin_security.csv"
+                  separator=","
+                  tableName="fin_security"
+                  usePreparedStatements="true">
+            <column name="id" type="UUID"/>
+        </loadData>
     </changeSet>
 </databaseChangeLog>

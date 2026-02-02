@@ -147,12 +147,18 @@ dependencies {
         }
     }
     implementation "org.springframework.boot:spring-boot-starter-validation"
+    implementation "org.springframework.boot:spring-boot-starter-webflux"
     implementation "org.springframework.boot:spring-boot-starter-web"
     testImplementation "org.springframework.boot:spring-boot-test"
+    implementation "org.springframework.data:spring-data-commons"
     testImplementation "org.springframework.security:spring-security-test"
+    implementation(libs.commons.beanutils) {
+        exclude group: 'commons-logging', module: 'commons-logging'
+    }
     implementation libs.jhipster.framework
-    implementation libs.springdoc.openapi.starter.webmvc.api
+    implementation libs.springdoc.openapi.starter.webflux.api
     implementation "org.springframework.boot:spring-boot-starter-data-jpa"
+    implementation "org.springframework.boot:spring-boot-starter-websocket"
     implementation "org.springframework.security:spring-security-data"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-hibernate6"
     implementation "com.fasterxml.jackson.module:jackson-module-jaxb-annotations"
@@ -168,6 +174,24 @@ dependencies {
     annotationProcessor "org.hibernate.orm:hibernate-jpamodelgen"
     developmentOnly "org.springframework.boot:spring-boot-docker-compose"
     // jhipster-needle-gradle-dependency - JHipster will add additional dependencies here
+    implementation "org.springframework.security:spring-security-messaging"
+    implementation 'org.zalando:problem-spring-web:0.29.1'
+    implementation("io.projectreactor:reactor-core:3.7.15")
+
+    // Sunrise: START
+    implementation "com.healthmarketscience.jackcess:jackcess:1.2.14.3"
+    implementation "com.healthmarketscience.jackcess:jackcess-encrypt:1.0.4"
+    // Maybe Below
+    implementation "com.fifesoft:rsyntaxtextarea:2.0.2"
+    implementation "org.jdesktop:beansbinding:1.2.1"
+    implementation "org.python:jython:2.5.3"
+    implementation "net.sourceforge.javacsv:javacsv:2.0"
+    implementation "com.google.guava:guava:13.0"
+    implementation "org.apache.poi:poi:3.7"
+    implementation "net.java.dev.jna:jna:3.4.0"
+    implementation "net.java.dev.jna:platform:3.4.0"
+    implementation "com.jgoodies:forms:1.2.1"
+    // Sunrise: END
 }
 
 task cleanResources(type: Delete) {

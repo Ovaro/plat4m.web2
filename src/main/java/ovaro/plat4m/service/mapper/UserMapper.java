@@ -21,7 +21,7 @@ import ovaro.plat4m.service.dto.UserDTO;
 public class UserMapper {
 
     public List<UserDTO> usersToUserDTOs(List<User> users) {
-        return users.stream().filter(Objects::nonNull).map(this::userToUserDTO).toList();
+        return users.stream().filter(Objects::nonNull).map(this::userToUserDTO).collect(Collectors.toList());
     }
 
     public UserDTO userToUserDTO(User user) {
@@ -29,7 +29,7 @@ public class UserMapper {
     }
 
     public List<AdminUserDTO> usersToAdminUserDTOs(List<User> users) {
-        return users.stream().filter(Objects::nonNull).map(this::userToAdminUserDTO).toList();
+        return users.stream().filter(Objects::nonNull).map(this::userToAdminUserDTO).collect(Collectors.toList());
     }
 
     public AdminUserDTO userToAdminUserDTO(User user) {
@@ -37,7 +37,7 @@ public class UserMapper {
     }
 
     public List<User> userDTOsToUsers(List<AdminUserDTO> userDTOs) {
-        return userDTOs.stream().filter(Objects::nonNull).map(this::userDTOToUser).toList();
+        return userDTOs.stream().filter(Objects::nonNull).map(this::userDTOToUser).collect(Collectors.toList());
     }
 
     public User userDTOToUser(AdminUserDTO userDTO) {
@@ -51,10 +51,6 @@ public class UserMapper {
             user.setLastName(userDTO.getLastName());
             user.setEmail(userDTO.getEmail());
             user.setImageUrl(userDTO.getImageUrl());
-            user.setCreatedBy(userDTO.getCreatedBy());
-            user.setCreatedDate(userDTO.getCreatedDate());
-            user.setLastModifiedBy(userDTO.getLastModifiedBy());
-            user.setLastModifiedDate(userDTO.getLastModifiedDate());
             user.setActivated(userDTO.isActivated());
             user.setLangKey(userDTO.getLangKey());
             Set<Authority> authorities = this.authoritiesFromStrings(userDTO.getAuthorities());
