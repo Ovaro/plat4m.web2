@@ -2,7 +2,7 @@
 name: plat4m
 services:
   postgresql:
-    image: postgres:17.4
+    image: postgres:18.1
     # volumes:
     #   - ~/volumes/jhipster/plat4m/postgresql/:/var/lib/postgresql/data/
     environment:
