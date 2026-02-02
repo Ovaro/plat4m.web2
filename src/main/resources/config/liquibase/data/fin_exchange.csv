@@ -1,0 +1,26 @@
+﻿id,short_name,name,mic,country_name,suffix,country_code,currency_code,timezone
+02043347-ab17-4e76-9693-a184d1539f6e,ASX,Australian Stock Exchange,XASX,Australia,AX,AU,AUD,Australia/Sydney
+051ad38e-fa32-4040-95f0-31953a8af504,BSE,Bombay Stock Exchange,XBOM,India,BO,IN,INR,Asia/Kolkata
+0874586e-a71a-4b22-984c-40a2222aec3a,BIST,Borsa İstanbul,XIST,Turkey,IS,TR,TRY,Europe/Istanbul
+19f59f33-07db-4610-86a4-4eb2e05f231b,BCBA,Buenos Aires Stock Exchange,XBUE,Argentina,BA,AR,ARS,America/Argentina/Buenos_Aires
+1efd7bc4-31ff-4f9c-a258-00aaf9fcb773,Euronext,Euronext Brussels,XBRU,Belgium,BR,BE,EUR,Europe/Brussels
+24e987b7-97c2-42fa-825a-94f7b408e973,Euronext,Euronext Paris Exchange,XPAR,France,PA,FR,EUR,Europe/Paris
+2691e392-a8ce-47e9-aae6-1b0d2e89bb65,FSX,Frankfurt Stock Exchange,XFRA,Germany,F,DE,EUR,Europe/Berlin
+274529ef-9362-419d-96f2-859a5cbd823d,HKEX,Hong Kong Stock Exchange,XHKG,Hong Kong,HK,HK,HKD,Asia/Hong_Kong
+2999d2b6-416f-40d3-822c-56b1d892d86a,NSE,India National Stock Exchange,XNSE,India,NS,IN,INR,Asia/Kolkata
+2c6fe80d-326e-4bdd-a05e-0e8883aeef04,JSE,Johannesburg Stock Exchange,XJSE,South Africa,JO,ZA,ZAR,Africa/Johannesburg
+31929d69-60dc-4a56-9c5c-d0fca6ea7a3f,LSE,London Stock Exchange,XLON,United Kingdom,L,GB,GBP,Europe/London
+32d5e432-c477-4ad9-ab58-d76b933eaba0,MOEX,Moscow Exchange,MISX,Russia,ME,RU,RUB,Europe/Moscow
+34d0aca0-8f0f-4435-9416-50b0be4d1000,NASDAQ,NASDAQ,XNAS,United States,,US,USD,America/New_York
+38e55a92-4beb-4c29-ba03-673b8a5ec807,NYSE,New York Stock Exchange,XNYS,United States,,US,USD,America/New_York
+3e741515-beff-49f6-bf95-f611656d0270,NZX,New Zealand Stock Exchange,XNZE,New Zealand,NZ,NZ,NZD,Pacific/Auckland
+465317af-5490-4f01-80a9-d71750973209,Bovespa,Sao Paolo Stock Exchange,BVMF,Brazil,SA,BR,BRL,America/Paramaribo
+4f6a6545-eeec-4e02-bea9-df8419d86f58,Tadawul,Saudi Stock Exchange,XSAU,Saudi Arabia,SAU,SA,SAR,Asia/Riyadh
+6076c642-2801-48da-be7d-00dec852f613,SSE,Shanghai Stock Exchange,XSHG,China,SS,CN,CNY,Asia/Shanghai
+6ff8b879-7164-43de-93fe-1c72f4fb45fd,SZSE,Shenzhen Stock Exchange,XSHE,China,SZ,CN,CNY,Asia/Shanghai
+8bc12e9f-25f3-4ca8-908d-cffc141f390b,SGX,Singapore Stock Exchange,XSES,Singapore,SI,SG,SGD,Asia/Singapore
+8e3cfe47-0721-4c27-8c25-b294d3eeffd1,SIX,Swiss Stock Exchange,XSWX,Switzerland,SW,CH,CHF,Europe/Zurich
+8e655bfa-76b0-4bc1-8c2f-1835dbf9070b,TWSE,Taiwan Stock Exchange,XTAI,Taiwan,TW,TW,TWD,Asia/Taipei
+90f0084b-0ae2-4618-b287-0af26dbbb19b,JPX,Tokyo Stock Exchange,XJPX,Japan,T,JP,JPY,Asia/Tokyo
+9f54bc8e-ee9a-4619-85a5-6a6bc8feacad,TSX,Toronto Stock Exchange,XTSE,Canada,TO,CA,CAD,America/Toronto
+a06677ec-c381-4a1a-b866-2d587186d876,VSE,Vienna Stock Exchange,XWBO,Austria,VI,AT,EUR,Europe/Vienna

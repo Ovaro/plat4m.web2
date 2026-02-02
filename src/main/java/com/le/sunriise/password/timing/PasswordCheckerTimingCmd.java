@@ -1,0 +1,84 @@
+/*******************************************************************************
+ * Copyright (c) 2012 Hung Le
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
+ * USA
+ *******************************************************************************/
+package com.le.sunriise.password.timing;
+
+import com.le.sunriise.StopWatch;
+import com.le.sunriise.header.HeaderPage;
+import com.le.sunriise.password.HeaderPagePasswordChecker;
+import java.io.File;
+import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class PasswordCheckerTimingCmd {
+
+    private static final Logger log = LoggerFactory.getLogger(PasswordCheckerTimingCmd.class);
+
+    private static final int DEFAULT_MAX_ITERATIONS = 10000000;
+
+    private static final String DEFAULT_MNY_FILENAME = "src/test/data/sunset-sample-pwd.mny";
+
+    private static final String DEFAULT_PASSWORD = "123qwe!@";
+
+    /**
+     *
+     * @param args
+     */
+    public static void main(String[] args) {
+        String mnyFileName = "src/test/data/sunset-sample-pwd.mny";
+        int maxCount = 10000000;
+        String password = "123qwe!@";
+
+        doTiming(mnyFileName, password, maxCount);
+    }
+
+    public static long doTiming(int maxIteration) {
+        return doTiming(DEFAULT_MNY_FILENAME, DEFAULT_PASSWORD, maxIteration);
+    }
+
+    public static long doTiming(String mnyFileName, String password, int maxIteration) {
+        long delta = 0L;
+        HeaderPagePasswordChecker checker = null;
+        try {
+            log.info("> START");
+            File dbFile = new File(mnyFileName);
+            HeaderPage headerPage = new HeaderPage(dbFile);
+            checker = new HeaderPagePasswordChecker(headerPage);
+            int max = maxIteration;
+            StopWatch stopWatch = new StopWatch();
+            try {
+                for (int i = 0; i < max; i++) {
+                    checker.check(password);
+                }
+            } finally {
+                delta = stopWatch.click();
+                log.info("delta=" + delta);
+                log.info("    rate=" + (max / (delta / 1000)) + "/sec");
+            }
+        } catch (IOException e) {
+            log.error("" + e, e);
+        } finally {
+            if (checker != null) {
+                checker = null;
+            }
+            log.info("< END");
+        }
+        return delta;
+    }
+}

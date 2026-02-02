@@ -1,0 +1,15 @@
+id,active,capitalization_class,country,currency_code,exchange_mic,exchange_name,exchange_suffix,industry,name,sector,serial_date_time,short_name,symbol,type
+089fbadd-f609-4512-92de-910d97fb1632,TRUE,,Australia,AUD,XASX,ASX,AX,REIT—Retail,Shopping Centres Australasia Property Group,Real Estate,,,SCP,1
+9d8082bd-e904-4d48-bc18-c26b7a5f4289,FALSE,,Australia,AUD,,ASX,,Airlines,Virgin Australia Holdings,Industrials,,,VHA,1
+30b3c549-a94e-494e-83b1-18cd26c5a899,TRUE,,Australia,AUD,XASX,ASX,AX,Insurance—Diversified,Medibank Pvt Ltd,Financial Services,,,MPL,1
+116d5a63-1810-40da-99b7-0f4f61aea426,TRUE,,Australia,AUD,XASX,ASX,AX,Personal Services,InvoCare Ltd,Consumer Cyclical,,,IVC,1
+15e8515e-6551-461d-b8d9-6169ccc51457,TRUE,,Australia,AUD,XASX,ASX,AX,Insurance—Property & Casualty,QBE Insurance Group Ltd,Financial Services,,,QBE,1
+c67c8586-4324-4e64-ae0a-b4280c437c62,TRUE,,Australia,AUD,XASX,ASX,AX,Other Industrial Metals & Mining,Pilbara Minerals Ltd,Basic Materials,,,PLS,1
+51db9afb-2061-45a3-a59e-ea59d0f7bae9,TRUE,,Australia,AUD,XASX,ASX,AX,Banks—Diversified,Australia & New Zealand Banking Group Ltd,Financial Services,,,ANZ,1
+ee79b580-b319-42e3-8368-e07c1418a0ac,TRUE,,Australia,AUD,XASX,ASX,AX,Beverages—Wineries & Distilleries,Endeavour Group Limited,Consumer Defensive,,,EDV,1
+5413abe5-47c4-4c86-84ae-33a801a225dd,TRUE,,Australia,AUD,XASX,ASX,AX,Internet Retail,Adore Beauty Group Limited,Consumer Cyclical,,,ABY,1
+ae10aeaa-2a08-4c14-bfa7-f568b34d4c8b,TRUE,,United States,USD,XNYS,NYSE,,Information Technology Services,"Kyndryl Holdings, Inc.",Technology,,,KD,1
+51086b6c-e302-4fe0-8915-fb38015d4eaf,TRUE,,Australia,AUD,XASX,ASX,AX,Misc,Vanguard Australian Shares Index ETF,ETF,,,VAS,11
+0354881f-30ec-4d69-b5b6-4811f0067163,TRUE,,Australia,AUD,XASX,ASX,AX,Other Industrial Metals & Mining,BHP Group Ltd,Basic Materials,,,BHP,1
+8d697a79-1b42-4dcc-aa24-a63fb0befc6b,TRUE,,Australia,AUD,XASX,ASX,AX,Retail & Wholesale - Staples,Woolworths Group Ltd,Consumer Defensive,,,WOW,1
+829f086c-93f4-434b-a194-32e152a95d4d,TRUE,,United States,USD,XNYS,NYSE,,Information Technology Services,International Business Machines Corp,Technology,,,IBM,1
