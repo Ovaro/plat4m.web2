@@ -1,0 +1,53 @@
+.nav-pane-button {
+  flex: 0 0 auto;
+  outline: none;
+}
+// .nav-pane-button.active {
+//   background: #fff;
+//   border-color: #fff;
+// }
+
+.nav-pane-button button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  display: flex;
+  height: 40px;
+  padding: 0;
+  color: inherit !important;
+  outline: none;
+}
+
+.nav-pane-button:hover {
+  background-color: var(--ps-colors-background-utility-30) !important;
+}
+
+button.active .selectionPill {
+  visibility: visible;
+}
+
+button .selectionPill {
+  background: var(--app-colours-primary);
+  border-radius: 2px;
+  flex: 0 0 auto;
+  height: 24px;
+  visibility: hidden;
+  width: 4px;
+  margin-left: 4px;
+  margin-right: 10px;
+}
+
+.nav-pane-button.active .selectionPill {
+  visibility: visible;
+}
+
+.nav-pane-button-name {
+  margin: 0 0 0 1em;
+  font-weight: 300;
+  font-size: var(--app-font-size-small);
+}
+
+.nav-pane-button mat-icon {
+  margin-left: 0;
+  margin-right: 0;
+}

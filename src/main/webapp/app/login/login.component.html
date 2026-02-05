@@ -1,57 +1,319 @@
-<div>
-  <div class="d-flex justify-content-center">
-    <div class="col-lg-6 col-md-8 col-sm-10">
-      <h1 data-cy="loginTitle" jhiTranslate="login.title">Sign in</h1>
-      @if (authenticationError()) {
-        <div class="alert alert-danger" data-cy="loginError" jhiTranslate="login.messages.error.authentication">
-          <strong>Failed to sign in!</strong> Please check your credentials and try again.
-        </div>
-      }
-      <form class="form" (ngSubmit)="login()" [formGroup]="loginForm">
-        <div class="mb-3">
-          <label class="username-label" for="username" jhiTranslate="global.form.username.label">Username</label>
-          <input
-            type="text"
-            class="form-control"
-            name="username"
-            id="username"
-            placeholder="{{ 'global.form.username.placeholder' | translate }}"
-            formControlName="username"
-            data-cy="username"
-          />
-        </div>
+<div class="AppLoginContainer" [ngClass]="'AppLoginContainer-' + [theme]">
+  <div class="AppLogin">
+    <div class="AppLoginMain" [ngClass]="'AppLoginMain-' + [theme]">
+      <!-- <div class="AppLoginMain__section AppLoginMain__section--slideshow">
+                <div class="AppLoginSlideshow">
+                    <div role="tablist" class="TabsReplacerContainer">
+                        <div role="tabpanel" aria-hidden="true" aria-labelledby="Tab 0" class="TabsTab" style="width: calc(25%);"></div>
+                        <div role="tabpanel" aria-hidden="true" aria-labelledby="Tab 1" class="TabsTab" style="width: calc(25%);"></div>
+                        <div role="tabpanel" aria-hidden="false" aria-labelledby="Tab 2" class="TabsTab TabsTab--active" style="width: calc(25%);">
+                            <div class="AppLoginCenteredLogo">
+                                <img src="/content/images/XXXX-Logo-Large.png" height="384" width="384">
+                            </div>
+                        </div>
+                        <div role="tabpanel" aria-hidden="true" aria-labelledby="Tab 3" class="TabsTab" style="width: calc(25%);"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="AppLoginMain__section AppLoginMain__section--separator"></div> -->
+      <div class="AppLoginMain__section AppLoginMain__section--login">
+        <div role="tablist" class="TabsReplacerContainer TabsReplacerContainer--isFullHeight">
+          <div class="TabsReplacerContainer__tabsHeight TabsReplacerContainer__tabsHeight--isFullHeight">
+            <div
+              class="TabsReplacerContainer__tabs TabsReplacerContainer__tabs--isFullHeight"
+              style="width: 300%; transform: translateX(calc(0%))"
+            >
+              <div
+                role="tabpanel"
+                aria-hidden="false"
+                aria-labelledby="Tab TabMain"
+                class="TabsTab TabsTab--active TabsTab--fullHeight"
+                style="width: calc(33.3333%)"
+              >
+                <div class="AppLoginMainTabMain__aligner">
+                  <!-- <div class="AppLoginCenteredLogoTop">
+                                                <img src="/content/images/XXXX-Logo-Large.png"  height="64" width="64">
+                                            </div> -->
+                  <div class="AppLoginMainTabHeader m-b" *ngIf="forgotPasswordMode">
+                    <button
+                      aria-label="back"
+                      class="AppLoginMainTabHeader__backButton AppLoginMainTabHeader__backButtonSize"
+                      type="button"
+                      (click)="processBack()"
+                    >
+                      <svg width="20" height="20" viewBox="-2 -2 20 20">
+                        <path fill="currentColor" d="M16 7H3.8l5.6-5.6L8 0 0 8l8 8 1.4-1.4L3.8 9H16z"></path>
+                      </svg>
+                    </button>
+                    <div class="AppLoginMainTabHeader__titleContainer">
+                      <div class="AppLoginMainTabHeader__title">{{ formTitle }}</div>
+                    </div>
+                  </div>
+                  <h3 *ngIf="!forgotPasswordMode" class="AppLoginMainTabMain__signInTitle">{{ formTitle }}</h3>
+                  <div class="Compressable" [ngClass]="{ ZeroHeight: checkedEmail }">
+                    <div class="AppLoginMainTabMain__loginButtonsContainer" [hidden]="">
+                      <div class="row">
+                        <!--
+                                                <div class="col-md-4">
+                                                    <jhi-social provider="google"></jhi-social>
+                                                </div>
+                                                <div class="col-md-4">
+                                                        <jhi-social provider="twitter"></jhi-social>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <jhi-social provider="linkedin"></jhi-social>
+                                                </div>
+                                                -->
+                      </div>
+                    </div>
+                    <div [hidden]="">
+                      <div class="AppLoginMainTabMain__loginEmailHeader text-center">
+                        <small>Enter your email address to either sign up or login</small>
+                      </div>
+                    </div>
+                  </div>
 
-        <div class="mb-3">
-          <label for="password" jhiTranslate="login.form.password">Password</label>
-          <input
-            type="password"
-            class="form-control"
-            name="password"
-            id="password"
-            placeholder="{{ 'login.form.password.placeholder' | translate }}"
-            formControlName="password"
-            data-cy="password"
-          />
+                  <form class="form" role="form" (ngSubmit)="login()" *ngIf="!forgotPasswordMode">
+                    <div>
+                      <div
+                        class="TextField TextField--login form-group"
+                        [ngClass]="{
+                          'TextField--focus': emailFocus,
+                          'TextField-light': theme === 'light',
+                          'TextField-dark': theme === 'dark',
+                        }"
+                      >
+                        <input
+                          type="text"
+                          autocapitalize="none"
+                          class="TextField__input TextField__input--login fs-hide"
+                          [ngClass]="'TextField__input-' + [theme]"
+                          name="username"
+                          id="username"
+                          placeholder="your@domain.com"
+                          autofocus
+                          (input)="onEmailChange()"
+                          (focus)="emailFocus = true"
+                          (focusout)="emailFocus = false"
+                          [(ngModel)]="username"
+                          style="text-transform: lowercase"
+                        />
+                        <button
+                          id="signin-email"
+                          [disabled]="!validEmail"
+                          [hidden]="checkedEmail || checkingEmail"
+                          class="AppLoginMain__emailIconButton"
+                          type="submit"
+                        >
+                          <svg width="20" height="20" viewBox="-2 -2 20 20">
+                            <path fill="currentColor" d="M0 9h12.2l-5.6 5.6L8 16l8-8-8-8-1.4 1.4L12.2 7H0z"></path>
+                          </svg>
+                        </button>
+                        <span [hidden]="!checkedEmail || (checkedEmail && !userFound)" class="AppLoginMain__checkmarkIcon"
+                          ><svg width="20" height="20" viewBox="0 -2 20 20">
+                            <path
+                              fill="currentColor"
+                              d="M5.034 13.343l-4.89-4.89a.2.2 0 0 1 0-.284l1.765-1.766a.2.2 0 0 1 .284 0l4.89 4.89L17.826.55a.2.2 0 0 1 .284 0L19.858 2.3a.2.2 0 0 1 0 .283L6.991 15.45a.2.2 0 0 1-.284 0L4.96 13.7a.2.2 0 0 1 0-.283l.075-.075z"
+                            ></path></svg
+                        ></span>
+                        <fa-icon [icon]="'spinner'" [fixedWidth]="true" *ngIf="checkingEmail" [animation]="'spin'"></fa-icon>
+                      </div>
+
+                      <div
+                        class="TextField TextField--login form-group"
+                        *ngIf="checkedEmail && userFound"
+                        [ngClass]="{
+                          'TextField--focus': passwordFocus,
+                          'TextField-light': theme === 'light',
+                          'TextField-dark': theme === 'dark',
+                        }"
+                        style="transition: opacity 3s ease-out"
+                        [style.visibility]="!checkedEmail ? 'hidden' : 'visible'"
+                        [style.opacity]="!checkedEmail || (checkedEmail && !userFound) ? '0' : '1'"
+                      >
+                        <input
+                          type="password"
+                          class="TextField__input TextField__input--login"
+                          name="password"
+                          id="password"
+                          #passwordField
+                          placeholder="Password"
+                          (input)="onPasswordChange()"
+                          (focus)="passwordFocus = true"
+                          (focusout)="passwordFocus = false"
+                          [(ngModel)]="password"
+                        />
+                        <button
+                          id="signin"
+                          [disabled]="!validPassword"
+                          [hidden]="checkedPassword || checkingPassword"
+                          class="AppLoginMain__emailIconButton"
+                          type="submit"
+                        >
+                          <svg width="20" height="20" viewBox="-2 -2 20 20">
+                            <path fill="currentColor" d="M0 9h12.2l-5.6 5.6L8 16l8-8-8-8-1.4 1.4L12.2 7H0z"></path>
+                          </svg>
+                        </button>
+                        <fa-icon [icon]="'spinner'" [fixedWidth]="true" *ngIf="checkingPassword" [animation]="'spin'"></fa-icon>
+                      </div>
+                      <button
+                        *ngIf="checkedEmail && userFound"
+                        class="AppLoginExistingUser__forgotPasswordButton"
+                        type="button"
+                        (click)="forgotPassword()"
+                      >
+                        Forgot Password?
+                      </button>
+
+                      <div id="internal-error" class="AppLoginMain__errorText" [hidden]="!checkError">
+                        An error occurred. Please try again.
+                      </div>
+                      <div name="bad_password" class="AppLoginMain__errorText" [hidden]="!authenticationError">
+                        Password was incorrect. Please try again.
+                      </div>
+                    </div>
+                  </form>
+                  <form
+                    class="form"
+                    role="form"
+                    (ngSubmit)="register()"
+                    [hidden]="!checkedEmail || (checkedEmail && userFound) || forgotPasswordMode"
+                  >
+                    <div
+                      class="TextField TextField--login form-group"
+                      [ngClass]="{
+                        'TextField--focus': fullnameFocus,
+                        'TextField-light': theme === 'light',
+                        'TextField-dark': theme === 'dark',
+                      }"
+                    >
+                      <input
+                        type="text"
+                        class="TextField__input TextField__input--login"
+                        name="fullname"
+                        id="fullname"
+                        #fullnameField
+                        placeholder="Full Name"
+                        (input)="onFullnameChange()"
+                        (focus)="fullnameFocus = true"
+                        (focusout)="fullnameFocus = false"
+                        [(ngModel)]="fullname"
+                      />
+                    </div>
+                    <div class="AppLoginMain__errorText" *ngIf="nameError.length > 0">{{ nameError }}</div>
+                    <div
+                      class="TextField TextField--login form-group"
+                      [hidden]=""
+                      [ngClass]="{
+                        'TextField--focus': newPasswordFocus,
+                        'TextField-light': theme === 'light',
+                        'TextField-dark': theme === 'dark',
+                      }"
+                    >
+                      <input
+                        type="password"
+                        class="TextField__input TextField__input--login"
+                        name="newPassword"
+                        id="newPassword"
+                        #newPasswordField
+                        placeholder="Password"
+                        (focus)="newPasswordFocus = true"
+                        (focusout)="newPasswordFocus = false"
+                        [(ngModel)]="newPassword"
+                      />
+                    </div>
+                    <div
+                      class="TextField TextField--login form-group"
+                      [ngClass]="{
+                        'TextField--focus': betacodeFocus,
+                        'TextField-light': theme === 'light',
+                        'TextField-dark': theme === 'dark',
+                      }"
+                    >
+                      <input
+                        type="password"
+                        class="TextField__input TextField__input--login"
+                        name="betacode"
+                        id="betacode"
+                        #fullnameField
+                        placeholder="Beta Code"
+                        (focus)="betacodeFocus = true"
+                        (focusout)="betacodeFocus = false"
+                        [(ngModel)]="betacode"
+                      />
+                    </div>
+
+                    <div class="AppLoginMain__errorText m-b" [hidden]="!registrationError">{{ registrationError }}</div>
+                    <button
+                      [disabled]="registering || !isCreateAccountEnabled()"
+                      [hidden]="!checkedEmail || userFound"
+                      class="Button Button--login"
+                      type="submit"
+                    >
+                      Create Account <fa-icon [icon]="'spinner'" [fixedWidth]="true" *ngIf="registering" [animation]="'spin'"></fa-icon>
+                    </button>
+                  </form>
+                  <form class="form" role="form" (ngSubmit)="forgotPassword()" [hidden]="!forgotPasswordMode">
+                    <div
+                      class="TextField TextField--login form-group"
+                      [ngClass]="{
+                        'TextField--focus': forgotPasswordEmailFocus,
+                        'TextField-light': theme === 'light',
+                        'TextField-dark': theme === 'dark',
+                      }"
+                    >
+                      <input
+                        type="text"
+                        class="TextField__input TextField__input--login"
+                        name="forgotPasswordEmail"
+                        id="forgotPasswordEmail"
+                        #forgotPasswordEmailField
+                        placeholder="Enter your email address"
+                        (focus)="forgotPasswordEmailFocus = true"
+                        (focusout)="forgotPasswordEmailFocus = false"
+                        [(ngModel)]="forgotPasswordEmail"
+                      />
+                    </div>
+                    <div class="AppLoginMain__errorText" *ngIf="forgotPasswordError && forgotPasswordError.length > 0">
+                      {{ forgotPasswordError }}
+                    </div>
+
+                    <button
+                      [disabled]="!forgotPasswordEmail || !validateEmail(forgotPasswordEmail) || recoveryEmailSent"
+                      class="Button Button--login"
+                      type="submit"
+                    >
+                      Recover Password
+                    </button>
+                  </form>
+                  <div *ngIf="recoveryEmailSent" class="AppLoginForgotPassword__status AppLoginForgotPassword__status--success">
+                    Email was sent,<br />Please check your inbox.
+                  </div>
+                  <div class="AppLoginMainTabMain__bottomContainer">
+                    <div class="AppLoginMainTabMain__terms" [ngClass]="'AppLoginMainTabMain__terms-' + [theme]">
+                      By joining Plat4m you accept our
+                      <a
+                        href="https://www.example.com/#eula"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="AppLoginMainTabMain__terms__link"
+                        >Terms of Service</a
+                      >
+                      and
+                      <a
+                        href="https://www.example.com/#privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="AppLoginMainTabMain__terms__link"
+                        >Privacy Policy</a
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-
-        <div class="form-check">
-          <label class="form-check-label" for="rememberMe">
-            <input class="form-check-input" type="checkbox" name="rememberMe" id="rememberMe" formControlName="rememberMe" />
-            <span jhiTranslate="login.form.rememberme">Remember me</span>
-          </label>
-        </div>
-
-        <button type="submit" class="btn btn-primary" data-cy="submit" jhiTranslate="login.form.button">Sign in</button>
-      </form>
-      <div class="mt-3 alert alert-warning">
-        <a class="alert-link" routerLink="/account/reset/request" data-cy="forgetYourPasswordSelector" jhiTranslate="login.password.forgot"
-          >Did you forget your password?</a
-        >
-      </div>
-
-      <div class="alert alert-warning">
-        <span jhiTranslate="global.messages.info.register.noaccount">You don&apos;t have an account yet?</span>
-        <a class="alert-link" routerLink="/account/register" jhiTranslate="global.messages.info.register.link">Register a new account</a>
       </div>
     </div>
   </div>

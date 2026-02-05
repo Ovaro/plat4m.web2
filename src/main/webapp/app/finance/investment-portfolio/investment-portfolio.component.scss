@@ -1,0 +1,27 @@
+.grand-total-container {
+  padding-left: var(--ps-layout-spacing-medium);
+  padding-right: var(--ps-layout-spacing-medium);
+  margin-bottom: var(--ps-layout-spacing-medium);
+  margin-top: -10px;
+}
+
+.totals {
+  font-size: var(--ps-type-font-size-100);
+  font-weight: var(--ps-type-font-weight-strong);
+  text-transform: uppercase;
+}
+
+.vert-line {
+  margin-left: 10px;
+  border-right: 1px solid lightgray;
+  margin-right: 10px;
+}
+
+// .apexcharts-tooltip-marker {
+//     width: 12px;
+//     height: 12px;
+//     position: relative;
+//     top: 0;
+//     margin-right: 10px;
+//     border-radius: 50%;
+// }

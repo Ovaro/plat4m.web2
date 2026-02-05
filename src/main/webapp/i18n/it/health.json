@@ -25,7 +25,6 @@
     "status": {
       "UNKNOWN": "UNKNOWN",
       "UP": "DISPONIBILE",
-      "OUT_OF_SERVICE": "OUT_OF_SERVICE",
       "DOWN": "NON DISPONIBILE"
     }
   }

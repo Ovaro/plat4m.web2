@@ -9,6 +9,7 @@ export const UserRouteAccessService: CanActivateFn = (next: ActivatedRouteSnapsh
   const accountService = inject(AccountService);
   const router = inject(Router);
   const stateStorageService = inject(StateStorageService);
+
   return accountService.identity().pipe(
     map(account => {
       if (account) {
@@ -23,10 +24,29 @@ export const UserRouteAccessService: CanActivateFn = (next: ActivatedRouteSnapsh
         }
         router.navigate(['accessdenied']);
         return false;
+      } // OVARO MOD ::LOGIN:: START - handle not logged in
+      else {
+        // console.log('No account found');
+        if (state.url === '/') {
+          // No account but going to home... Redirect to public
+          // console.log('UserRouteAccessService::Redirecting to public....');
+          router.navigate(['/login'], { skipLocationChange: true });
+          return true;
+        }
       }
+      // OVARO MOD ::LOGIN:: END - handle not logged in
 
       stateStorageService.storeUrl(state.url);
-      router.navigate(['/login']);
+      // OVARO MOD ::LOGIN:: - handle not logged in (2)
+      router.navigate(['accessdenied']).then(() => {
+        // only show the login dialog, if the user hasn't logged in yet
+        // if (!account) {
+        //     this.loginModalService.open();
+        // }
+        router.navigate(['/'], { skipLocationChange: true });
+      });
+      // OVARO MOD ::LOGIN:: - handle not logged in (2)
+      //router.navigate(['/login']);
       return false;
     }),
   );

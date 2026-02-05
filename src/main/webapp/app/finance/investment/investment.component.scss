@@ -1,0 +1,24 @@
+.grand-total-container {
+  padding-left: var(--ps-layout-spacing-medium);
+  padding-right: var(--ps-layout-spacing-medium);
+  margin-bottom: var(--ps-layout-spacing-medium);
+  margin-top: -10px;
+}
+
+.totals {
+  font-size: var(--ps-type-font-size-100);
+  font-weight: var(--ps-type-font-weight-strong);
+  text-transform: uppercase;
+}
+
+.pc-return {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+// .theme-light .pc-return {
+//     border-left: 2px solid var(--app-colours-secondary-text-light);
+// }
+
+// .theme-dark .pc-return {
+//     border-left: 2px solid var(--app-colours-secondary-text-dark);
+// }

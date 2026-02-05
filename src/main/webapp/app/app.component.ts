@@ -9,12 +9,14 @@ import locale from '@angular/common/locales/en';
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
 import { fontAwesomeIcons } from './config/font-awesome-icons';
 import MainComponent from './layouts/main/main.component';
+import { FinanceModule } from 'finance/finance.module';
 
 @Component({
   selector: 'jhi-app',
   template: '<jhi-main />',
   imports: [
     MainComponent,
+    FinanceModule,
     // jhipster-needle-angular-add-module JHipster will add new module here
   ],
 })

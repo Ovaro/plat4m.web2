@@ -1,0 +1,81 @@
+<div class="standard-page-container">
+  <div class="">
+    <div class="row m-b">
+      <div class="col col-auto">
+        <h2 class="primary-breadcrumb" jhiTranslate="import.title">Import Data</h2>
+      </div>
+      <div class="col">
+        <p-select
+          [options]="allSources"
+          [(ngModel)]="selectedSourceId"
+          [filter]="false"
+          filterBy="name"
+          optionLabel="name"
+          optionValue="id"
+          (onChange)="onChangeType($event)"
+        ></p-select>
+      </div>
+    </div>
+
+    <div *ngIf="selectedSource" class="account-group">
+      <div class="account-group-header">{{ selectedSource.typeName }} has previously been imported</div>
+      <ul class="account-card-holder">
+        <li class="account-card">
+          <div style="flex-grow: 1">Last Sync Date</div>
+          <div style="flex-grow: 0">{{ selectedSource.lastSyncDateTime | date: 'medium' }}</div>
+        </li>
+      </ul>
+    </div>
+    <div class="alert alert-success" *ngIf="success && finalStatus && finalStatus.importFinished">
+      <strong>File Imported!</strong>
+    </div>
+
+    <jhi-alert-error></jhi-alert-error>
+
+    <file-upload
+      [control]="fileUploadControl"
+      [multiple]="false"
+      *ngIf="!isUploading && !(statuses.length > 0 && !finalStatus)"
+      class="m-t file-upload"
+    ></file-upload>
+
+    <button class="p-button m-t" (click)="upload()" [disabled]="isUploading || (statuses.length > 0 && !finalStatus)">
+      Upload
+      <fa-icon
+        [icon]="'spinner'"
+        [fixedWidth]="true"
+        *ngIf="isUploading || (statuses.length > 0 && !finalStatus)"
+        [animation]="isUploading ? 'spin' : undefined"
+      ></fa-icon>
+    </button>
+    <div class="m-t"></div>
+    <h3 *ngIf="statuses.length > 0 && !finalStatus">Live Import Details</h3>
+    <h3 *ngIf="finalStatus">Previous Import Details</h3>
+    <table role="grid" class="app-table m-t" *ngIf="statuses.length > 0">
+      <thead class="app-table-header">
+        <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col">Task</th>
+        <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col">Duration</th>
+        <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col">Processed</th>
+        <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col">Created</th>
+        <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col">Updated</th>
+        <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col">Deleted</th>
+        <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col">Error(s)</th>
+      </thead>
+      <tbody>
+        <tr *ngFor="let status of statuses" role="row" class="app-table-row">
+          <td role="gridcell" class="app-table-cell app-table--align-left">{{ status.taskName }}</td>
+          <td role="gridcell" class="app-table-cell app-table--align-left">{{ status.duration / 1000 }}s</td>
+          <td role="gridcell" class="app-table-cell app-table--align-left">{{ status.numInput }}</td>
+          <td role="gridcell" class="app-table-cell app-table--align-left">{{ status.numCreated }}</td>
+          <td role="gridcell" class="app-table-cell app-table--align-left">{{ status.numUpdated }}</td>
+          <td role="gridcell" class="app-table-cell app-table--align-left">{{ status.numDeleted }}</td>
+          <td role="gridcell" class="app-table-cell app-table--align-left">{{ status.error }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="row" style="padding-left: 10px" *ngIf="finalStatus && finalStatus.importFinished">
+      <div role="gridcell" class="app-table-master-header">Import Duration: {{ finalStatus.duration / 1000 }} seconds</div>
+    </div>
+  </div>
+</div>

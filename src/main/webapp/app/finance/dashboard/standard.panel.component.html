@@ -1,0 +1,25 @@
+<div *ngIf="widget && widget.dataTypeSpecs && widget.dataTypeSpecs.length > 0" class="db-panel-title">
+  {{ widget.dataTypeSpecs[0].title }}
+</div>
+
+<div *ngIf="isLoading || !widget.values" class="db-panel-primary-value">
+  <p-skeleton></p-skeleton>
+</div>
+
+<div *ngIf="!isLoading && widget.values && widget.values.length > 0" class="db-panel-primary-value">
+  <span *ngIf="!widget.values[0] && widget.values[0] !== 0">-</span
+  ><span *ngIf="!widget.dataTypeSpecs[0].negativeAsPositive">
+    {{ widget.values[0] | currency: defaultCurrencyCode : 'symbol-narrow' : '0.0' }}</span
+  >
+  <span *ngIf="widget.dataTypeSpecs[0].negativeAsPositive">
+    {{ widget.values[0] * -1 | currency: defaultCurrencyCode : 'symbol-narrow' : '0.0' }}</span
+  >
+</div>
+
+<jhi-delta-value
+  pTooltip="Was {{ widget.comparisonValues[0] | currency }}"
+  tooltipPosition="top"
+  *ngIf="!isLoading && widget.comparisonValues && widget.comparisonValues[0]"
+  class="datawell-data-comparison float-right"
+  [params]="{ value: widget.values[0], comparison: widget.comparisonValues[0], currencyCode: widget.currencyCode, pcOnly: true }"
+></jhi-delta-value>

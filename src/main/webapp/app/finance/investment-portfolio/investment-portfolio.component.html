@@ -1,0 +1,619 @@
+<div class="standard-page-container investment-portfolio-container">
+  <div class="investment-portfolio-header">
+    <div class="top-sticky-row">
+      <div class="row">
+        <div class="col col-auto">
+          <div class="breadcrumbs">
+            <div class="primary-breadcrumb" style="padding-top: 4px" jhiTranslate="{{ title }}">{{ title }}</div>
+          </div>
+        </div>
+        <div class="col">
+          <p-dropdown
+            [options]="accounts!"
+            [(ngModel)]="accountId"
+            [filter]="true"
+            filterBy="name"
+            optionLabel="name"
+            optionValue="id"
+            (onChange)="onChangeAccount($event)"
+            [required]="false"
+            placeholder="All"
+            [autoDisplayFirst]="false"
+          >
+          </p-dropdown>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row m-t">
+    <div class="col col-md-auto">
+      <apx-chart
+        #pieChart
+        [series]="pieChartOptions.series!"
+        [chart]="pieChartOptions.chart!"
+        [labels]="pieChartOptions.labels!"
+        [legend]="pieChartOptions.legend!"
+        [colors]="pieChartOptions.colors!"
+        [dataLabels]="pieChartOptions.dataLabels!"
+        [plotOptions]="pieChartOptions.plotOptions!"
+        [stroke]="pieChartOptions.options!.stroke!"
+        [tooltip]="pieChartOptions.tooltip!"
+      ></apx-chart>
+    </div>
+    <div class="col-sm">
+      <div class="row">
+        <div class="col"></div>
+        <div class="col col-auto">
+          <div class="float-right" style="display: flex; padding-top: 5px">
+            <p-selectButton
+              styleClass="period-selector"
+              [options]="periods"
+              [(ngModel)]="selectedPeriod"
+              emptyMessage="All"
+              optionLabel="name"
+              (onChange)="onChangePeriod($event)"
+            >
+            </p-selectButton>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col"></div>
+        <div class="col col-auto">
+          <div class="float-right" style="display: flex; padding-top: 5px">
+            <p-selectButton
+              [options]="groupings"
+              [(ngModel)]="selectedGroup"
+              emptyMessage="All"
+              optionLabel="name"
+              (onChange)="onChangeGrouping($event)"
+            >
+            </p-selectButton>
+          </div>
+        </div>
+        <div class="col col-auto">
+          <div class="vert-line"></div>
+          <div class="col col-auto" style="padding-top: 5px">
+            <div class="header-settings-toggle-container">
+              <span style="padding-right: 4px">&nbsp;Chart Annotations&nbsp;</span
+              ><p-inputSwitch [(ngModel)]="showAnnotations" (onChange)="onChangeAnnotationsSwitch($event)"></p-inputSwitch>&nbsp;<span
+                style="padding-right: 4px"
+                >&nbsp;Show Closed Positions?&nbsp;</span
+              ><p-inputSwitch [(ngModel)]="includeClosedPositions" (onChange)="onChangePositionsSwitch($event)"></p-inputSwitch>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row m-t">
+        <div class="col d-none d-lg-block">
+          <div class="datawell-container">
+            <div class="datawell-sm">
+              <div class="datawell-label datawell-label-sm">Capital Invested</div>
+              <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
+              <div
+                *ngIf="
+                  !isLoadingSummaries &&
+                  portfolio &&
+                  portfolio.currencyIsoCode &&
+                  portfolio.totalCapitalInvested &&
+                  !isNaN(portfolio.totalCapitalInvested)
+                "
+                class="datawell-data datawell-data-sm"
+              >
+                {{ portfolio.totalCapitalInvested | currency: portfolio.currencyIsoCode : 'symbol-narrow' }}
+              </div>
+              <div
+                *ngIf="
+                  portfolio &&
+                  (portfolio.totalCapitalInvested == null || isNaN(portfolio.totalCapitalInvested) || !portfolio.totalCapitalInvested)
+                "
+                class="datawell-data datawell-data-sm"
+              >
+                {{ 0 | currency: portfolio.currencyIsoCode : 'symbol-narrow' }}
+              </div>
+              <!-- <span *ngIf="comparisonPortfolio" class="datawell-data-comparison float-right " [class.datawell-data-positive]="1-(comparisonPortfolio!.totalCapitalInvested!/portfolio!.totalCapitalInvested) > steadyVariance" [class.datawell-data-negative]="(1-(comparisonPortfolio!.totalCapitalInvested!/portfolio!.totalCapitalInvested)) <= -steadyVariance">
+                                +{{portfolio!.totalCapitalInvested-comparisonPortfolio!.totalCapitalInvested!|currency:portfolio.currencyCode:'symbol-narrow'}}&nbsp;&nbsp;
+                                <fa-icon *ngIf="1-(comparisonPortfolio!.totalCapitalInvested!/portfolio!.totalCapitalInvested) > steadyVariance" icon="caret-up"></fa-icon><fa-icon *ngIf="(1-(comparisonPortfolio!.totalCapitalInvested!/portfolio!.totalCapitalInvested)) <= -steadyVariance" icon="caret-down"></fa-icon><fa-icon *ngIf="(1-(comparisonPortfolio!.totalCapitalInvested!/portfolio!.totalCapitalInvested)) > -steadyVariance && (1-(comparisonPortfolio!.totalCapitalInvested!/portfolio!.totalCapitalInvested)) < steadyVariance" icon="minus"></fa-icon> 
+                                {{1-(comparisonPortfolio!.totalCapitalInvested!/portfolio!.totalCapitalInvested)|percent:'1.2-2'}}
+                            </span> -->
+              <p-skeleton *ngIf="selectedPeriod.value !== '' && (isLoadingSummaries || !comparisonPortfolio)" height="19.5px"></p-skeleton>
+              <jhi-delta-value
+                *ngIf="!isLoadingSummaries && comparisonPortfolio && selectedPeriod.value !== ''"
+                class="datawell-data-comparison float-right"
+                [params]="{
+                  value: portfolio!.totalCapitalInvested,
+                  comparison: comparisonPortfolio!.totalCapitalInvested,
+                  currencyCode: portfolio!.currencyIsoCode,
+                  pcOnly: false,
+                }"
+              ></jhi-delta-value>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="datawell-container">
+            <div *ngIf="portfolio" class="datawell-sm datawell-sm-split">
+              <div class="datawell-label datawell-label-sm">Captial Gains</div>
+              <!-- (investment!.price * investment!.quantity)-investment!.totalCapitalInvested) is the same as what server calcs. -->
+              <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
+              <div class="datawell-data datawell-data-sm" *ngIf="!isLoadingSummaries && portfolio && !isNaN(portfolio.totalCapitalGain)">
+                {{ portfolio.totalCapitalGain | currency: portfolio.currencyIsoCode : 'symbol-narrow' }}
+                <span class="d-none d-xxl-inline"
+                  ><span class="pc-return" *ngIf="portfolio && portfolio.totalCapitalGainPC && !isNaN(portfolio.totalCapitalGainPC)"
+                    >| </span
+                  ><span *ngIf="portfolio.totalCapitalGainPC && !isNaN(portfolio.totalCapitalGainPC)">{{
+                    portfolio.totalCapitalGainPC | percent: '1.2-2'
+                  }}</span
+                  ><span *ngIf="portfolio && portfolio.totalCapitalGainPC && !isNaN(portfolio.totalCapitalGainPC)" class="superscript"
+                    >&nbsp;p.a.</span
+                  ></span
+                >
+              </div>
+              <p-skeleton *ngIf="selectedPeriod.value !== '' && (isLoadingSummaries || !comparisonPortfolio)" height="19.5px"></p-skeleton>
+              <jhi-delta-value
+                *ngIf="!isLoadingSummaries && comparisonPortfolio && selectedPeriod.value !== ''"
+                class="datawell-data-comparison float-right"
+                [params]="{
+                  value: portfolio!.totalCapitalGain,
+                  comparison: comparisonPortfolio!.totalCapitalGain,
+                  currencyCode: portfolio!.currencyIsoCode,
+                  pcOnly: false,
+                }"
+              ></jhi-delta-value>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="datawell-container">
+            <div *ngIf="portfolio" class="datawell-sm datawell-sm-split">
+              <div class="datawell-label datawell-label-sm">Income</div>
+              <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
+              <div *ngIf="!isNaN(portfolio.totalIncome)" class="datawell-data datawell-data-sm">
+                {{ portfolio.totalIncome | currency: portfolio.currencyIsoCode : 'symbol-narrow' }}
+                <span class="d-none d-xxl-inline"
+                  ><span class="pc-return" *ngIf="portfolio && portfolio.totalIncomePC">| </span
+                  ><span *ngIf="portfolio.totalIncomePC && !isNaN(portfolio.totalIncomePC)">{{
+                    portfolio.totalIncomePC | percent: '1.2-2'
+                  }}</span
+                  ><span *ngIf="portfolio && portfolio.totalIncomePC" class="superscript">&nbsp;p.a.</span></span
+                >
+              </div>
+              <p-skeleton *ngIf="selectedPeriod.value !== '' && (isLoadingSummaries || !comparisonPortfolio)" height="19.5px"></p-skeleton>
+              <jhi-delta-value
+                *ngIf="!isLoadingSummaries && comparisonPortfolio && selectedPeriod.value !== ''"
+                class="datawell-data-comparison float-right"
+                [params]="{
+                  value: portfolio!.totalIncome,
+                  comparison: comparisonPortfolio!.totalIncome,
+                  currencyCode: portfolio!.currencyIsoCode,
+                  pcOnly: false,
+                }"
+              ></jhi-delta-value>
+            </div>
+          </div>
+        </div>
+        <div class="col d-none d-lg-block">
+          <div class="datawell-container">
+            <div *ngIf="portfolio" class="datawell-sm datawell-sm-split">
+              <div class="datawell-label datawell-label-sm">Currency Gain</div>
+              <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
+              <div class="datawell-data datawell-data-sm">
+                {{ portfolio.totalCurrencyGain | currency }}
+                <span class="d-none d-xxl-inline"
+                  ><span class="pc-return" *ngIf="portfolio && portfolio.totalCurrencyGainPC">| </span
+                  ><span *ngIf="portfolio.totalCurrencyGainPC && !isNaN(portfolio.totalCurrencyGainPC)">{{
+                    portfolio.totalCurrencyGainPC | percent: '1.2-2'
+                  }}</span
+                  ><span *ngIf="portfolio && portfolio.totalCurrencyGainPC" class="superscript">&nbsp;p.a.</span></span
+                >
+              </div>
+              <p-skeleton *ngIf="selectedPeriod.value !== '' && (isLoadingSummaries || !comparisonPortfolio)" height="19.5px"></p-skeleton>
+              <jhi-delta-value
+                *ngIf="!isLoadingSummaries && comparisonPortfolio && selectedPeriod.value !== ''"
+                class="datawell-data-comparison float-right"
+                [params]="{
+                  value: portfolio!.totalCurrencyGain,
+                  comparison: comparisonPortfolio!.totalCurrencyGain,
+                  currencyCode: portfolio!.currencyIsoCode,
+                  pcOnly: false,
+                }"
+              ></jhi-delta-value>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="datawell-container">
+            <div *ngIf="portfolio" class="datawell-sm datawell-sm-split">
+              <div class="datawell-label datawell-label-sm">Total Return</div>
+              <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
+              <div class="datawell-data datawell-data-sm">
+                {{ portfolio.totalReturn | currency: portfolio!.currencyIsoCode : 'symbol-narrow' }}
+                <span class="d-none d-xxl-inline"
+                  ><span class="pc-return" *ngIf="portfolio && portfolio.totalReturnPC">| </span
+                  ><span *ngIf="portfolio.totalReturnPC && !isNaN(portfolio.totalReturnPC)">{{
+                    portfolio.totalReturnPC | percent: '1.2-2'
+                  }}</span
+                  ><span *ngIf="portfolio && portfolio.totalReturnPC" class="superscript">&nbsp;p.a.</span></span
+                >
+              </div>
+              <jhi-delta-value
+                *ngIf="!isLoadingSummaries && comparisonPortfolio && selectedPeriod.value !== ''"
+                class="datawell-data-comparison float-right"
+                [params]="{
+                  value: portfolio!.totalReturn,
+                  comparison: comparisonPortfolio!.totalReturn,
+                  currencyCode: portfolio!.currencyIsoCode,
+                  pcOnly: false,
+                }"
+              ></jhi-delta-value>
+              <p-skeleton *ngIf="selectedPeriod.value !== '' && (isLoadingSummaries || !comparisonPortfolio)"></p-skeleton>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- <div class="row m-t">
+        <div class="col "></div>
+        <div class="col col-auto" >
+            <div class="vert-line"></div>
+            <div class="col col-auto" style=" padding-top:5px"><div class="header-settings-toggle-container"><span style="padding-right:4px;">&nbsp;Annotations&nbsp;</span><p-inputSwitch [(ngModel)]="showAnnotations" (onChange)="onChangeAnnotationsSwitch($event)"></p-inputSwitch></div>
+            </div>
+        </div>
+    </div> -->
+  <div *ngIf="holdings && holdings.length > 0" class="row m-t">
+    <div *ngIf="!isLoadingHistory" class="col">
+      <apx-chart
+        #historyChart
+        [series]="historyChartOptions.series!"
+        [chart]="historyChartOptions.chart!"
+        [xaxis]="historyChartOptions.xaxis!"
+        [yaxis]="historyChartOptions.yaxis!"
+        [stroke]="historyChartOptions.options!.stroke!"
+        [dataLabels]="historyChartOptions.options!.dataLabels!"
+        [markers]="historyChartOptions.options!.markers!"
+        [tooltip]="historyChartOptions.options!.tooltip!"
+        [annotations]="historyChartOptions.annotations!"
+        [theme]="historyChartOptions.options!.theme!"
+      ></apx-chart>
+    </div>
+    <div *ngIf="isLoadingHistory" class="col">
+      <p-skeleton height="300px"></p-skeleton>
+    </div>
+  </div>
+
+  <div *ngIf="holdings && holdings.length > 0" class="investment-portfolio">
+    <div role="tablist" tabindex="0" class="tab-list m-t">
+      <div class="tab__slider" style="transform: translateX(0px)">
+        <button
+          id="example1"
+          class="tab-list-item"
+          [class.tab-list-item--active]="activeTab === 'holdings'"
+          aria-selected="false"
+          role="tab"
+          tabindex="-1"
+          (click)="clickTab('holdings')"
+        >
+          <div class="tab-list-item__text">
+            <div class="tab-list-item__text-inner">Holdings</div>
+            <span class="tab-list-item__bar"></span>
+          </div>
+        </button>
+        <button
+          id="example1"
+          class="tab-list-item"
+          [class.tab-list-item--active]="activeTab === 'treemap'"
+          aria-selected="false"
+          role="tab"
+          tabindex="-1"
+          (click)="clickTab('treemap')"
+        >
+          <div class="tab-list-item__text">
+            <div class="tab-list-item__text-inner">Holding Map</div>
+            <span class="tab-list-item__bar"></span>
+          </div>
+        </button>
+        <!-- <button id="example1" class="tab-list-item" [class.tab-list-item--active]="activeTab === 'history'" aria-selected="false" role="tab" tabindex="-1" (click)="clickTab('history')">
+                    <div class="tab-list-item__text">
+                        <div class="tab-list-item__text-inner">Over time</div>
+                        <span class="tab-list-item__bar"></span>
+                    </div>
+                </button> -->
+      </div>
+      <!-- No JS to make this work right now....  <button class="tab__overflow-button tab__overflow-button--right" tabindex="-1">
+                <div class="tab__overflow-button__icon">
+                    <div class="icon icon--size-medium"><svg aria-label="caret right icon" viewBox="0 0 24 24" role="img"><path d="m16 12-5-5-1.41 1.41L13.17 12l-3.58 3.59L11 17"></path></svg>
+                    </div>
+                </div>
+            </button> -->
+    </div>
+    <div class="tab-content">
+      <div class="tab-pane tab-fade" [ngClass]="{ active: activeTab === 'holdings' }" id="holdings" role="tabpanel">
+        <div *ngFor="let item of selectedGroup.groups | keyvalue">
+          <div
+            *ngIf="
+              !selectedInvestmentName ||
+              selectedInvestmentName === null ||
+              selectedInvestmentName === '' ||
+              selectedGroup.value === 'holdings' ||
+              selectedInvestmentName === item.key
+            "
+            class="row m-t"
+          >
+            <div class="col">
+              <div class="app-table-container">
+                <div class="app-table-master-header">
+                  {{ item.key }}
+                </div>
+                <table role="grid" class="app-table">
+                  <thead class="app-table-head">
+                    <!-- <tr role="row" class="app-table-row"> -->
+                    <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
+                      <div>Symbol</div>
+                    </th>
+                    <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col">
+                      <div>Holding</div>
+                    </th>
+                    <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
+                      <div>Price&nbsp;</div>
+                    </th>
+                    <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
+                      <!--*ngIf="comparisonPortfolio && selectedPeriod.value !== ''" -->
+                      <div>% Change ({{ selectedPeriod.name }})&nbsp;</div>
+                    </th>
+                    <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
+                      <div>Qty&nbsp;</div>
+                    </th>
+                    <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
+                      <div>Value&nbsp;</div>
+                    </th>
+                    <th
+                      class="app-table-header app-table-header--align-left app-table-header--sticky d-none d-lg-table-cell"
+                      role="columnheader"
+                      scope="col"
+                    >
+                      <div>Captial Invested&nbsp;</div>
+                    </th>
+                    <th
+                      class="app-table-header app-table-header--align-left app-table-header--sticky d-none d-lg-table-cell"
+                      role="columnheader"
+                      scope="col"
+                    >
+                      <div>Captial Gain&nbsp;</div>
+                    </th>
+                    <th
+                      class="app-table-header app-table-header--align-left app-table-header--sticky d-none d-lg-table-cell"
+                      role="columnheader"
+                      scope="col"
+                    >
+                      <div>Income&nbsp;</div>
+                    </th>
+                    <th
+                      class="app-table-header app-table-header--align-left app-table-header--sticky d-none d-lg-table-cell"
+                      role="columnheader"
+                      scope="col"
+                    >
+                      <div>Currency Gain&nbsp;</div>
+                    </th>
+                    <th
+                      class="app-table-header app-table-header--align-left app-table-header--sticky d-none d-lg-table-cell"
+                      role="columnheader"
+                      scope="col"
+                    >
+                      <div>Total Return</div>
+                    </th>
+                    <!-- </tr> -->
+                  </thead>
+                  <tbody>
+                    <ng-container *ngFor="let holding of item.value">
+                      <!-- selectedGroup.value === 'holdings' || selectedInvestmentName === item.key" or [class.selected-row]="this.selectedInvestmentName === holding.name"-->
+                      <tr
+                        *ngIf="
+                          selectedGroup.value !== 'holdings' ||
+                          !selectedInvestmentName ||
+                            selectedInvestmentName === null ||
+                            selectedInvestmentName === '' ||
+                            selectedInvestmentName === holding.name
+                        "
+                        role="row"
+                        class="app-table-row-with-subtotal"
+                        [class.grayed-row]="holding.quantity === 0"
+                      >
+                        <td role="gridcell" class="app-table-cell app-table--align-left">
+                          <p-skeleton *ngIf="isLoading"></p-skeleton>
+                          <span *ngIf="!isLoading">
+                            <a class="table-link" routerLink="/finance/investment/{{ holding.id }}">{{ holding.userSymbol }}</a>
+                          </span>
+                        </td>
+
+                        <td class="app-table-cell app-table--align-left">
+                          <p-skeleton *ngIf="isLoading"></p-skeleton>
+                          <span *ngIf="!isLoading">
+                            <a class="table-link" routerLink="/finance/investment/{{ holding.id }}">{{ holding.name }}</a>
+                          </span>
+                        </td>
+
+                        <td role="gridcell" class="app-table-cell app-table--align-left">
+                          <p-skeleton *ngIf="isLoading"></p-skeleton>
+                          <span *ngIf="!isLoading">
+                            <div
+                              *ngIf="holding.priceDateTime"
+                              class="hovertext"
+                              pTooltip="{{ holding.price | currency: holding.currencyCode : 'symbol-narrow' }} @ {{
+                                holding.priceDateTime | date
+                              }}"
+                              tooltipPosition="bottom"
+                            >
+                              <span *ngIf="holding.currencyCode === 'USD'">US</span
+                              >{{ holding.price | currency: holding.currencyCode : 'symbol-narrow' }}
+                            </div>
+                          </span>
+                        </td>
+                        <td role="gridcell" class="app-table-cell app-table--align-left">
+                          <!-- *ngIf="comparisonPortfolio && selectedPeriod.value !== ''" -->
+                          <p-skeleton *ngIf="isLoading"></p-skeleton>
+                          <span *ngIf="!isLoading">
+                            <div
+                              *ngIf="holding.priceDateTime"
+                              class="hovertext"
+                              pTooltip="{{ findComparison(holding.id)?.price | currency }} @ {{
+                                findComparison(holding.id)?.priceDateTime | date
+                              }}"
+                              tooltipPosition="bottom"
+                            >
+                              <jhi-delta-value
+                                *ngIf="comparisonPortfolio && selectedPeriod.value !== ''"
+                                class="datawell-data-comparison"
+                                [params]="{
+                                  value: holding.price,
+                                  comparison: findComparison(holding.id)?.price,
+                                  currencyCode: holding.currencyCode,
+                                  pcOnly: true,
+                                }"
+                              ></jhi-delta-value>
+                            </div>
+                          </span>
+                        </td>
+                        <td role="gridcell" class="app-table-cell app-table--align-left">
+                          <p-skeleton *ngIf="isLoading"></p-skeleton>
+                          <span *ngIf="!isLoading">
+                            {{ holding.quantity | number }}
+                          </span>
+                        </td>
+                        <td role="gridcell" class="app-table-cell app-table--align-left">
+                          <div *ngIf="!holding.fxRateToLocal">
+                            <span *ngIf="holding.currencyCode === 'USD'">US</span
+                            >{{ holding.value | currency: holding.currencyCode : 'symbol-narrow' }}
+                          </div>
+                          <div
+                            *ngIf="holding.fxRateToLocal"
+                            class="hovertext"
+                            pTooltip="{{ holding.value * holding.fxRateToLocal | currency: 'AUD' : 'symbol-narrow' }}"
+                            tooltipPosition="bottom"
+                          >
+                            <span *ngIf="holding.currencyCode === 'USD'">US</span
+                            >{{ holding.value | currency: holding.currencyCode : 'symbol-narrow' }}
+                          </div>
+                        </td>
+                        <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
+                          <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
+                          <span *ngIf="!isLoadingSummaries">
+                            {{ findSummary(holding.id)?.totalCapitalInvested | currency }}
+                          </span>
+                        </td>
+                        <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
+                          <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
+                          <span *ngIf="!isLoadingSummaries">
+                            {{ findSummary(holding.id)?.totalCapitalGain | currency }}
+                          </span>
+                        </td>
+                        <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
+                          <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
+                          <span *ngIf="!isLoadingSummaries">
+                            {{ findSummary(holding.id)?.totalIncome | currency }}
+                          </span>
+                        </td>
+                        <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
+                          <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
+                          <span *ngIf="!isLoadingSummaries">
+                            {{ findSummary(holding.id)?.totalCurrencyGain | currency }}
+                          </span>
+                        </td>
+                        <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
+                          <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
+                          <span *ngIf="!isLoadingSummaries">
+                            {{ findSummary(holding.id)?.totalReturn | currency }}
+                          </span>
+                        </td>
+                        <!-- <td role="gridcell" class="app-table-cell app-table--align-left">
+                                                    <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
+                                                    <span *ngIf="!isLoadingSummaries">
+                                                        <span *ngIf="holding.currencyCode === 'USD'">US</span>{{findSummary(holding.id)?.totalCapitalInvested|currency:holding.currencyCode:'symbol-narrow'}}
+                                                    </span>
+                                                </td> -->
+                      </tr>
+                    </ng-container>
+                    <!-- Sub Total Row -->
+                    <tr role="row" class="app-table-row-with-subtotal">
+                      <td class="app-table-cell app-table--align-left totals"></td>
+                      <td role="gridcell" class="app-table-cell app-table--align-right totals"></td>
+                      <td class="app-table-cell app-table--align-left totals"></td>
+                      <td class="app-table-cell app-table--align-left totals">
+                        <!--*ngIf="comparisonPortfolio && selectedPeriod.value !== ''"-->
+                      </td>
+                      <td class="app-table-cell app-table--align-right totals">Sub-Total (AU$)&nbsp;</td>
+                      <td role="gridcell" class="app-table-cell app-table--align-left totals">
+                        <p-skeleton *ngIf="isLoading"></p-skeleton>
+                        {{ total(item.value) | currency: 'AUD' : 'symbol-narrow' }}
+                      </td>
+                      <td role="gridcell" class="app-table-cell app-table--align-left">
+                        {{ totalSummary(holdings, true, false, false, false, false) | currency: 'AUD' : 'symbol-narrow' }}
+                      </td>
+
+                      <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
+                        {{ totalSummary(holdings, false, true, false, false, false) | currency: 'AUD' : 'symbol-narrow' }}
+                      </td>
+                      <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
+                        {{ totalSummary(holdings, false, false, true, false, false) | currency: 'AUD' : 'symbol-narrow' }}
+                      </td>
+                      <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
+                        {{ totalSummary(holdings, false, false, false, true, false) | currency: 'AUD' : 'symbol-narrow' }}
+                      </td>
+                      <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
+                        {{ totalSummary(holdings, false, false, false, false, true) | currency: 'AUD' : 'symbol-narrow' }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="grand-total-container">
+            <table role="grid" class="app-table">
+              <tbody>
+                <tr role="row">
+                  <td class="app-table-cell app-table--align-left totals"></td>
+                  <td role="gridcell" class="app-table-cell app-table--align-right totals"></td>
+                  <td role="gridcell" class="app-table-cell app-table--align-left">&nbsp;</td>
+                  <td role="gridcell" class="app-table-cell app-table--align-left"></td>
+                  <td role="gridcell" class="app-table-cell app-table--align-left"></td>
+                  <td role="gridcell" class="app-table-cell app-table--align-left"></td>
+                  <td role="gridcell" class="app-table-cell app-table--align-left"></td>
+
+                  <td role="gridcell" class="app-table-cell app-table--align-right">Total (AU$)&nbsp;</td>
+                  <td role="gridcell" class="app-table-cell app-table--align-left totals">
+                    {{ total(holdings) | currency: 'AUD' : 'symbol-narrow' }}
+                  </td>
+
+                  <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell"></td>
+                  <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell"></td>
+                  <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell"></td>
+                  <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="tab-pane tab-fade" [ngClass]="{ active: activeTab === 'treemap' }" id="treemap" role="tabpanel">
+        <div class="row m-t">
+          <div class="col">
+            <apx-chart
+              [series]="treemapChartOptions.series!"
+              [chart]="treemapChartOptions.chart!"
+              [legend]="treemapChartOptions.legend!"
+              [dataLabels]="treemapChartOptions.dataLabels!"
+              [title]="treemapChartOptions.title!"
+              [plotOptions]="treemapChartOptions.plotOptions!"
+              [tooltip]="treemapChartOptions.tooltip!"
+            ></apx-chart>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

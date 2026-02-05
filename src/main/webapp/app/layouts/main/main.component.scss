@@ -1,0 +1,146 @@
+.main.theme-light {
+  background-color: var(--app-colours-background-low-light);
+  color: var(--app-colours-primary-text-light);
+}
+
+.main.theme-dark {
+  background-color: var(--app-colours-background-low-dark);
+  color: var(--app-colours-primary-text-dark);
+}
+
+.main-container {
+  // padding: 1.5%;
+  // margin-top: 20px;
+  border: none;
+  height: inherit;
+}
+
+.sidenav-container {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  display: block;
+  overflow: hidden;
+  height: 100vh; /* for Safari to go full height */
+}
+
+.sidenav-visible {
+  bottom: 0px;
+  margin-top: 60px;
+  top: 0px;
+  transform: none;
+  visibility: visible;
+}
+
+@media screen and (max-width: 767px) {
+  .sidenav {
+    display: none !important;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .sidenav-content {
+    margin-left: 0px !important;
+  }
+}
+
+.sidenav {
+  height: 100%;
+  width: 48px;
+  display: block;
+  outline: 0;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.sidenav-light {
+  border-left-color: rgb(102, 102, 102);
+  color: var(--ps-colors-text-icon-high-on-light);
+  background-color: var(--ps-colors-background-light-2);
+}
+
+.sidenav-dark {
+  border-left-color: rgb(102, 102, 102);
+  color: var(--ps-colors-text-icon-high-on-dark);
+  background-color: var(--ps-colors-background-dark-2);
+}
+
+.sidenav-animate {
+  transition: width 0.2s;
+}
+
+.sidenav-fixed {
+  position: fixed;
+}
+
+.sidenav-side {
+  border-right: solid 1px rgba(0, 0, 0, 0.12);
+}
+.sidenav-inner-container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sidenav-content {
+  position: relative;
+  z-index: 1;
+  display: block;
+  height: 100%;
+  overflow: auto;
+}
+
+.sidenav-content-animate {
+  transition: margin-left 0.2s;
+}
+
+.sidenav.expanded {
+  width: 180px;
+}
+
+.compressed {
+  margin-left: 48px !important;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.pane-expander-button {
+  border: 1px solid transparent;
+  background: none;
+  flex: 0 0 auto;
+  font-size: 16px;
+  height: 40px;
+  justify-content: center;
+  width: 50px;
+  margin-left: 0px;
+  outline: none;
+  padding: 0;
+  padding-top: 8px;
+  color: inherit !important;
+}
+
+.pane-expander-button:hover {
+  background-color: var(--ps-colors-background-utility-30) !important;
+}
+
+.header-buffer {
+  padding-top: 62px;
+  height: inherit;
+}
+
+.header-buffer-full {
+  padding-top: 85px;
+}
+
+@media screen and (max-width: 767px) {
+  .header-buffer {
+    padding-top: 85px !important;
+  }
+}

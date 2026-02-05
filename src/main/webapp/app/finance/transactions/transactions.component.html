@@ -1,0 +1,55 @@
+<div class="standard-page-container transactions-container">
+  <div class="transactions">
+    <div class="top-sticky-row">
+      <div class="row">
+        <div class="col col-auto">
+          <div class="breadcrumbs">
+            <div class="primary-breadcrumb" style="padding-top: 4px" jhiTranslate="{{ title }}">{{ title }}</div>
+          </div>
+        </div>
+        <div class="col">
+          <p-dropdown
+            [options]="accounts!"
+            [(ngModel)]="accountId"
+            [filter]="true"
+            filterBy="name"
+            optionLabel="name"
+            optionValue="id"
+            (onChange)="onChangeAccount($event)"
+          ></p-dropdown>
+        </div>
+        <div class="col" *ngIf="balance != -1 && balance != undefined">
+          <br *ngIf="account?.currencyCode === 'AUD'" />
+          <div class="transactions-balance float-right align-bottom">
+            Balance: {{ balance | currency: account?.currencyCode : 'symbol-narrow' }}
+          </div>
+          <br *ngIf="account?.currencyCode !== 'AUD'" />
+          <div class="transactions-balance float-right" *ngIf="account?.currencyCode !== 'AUD'">
+            {{ adjustedBalanceForCurrency(balance) | currency: 'AUD' }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Button to clear selection
+    <button (click)="clearSelection()">Clear Selection</button> [rowData]="rowData$ | async"
+    <button (click)="autoSize()">Auto size</button> -->
+  <!-- AG Grid Angular Component -->
+
+  <ag-grid-angular
+    style="width: 100%; height: calc(100% - 44px)"
+    class="m-t"
+    [class.ag-theme-alpine]="theme === 'light'"
+    [class.ag-theme-alpine-dark]="theme === 'dark'"
+    [gridOptions]="gridOptions"
+    [columnDefs]="columnDefs"
+    [defaultColDef]="defaultColDef"
+    [rowData]="transactions"
+    [animateRows]="true"
+    (gridReady)="onGridReady($event)"
+    (modelUpdated)="onModelUpdated($event)"
+    (cellClicked)="onCellClicked($event)"
+    [sideBar]="true"
+  ></ag-grid-angular>
+</div>

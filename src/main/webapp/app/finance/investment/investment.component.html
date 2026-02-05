@@ -1,0 +1,355 @@
+<div class="standard-page-container investment-portfolio-container">
+  <div class="investment-portfolio-header">
+    <div class="top-sticky-row">
+      <div class="row">
+        <div class="col col-auto">
+          <div class="breadcrumbs">
+            <div class="primary-breadcrumb" style="padding-top: 4px" jhiTranslate="{{ title }}">{{ title }}</div>
+          </div>
+        </div>
+        <div class="col">
+          <p-dropdown
+            [options]="holdings!"
+            [(ngModel)]="securityId"
+            [filter]="true"
+            filterBy="name"
+            optionLabel="name"
+            optionValue="id"
+            (onChange)="onChangeHolding($event)"
+            [required]="false"
+            placeholder="All"
+            [autoDisplayFirst]="false"
+          >
+          </p-dropdown>
+        </div>
+        <div class="col app-table--align-right">
+          <div class="float-right" style="display: flex"></div>
+        </div>
+        <div class="col">
+          <div class="datawell-sm" style="margin-top: 2px">
+            <div class="datawell-label datawell-label-xs">Current Price</div>
+            <div *ngIf="investmentSummary" class="datawell-data datawell-data-xs">
+              <span *ngIf="investmentSummary.currencyIsoCode === 'USD'">US</span
+              >{{ investmentSummary.price | currency: investmentSummary.currencyIsoCode : 'symbol-narrow' }}
+            </div>
+            <p-skeleton *ngIf="isLoading"></p-skeleton>
+          </div>
+        </div>
+        <div class="col">
+          <div class="datawell-sm" style="margin-top: 2px">
+            <div class="datawell-label datawell-label-xs">Quantity</div>
+            <div *ngIf="investmentSummary" class="datawell-data datawell-data-xs">{{ investmentSummary.quantity | number }}</div>
+            <p-skeleton *ngIf="isLoading"></p-skeleton>
+          </div>
+        </div>
+        <div class="col">
+          <div class="datawell-sm">
+            <div class="datawell-label datawell-label-sm">Market Value</div>
+            <div *ngIf="investmentSummary && !investmentSummary.fxToLocal">
+              <span *ngIf="investmentSummary.currencyIsoCode === 'USD'">US</span
+              >{{ marketValue | currency: investmentSummary.currencyIsoCode : 'symbol-narrow' }}
+            </div>
+            <div
+              *ngIf="investmentSummary && investmentSummary.fxToLocal"
+              class="hovertext"
+              pTooltip="{{ marketValue * investmentSummary.fxToLocal! | currency: 'AUD' : 'symbol-narrow' }}"
+              tooltipPosition="bottom"
+            >
+              <span *ngIf="investmentSummary.currencyIsoCode && investmentSummary.currencyIsoCode! === 'USD'">US</span
+              >{{ marketValue | currency: investmentSummary.currencyIsoCode : 'symbol-narrow' }}
+            </div>
+            <!-- <div *ngIf="investmentSummary" class="datawell-data datawell-data-sm" style="font-weight: var(--ps-type-font-weight-strong);"><span *ngIf="investmentSummary.currencyIsoCode === 'USD'">US</span>{{(marketValue)|currency:investmentSummary.currencyIsoCode:'symbol-narrow'}}</div> -->
+            <p-skeleton *ngIf="isLoading"></p-skeleton>
+          </div>
+        </div>
+      </div>
+      <div class="row m-t">
+        <div class="col"></div>
+        <div class="col col-auto">
+          <div class="header-settings-toggle-container">
+            <span style="padding-right: 4px">&nbsp;Chart Annotations&nbsp;</span
+            ><p-inputSwitch [(ngModel)]="showAnnotations" (onChange)="onChangeAnnotationsSwitch($event)"></p-inputSwitch>&nbsp;<span
+              style="padding-right: 4px"
+              >Show Closed Positions?&nbsp;</span
+            ><p-inputSwitch [(ngModel)]="includeClosedPositions" (onChange)="onChangePositionsSwitch($event)"></p-inputSwitch>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- <div class="row m-t">
+        <div class="datawell-container">
+            <div style="width: calc(20%);">
+                <div class="datawell-sm">
+                    <div class="datawell-label datawell-label-sm">Captial Invested</div>
+                    <div class="datawell-data datawell-data-sm">{{investment?.totalCapitalInvested|currency:investment?.currencyCode:'symbol-narrow'}}</div>
+                </div>
+            </div>
+            <div style="width: calc(20%);">
+                <div class="datawell-sm">
+                    <div class="datawell-label datawell-label-sm">Captial Gains</div>
+                    <div class="datawell-data datawell-data-sm" *ngIf="investment">{{investment.totalCapitalGain|currency:investment?.currencyCode:'symbol-narrow'}}</div>
+                </div>
+            </div>
+            <div style="width: calc(20%);">
+                <div class="datawell-sm">
+                    <div class="datawell-label datawell-label-sm">Income</div>
+                    <div class="datawell-data datawell-data-sm">{{investment?.totalIncome|currency:investment?.currencyCode:'symbol-narrow'}}</div>
+                </div>
+            </div>
+            <div style="width: calc(20%);">
+                <div class="datawell-sm">
+                    <div class="datawell-label datawell-label-sm">Currency Gain</div>
+                    <div class="datawell-data datawell-data-sm">{{investment?.totalCurrencyGain|currency}}</div>
+                </div>
+            </div>
+            <div style="width: calc(20%);">
+                <div class="datawell-sm">
+                    <div class="datawell-label datawell-label-sm">Total Return</div>
+                    <div class="datawell-data datawell-data-sm" *ngIf="investment">{{investment.totalReturn|currency:investment!.currencyCode:'symbol-narrow'}} <span class="pc-return">|</span><span *ngIf="investment.totalReturnCAGR">{{investment.totalReturnCAGR|percent:'1.2-2'}}</span><span class="superscript">&nbsp;p.a.</span></div>
+                    
+                </div>
+            </div>
+        </div>
+    </div> -->
+  <div class="row m-t">
+    <div class="col-sm">
+      <div class="row m-t">
+        <div class="col">
+          <div class="datawell-container">
+            <div class="datawell-sm">
+              <div class="datawell-label datawell-label-sm">Captial Invested</div>
+
+              <div *ngIf="investmentSummary" class="datawell-data datawell-data-sm">
+                {{ investmentSummary.totalCapitalInvested | currency: investmentSummary.currencyIsoCode : 'symbol-narrow' }}
+              </div>
+              <p-skeleton *ngIf="isLoading"></p-skeleton>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="datawell-container">
+            <div class="datawell-sm datawell-sm-split">
+              <div class="datawell-label datawell-label-sm">Captial Gains</div>
+              <!-- (investment!.price * investment!.quantity)-investment!.totalCapitalInvested) is the same as what server calcs. -->
+              <div class="datawell-data datawell-data-sm" *ngIf="investmentSummary">
+                {{ investmentSummary.totalCapitalGain | currency: investmentSummary.currencyIsoCode : 'symbol-narrow' }}
+                <span class="pc-return">|</span
+                ><span *ngIf="investmentSummary.totalCapitalGainPC">{{ investmentSummary.totalCapitalGainPC | percent: '1.2-2' }}</span
+                ><span class="superscript">&nbsp;p.a.</span>
+              </div>
+              <p-skeleton *ngIf="isLoading"></p-skeleton>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="datawell-container">
+            <div class="datawell-sm datawell-sm-split">
+              <div class="datawell-label datawell-label-sm">Income</div>
+              <div *ngIf="investmentSummary" class="datawell-data datawell-data-sm">
+                {{ investmentSummary.totalIncome | currency: investmentSummary.currencyIsoCode : 'symbol-narrow' }}
+                <span class="pc-return" *ngIf="investmentSummary.totalIncomePC !== 0">|</span
+                ><span *ngIf="investmentSummary.totalIncomePC">{{ investmentSummary.totalIncomePC | percent: '1.2-2' }}</span
+                ><span class="superscript" *ngIf="investmentSummary.totalIncomePC !== 0">&nbsp;p.a.</span>
+              </div>
+              <p-skeleton *ngIf="isLoading"></p-skeleton>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="datawell-container">
+            <div class="datawell-sm datawell-sm-split">
+              <div class="datawell-label datawell-label-sm">Currency Gain</div>
+              <div *ngIf="investmentSummary" class="datawell-data datawell-data-sm">
+                {{ investmentSummary.totalCurrencyGain | currency }}
+                <span class="pc-return" *ngIf="investmentSummary.totalCurrencyGainPC !== 0">|</span
+                ><span *ngIf="investmentSummary.totalCurrencyGainPC">{{ investmentSummary.totalCurrencyGainPC | percent: '1.2-2' }}</span
+                ><span class="superscript" *ngIf="investmentSummary.totalCurrencyGainPC !== 0">&nbsp;p.a.</span>
+              </div>
+              <p-skeleton *ngIf="isLoading"></p-skeleton>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="datawell-container">
+            <div class="datawell-sm datawell-sm-split">
+              <div class="datawell-label datawell-label-sm">Total Return</div>
+              <div *ngIf="investmentSummary" class="datawell-data datawell-data-sm">
+                {{ investmentSummary.totalReturn | currency: investmentSummary!.currencyIsoCode : 'symbol-narrow' }}
+                <span class="pc-return">|</span
+                ><span *ngIf="investmentSummary.totalReturnPC">{{ investmentSummary.totalReturnPC | percent: '1.2-2' }}</span
+                ><span *ngIf="investmentSummary.totalReturnPC" class="superscript">&nbsp;p.a.</span>
+              </div>
+              <p-skeleton *ngIf="isLoading"></p-skeleton>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row m-t">
+    <div *ngIf="!isLoadingHistory" class="col">
+      <apx-chart
+        #historyChart
+        [series]="historyChartOptions.series!"
+        [chart]="historyChartOptions.chart!"
+        [xaxis]="historyChartOptions.xaxis!"
+        [yaxis]="historyChartOptions.yaxis!"
+        [stroke]="historyChartOptions.options!.stroke!"
+        [dataLabels]="historyChartOptions.options!.dataLabels!"
+        [markers]="historyChartOptions.options!.markers!"
+        [tooltip]="historyChartOptions.options!.tooltip!"
+        [annotations]="historyChartOptions.annotations!"
+        [theme]="historyChartOptions.options!.theme!"
+      ></apx-chart>
+    </div>
+    <div *ngIf="isLoadingHistory" class="col">
+      <p-skeleton height="300px"></p-skeleton>
+    </div>
+  </div>
+
+  <div class="row m-t">
+    <div class="col">
+      <div class="app-table-container">
+        <div class="app-table-master-header">Trades</div>
+        <table role="grid" class="app-table">
+          <thead class="app-table-head">
+            <th
+              class="app-table-header app-table-header--align-left app-table-header--sticky"
+              style="width: 5%"
+              role="columnheader"
+              scope="col"
+            >
+              <div>Date</div>
+            </th>
+            <th class="app-table-header app-table-header--align-left" style="width: 45%" role="columnheader" scope="col">
+              <div>Activity</div>
+            </th>
+            <th
+              class="app-table-header app-table-header--align-left app-table-header--sticky"
+              style="width: 10%"
+              role="columnheader"
+              scope="col"
+            >
+              <div>Quantity</div>
+            </th>
+            <th
+              class="app-table-header app-table-header--align-left app-table-header--sticky"
+              style="width: 10%"
+              role="columnheader"
+              scope="col"
+            >
+              <div>Price</div>
+            </th>
+            <th
+              class="app-table-header app-table-header--align-left app-table-header--sticky"
+              style="width: 10%"
+              role="columnheader"
+              scope="col"
+            >
+              <div>Brokerage</div>
+            </th>
+            <th
+              class="app-table-header app-table-header--align-left app-table-header--sticky"
+              style="width: 10%"
+              role="columnheader"
+              scope="col"
+            >
+              <div>Total</div>
+            </th>
+            <!-- </tr> -->
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of onlyTrades" role="row" class="app-table-row">
+              <td role="gridcell" class="app-table-cell app-table--align-left" style="white-space: nowrap">
+                {{ item.date }}
+              </td>
+              <td class="app-table-cell app-table--align-left">
+                {{ translateType(item.type) }}
+              </td>
+              <td role="gridcell" class="app-table-cell app-table--align-left">
+                {{ item.quantity | number }}
+              </td>
+              <td role="gridcell" class="app-table-cell app-table--align-left">
+                <span *ngIf="holding!.currencyCode === 'USD'">US</span>{{ item.price | currency: holding!.currencyCode : 'symbol-narrow' }}
+              </td>
+              <td role="gridcell" class="app-table-cell app-table--align-left">
+                <span *ngIf="holding!.currencyCode === 'USD'">US</span
+                >{{ abs(abs(item.amount) - item.quantity * item.price) | currency: holding!.currencyCode : 'symbol-narrow' }}
+              </td>
+              <td role="gridcell" class="app-table-cell app-table--align-left">
+                <span *ngIf="item.type === 'REINVEST_DIVIDEND'">
+                  <span *ngIf="holding!.currencyCode === 'USD'">US</span
+                  >{{ abs(item.amount) | currency: holding!.currencyCode : 'symbol-narrow' }}
+                </span>
+                <span *ngIf="item.type !== 'REINVEST_DIVIDEND'">
+                  <div
+                    *ngIf="holding!.fxRateToLocal"
+                    class="hovertext"
+                    pTooltip="{{ item.amount * holding!.fxRateToLocal | currency: 'AUD' : 'symbol-narrow' }}"
+                    tooltipPosition="bottom"
+                  >
+                    <span *ngIf="holding!.currencyCode === 'USD'">US</span
+                    >{{ item.amount | currency: holding!.currencyCode : 'symbol-narrow' }}
+                  </div>
+                  <div *ngIf="!holding!.fxRateToLocal">
+                    <span *ngIf="holding!.currencyCode === 'USD'">US</span
+                    >{{ item.amount | currency: holding!.currencyCode : 'symbol-narrow' }}
+                  </div>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="row m-t">
+    <div class="col">
+      <div class="app-table-container">
+        <div class="app-table-master-header">Income</div>
+        <table role="grid" class="app-table" *ngIf="onlyIncome.length > 0">
+          <thead class="app-table-head">
+            <th
+              class="app-table-header app-table-header--align-left app-table-header--sticky"
+              style="width: 5%"
+              role="columnheader"
+              scope="col"
+            >
+              <div>Date</div>
+            </th>
+            <th class="app-table-header app-table-header--align-left" style="width: 45%" role="columnheader" scope="col">
+              <div>Income Type</div>
+            </th>
+            <th
+              class="app-table-header app-table-header--align-left app-table-header--sticky"
+              style="width: 10%"
+              role="columnheader"
+              scope="col"
+            >
+              <div>Net</div>
+            </th>
+            <!-- </tr> -->
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of onlyIncome" role="row" class="app-table-row">
+              <td role="gridcell" class="app-table-cell app-table--align-left" style="white-space: nowrap">
+                {{ item.date }}
+              </td>
+              <td class="app-table-cell app-table--align-left">
+                {{ translateType(item.type) }}
+              </td>
+              <td role="gridcell" class="app-table-cell app-table--align-left">
+                {{ abs(item.amount) | currency: holding!.currencyCode : 'symbol-narrow' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div role="grid" class="app-table" *ngIf="onlyIncome.length == 0">None</div>
+      </div>
+    </div>
+  </div>
+</div>

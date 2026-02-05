@@ -1,6 +1,6 @@
-import { Injectable, Signal, inject, signal } from '@angular/core';
+import { Injectable, Signal, WritableSignal, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { Observable, ReplaySubject, of } from 'rxjs';
 import { catchError, shareReplay, tap } from 'rxjs/operators';
@@ -89,5 +89,17 @@ export class AccountService {
       this.stateStorageService.clearUrl();
       this.router.navigateByUrl(previousUrl);
     }
+  }
+
+  checkExists(login: string): Observable<HttpResponse<any>> {
+    return this.http.post<any>(SERVER_API_URL + 'api/userExists', login, { observe: 'response' });
+  }
+
+  isIdentityResolved(): boolean {
+    return this.userIdentity !== null;
+  }
+
+  getUserIdentity(): WritableSignal<Account | null> {
+    return this.userIdentity;
   }
 }

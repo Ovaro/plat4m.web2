@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.CacheManager;
@@ -282,7 +283,12 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public Optional<User> getUserWithAuthoritiesByLogin(String login) {
-        return userRepository.findOneWithAuthoritiesByLogin(login);
+        if (new EmailValidator().isValid(login, null)) {
+            return userRepository.findOneWithAuthoritiesByEmailIgnoreCase(login);
+        }
+
+        String lowercaseLogin = login.toLowerCase(Locale.ENGLISH);
+        return userRepository.findOneWithAuthoritiesByLogin(lowercaseLogin);
     }
 
     @Transactional(readOnly = true)

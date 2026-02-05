@@ -1,0 +1,9 @@
+<div class="db-panel-container">
+  <div *ngIf="widget.header" class="db-section-title">{{ widget.header }}</div>
+  <div *ngIf="!widget.header" class="db-section-title">&nbsp;</div>
+  <div class="db-panel" [class.selected]="widget.selected">
+    <app-widget-a *ngIf="widget.type === 'widgetA'" [widget]="widget" [resizeEvent]="resizeEvent"> </app-widget-a>
+    <standard-dashboard-panel *ngIf="widget.type === 'standard'" [widget]="widget" [resizeEvent]="resizeEvent"> </standard-dashboard-panel>
+    <wide-dashboard-panel *ngIf="widget.type === 'wide'" [widget]="widget" [resizeEvent]="resizeEvent"> </wide-dashboard-panel>
+  </div>
+</div>

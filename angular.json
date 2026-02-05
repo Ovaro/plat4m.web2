@@ -20,6 +20,18 @@
         "build": {
           "builder": "@angular-builders/custom-webpack:browser",
           "options": {
+            "allowedCommonJsDependencies": [
+              "lodash",
+              "moment",
+              "ag-grid-enterprise",
+              "ag-grid-angular",
+              "chart.js",
+              "primeicons",
+              "primeng",
+              "parse-full-name",
+              "sockjs-client",
+              "webstomp-client"
+            ],
             "customWebpackConfig": {
               "path": "./webpack/webpack.custom.js"
             },
@@ -36,7 +48,7 @@
               "src/main/webapp/robots.txt"
             ],
             "styles": ["src/main/webapp/content/scss/vendor.scss", "src/main/webapp/content/scss/global.scss"],
-            "scripts": []
+            "scripts": ["node_modules/apexcharts/dist/apexcharts.min.js"]
           },
           "configurations": {
             "production": {
@@ -111,6 +123,7 @@
       "path": "./build/angular/",
       "environment": "all"
     },
-    "packageManager": "npm"
+    "packageManager": "npm",
+    "analytics": false
   }
 }

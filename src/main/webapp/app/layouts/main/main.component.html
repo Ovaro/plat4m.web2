@@ -1,13 +1,66 @@
-<jhi-page-ribbon />
+<div
+  [ngClass]="'theme-' + [theme]"
+  class="main"
+  [style.--text-color]="'var(--app-colours-primary-text-' + [theme] + ')'"
+  [style.--text-secondary-color]="'var(--app-colours-secondary-text-' + [theme] + ')'"
+>
+  <!-- <jhi-page-ribbon></jhi-page-ribbon> ... -->
 
-<div>
-  <router-outlet name="navbar" />
-</div>
-
-<div class="container-fluid">
-  <div class="card jh-card">
-    <router-outlet />
+  <div *ngIf="isAuthenticated()">
+    <router-outlet name="navbar"></router-outlet>
   </div>
 
-  <jhi-footer />
+  <!-- <div class="container-fluid">
+  <div class="card jh-card">
+    <router-outlet></router-outlet>
+  </div>
+
+  <jhi-footer></jhi-footer>
+</div> -->
+
+  <div [ngClass]="{ 'sidenav-container': isAuthenticated() }">
+    <div
+      *ngIf="isAuthenticated() && navType == 'side'"
+      #drawer
+      class="sidenav-visible sidenav sidenav-fixed sidenav-side sidenav-animate"
+      [class.expanded]="expanded"
+      [ngClass]="'sidenav-' + [theme]"
+    >
+      <div class="sidenav-inner-container">
+        <div class="nav">
+          <div>
+            <button (click)="toggleExpand()" class="pane-expander-button">
+              <!-- <mat-icon *ngIf="expanded" aria-hidden="false" aria-label="Expander">keyboard_arrow_left</mat-icon>
+                      <mat-icon *ngIf="!expanded" aria-hidden="false" aria-label="Expander">keyboard_arrow_right</mat-icon> -->
+              <fa-icon aria-hidden="false" aria-label="Expander" *ngIf="!expanded" icon="chevron-right"></fa-icon>
+              <fa-icon aria-hidden="false" aria-label="Expander" *ngIf="expanded" icon="chevron-left"></fa-icon>
+            </button>
+          </div>
+          <jhi-sidenav></jhi-sidenav>
+        </div>
+      </div>
+    </div>
+    <div
+      [ngClass]="{ 'sidenav-content sidenav-content-animate': isAuthenticated() }"
+      [style.marginLeft.px]="isAuthenticated() && navType == 'side' ? (expanded ? 180 : 48) : 0"
+    >
+      <div [ngClass]="{ 'header-buffer': isAuthenticated() && navType == 'side', 'header-buffer-full': navType != 'side' }">
+        <div *ngIf="isAuthenticated() && !isVerified()" class="alert unverified-warning" id="email-verification-banner" role="alert">
+          <div class="container">
+            <div style="margin-top: 6px">
+              <strong>Your account has not been activated.</strong> Check your inbox to complete activation.
+            </div>
+            <button class="unverified-btn-link btn default btn-alert-link"><b>Resend</b></button>
+          </div>
+        </div>
+        <div [ngClass]="{ '': !isAuthenticated(), 'page-wrapper': isAuthenticated() }" style="height: inherit">
+          <div [ngClass]="{ 'main-container': isAuthenticated() }">
+            <router-outlet></router-outlet>
+            <router-outlet name="popup"></router-outlet>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+<!-- <jhi-footer></jhi-footer> -->

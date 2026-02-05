@@ -1,0 +1,20 @@
+.transactions-container {
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+
+jhi-transactions {
+  height: inherit;
+}
+
+.transactions {
+  // height: inherit;
+}
+
+.transactions-balance {
+  font-size: var(--ps-type-font-size-100);
+  font-weight: var(--ps-type-font-weight-strong);
+  text-transform: uppercase;
+}

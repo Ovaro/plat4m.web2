@@ -14,6 +14,8 @@ import { ServiceWorkerModule } from '@angular/service-worker';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 
 import { NgbDateAdapter } from '@ng-bootstrap/ng-bootstrap';
+import { providePrimeNG } from 'primeng/config';
+import Aura from '@primeuix/themes/aura';
 
 import './config/dayjs';
 import { TranslationModule } from 'app/shared/language/translation.module';
@@ -23,6 +25,8 @@ import routes from './app.routes';
 // jhipster-needle-angular-add-module-import JHipster will add new module here
 import { NgbDateDayjsAdapter } from './config/datepicker-adapter';
 import { AppPageTitleStrategy } from './app-page-title-strategy';
+import { CookieModule } from 'ngx-cookie';
+import { FinanceModule } from 'finance/finance.module';
 
 const routerFeatures: RouterFeatures[] = [
   withComponentInputBinding(),
@@ -45,11 +49,18 @@ if (environment.DEBUG_INFO_ENABLED) {
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    importProvidersFrom(CookieModule.withOptions()),
+    providePrimeNG({
+      theme: {
+        preset: Aura,
+      },
+    }),
     provideRouter(routes, ...routerFeatures),
     importProvidersFrom(BrowserModule),
     // Set this to true to enable service worker (PWA)
     importProvidersFrom(ServiceWorkerModule.register('ngsw-worker.js', { enabled: false })),
     importProvidersFrom(TranslationModule),
+    importProvidersFrom(FinanceModule),
     provideHttpClient(withInterceptorsFromDi()),
     Title,
     { provide: LOCALE_ID, useValue: 'en' },

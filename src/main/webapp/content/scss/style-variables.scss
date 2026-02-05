@@ -1,0 +1,107 @@
+@use 'sass:math';
+@import url('https://fonts.googleapis.com/css?family=Damion');
+
+// $app-primary: #1ca6f7;
+// $primary-text: #1ca6f7;
+/* 
+$primary: #1ca6f7;
+$primary-trans: rgba(7, 123, 191, 0.5);
+/*
+/* Login */
+/*$text-color: #4a4a4a;
+$card-bg-color: #fff;
+$bg-color: #f6f6f6;
+$warning-color: #ffb926;
+$info-color: #38dca7;
+$error-color: #ff001f;
+$badge-color: #ff3b53;
+$alert-color: #ff3b53;
+$confirm-color: #7ed321;
+$action-color: #0080ff;
+$secondary-1-color: #d8d8d8;
+$secondary-2-color: #e7e7e7;
+$secondary-3-color: #f2f2f2;
+$text-primary-color: #000;
+$text-font-size: 16px;
+$text-primary-color: #000;
+$text-secondary-1-color: #898989;
+$text-secondary-2-color: #9197a3;
+$text-secondary-3-color: #9b9b9b;
+$action-color-hover: #2a98ff;
+$confirm-color-hover: #91d722;
+$action-color-50p: rgba(0, 128, 255, 0.5);
+$secondary-color-25p: hsla(0, 0%, 53.7%, 0.25);
+$text-color-25p: rgba(74, 74, 74, 0.25);
+$card-bg-color-75p: hsla(0, 0%, 100%, 0.75);
+
+
+$nav-link-bg-color: $card-bg-color;
+$nav-link-bg-color-active: $bg-color;
+$nav-link-color: $text-secondary-1-color;
+$nav-link-heading-color: $text-color;
+$nav-link-active-color: $action-color;
+
+
+$h1-font-size: 44px;
+$h2-font-size: 24px;
+$h3-font-size: 20px;
+$font-weight-light: 300;
+$font-weight-regular: 400;
+$font-weight-medium: 500;
+$font-weight-bold: 600;
+$small-font-size: 14px;
+$xs-font-size: 12px;
+$xxs-font-size: 10px;
+*/
+
+// $secondary-1-color: #d8d8d8;
+
+$gutter: 16px;
+$border-radius-small: 2px;
+$border-radius: 5px;
+$modal-border-radius: 9px;
+
+$animation-delay-speed: 100ms;
+$animation-delay-speed-fast: 50ms;
+$animation-delay-slow: 600ms;
+$animation-speed-fast: 200ms;
+$animation-speed-medium: 400ms;
+$animation-speed-slow: 600ms;
+$animation-speed-very-slow: 1000ms;
+$animation-speed-focus-ring: 400ms;
+$animation-focus-transition: 400ms;
+$animation-pane-enter-speed: 300ms;
+
+$disabled-opacity: 0.65;
+
+/*
+$box-shadow-focus-ring-size: 0 0 0 6px $secondary-color-25p;
+$box-shadow-focus-ring-small: 0 0 0 3px $secondary-color-25p;
+$box-shadow-focus-ring-inside: inset 0 0 0 3px $secondary-color-25p;
+
+$textfield-bg-color: $card-bg-color;
+$textfield-bg-color-minimal: transparent;
+$textfield-bg-color-minimal-focus: $bg-color;
+$textfield-border-color: $text-secondary-1-color;
+$textfield-border-color-focus: $action-color;
+$textfield-text-color: $text-color;
+$textfield-text-color-focus: $text-color;
+$textfield-placeholder-color: $secondary-1-color;
+
+$file-attachment-icon-color: $text-secondary-2-color;
+*/
+
+$secondary-color-25p: hsla(0, 0%, 53.7%, 0.25);
+
+$box-shadow-focus-ring-size: 0 0 0 6px $secondary-color-25p;
+$box-shadow-focus-ring-small: 0 0 0 3px $secondary-color-25p;
+$box-shadow-focus-ring-inside: inset 0 0 0 3px $secondary-color-25p;
+
+$TextField-padding-v: math.div($gutter, 2);
+$TextField-padding-h: $gutter;
+$TextField-border-radius: $border-radius;
+$TextField-padding-h-headerSearchTheme: math.div($gutter, 2);
+$TextField-padding-v: math.div($gutter, 2);
+$TextField-padding-h: $gutter;
+$TextField-border-radius: $border-radius;
+$TextField-padding-h-headerSearchTheme: math.div($gutter, 2);
