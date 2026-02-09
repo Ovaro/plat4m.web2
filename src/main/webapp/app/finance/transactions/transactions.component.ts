@@ -1,30 +1,34 @@
 import { HttpClient, HttpHeaders, HttpResponse } from '@angular/common/http';
-import { Component, Inject, LOCALE_ID, OnInit, ViewChild } from '@angular/core';
+import { Component, Inject, LOCALE_ID, OnInit, signal, ViewChild } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot, Router } from '@angular/router';
 import { AgGridAngular } from 'ag-grid-angular';
 import {
   AllCommunityModule,
   CellClickedEvent,
+  ClientSideRowModelModule,
   ColDef,
   GridOptions,
   GridReadyEvent,
   IDatasource,
   IGetRowsParams,
+  InfiniteRowModelModule,
+  IServerSideDatasource,
+  IServerSideGetRowsParams,
   ModelUpdatedEvent,
+  Module,
   ModuleRegistry,
+  RowModelType,
   RowNode,
 } from 'ag-grid-community';
 import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { Transactions } from './transactions.service';
 import { FinancialAccount, FinancialTransaction } from '../finance.model';
-import { CurrencyPipe, formatCurrency } from '@angular/common';
+import { formatCurrency } from '@angular/common';
 import { Pagination } from 'app/core/request/request.model';
 import { AccountList } from '../account-list/account-list.service';
 import { CookieService } from 'ngx-cookie';
 import SharedModule from 'app/shared/shared.module';
 import { NgApexchartsModule } from 'ng-apexcharts';
-
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 @Component({
   selector: 'jhi-transactions',
@@ -34,6 +38,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 })
 export class TransactionsComponent {
   // implements OnInit
+
   static PREV_TXN_ACCOUNT_ID = 'previous-txn-account-id';
   title = '';
   theme = 'light';
@@ -61,10 +66,34 @@ export class TransactionsComponent {
     },
     { colId: 'category', field: 'displayCategory', headerName: 'Category' },
     { field: 'Tags' },
-    { field: 'payment', headerName: 'Payment', type: 'numericColumn', valueFormatter: this.currencyFormatterMethod.bind(this) },
-    { field: 'deposit', headerName: 'Deposit', type: 'numericColumn', valueFormatter: this.currencyFormatterMethod.bind(this) },
+    {
+      field: 'payment',
+      headerName: 'Payment',
+      type: 'numericColumn',
+      valueFormatter: params => {
+        if (!params.value) return '';
+        return formatCurrency(params.value, 'en-AU', '$', 'AUD');
+      },
+    }, //, valueFormatter: this.currencyFormatterMethod.bind(this)
+    {
+      field: 'deposit',
+      headerName: 'Deposit',
+      type: 'numericColumn',
+      valueFormatter: params => {
+        if (!params.value) return '';
+        return formatCurrency(params.value, 'en-AU', '$', 'AUD');
+      },
+    }, // , valueFormatter: this.currencyFormatterMethod.bind(this)
     // { field: 'amount', headerName: 'Amount', type: 'numericColumn', valueFormatter: this.currencyFormatterMethod },
-    { field: 'runningBalance', headerName: 'Balance', type: 'numericColumn', valueFormatter: this.currencyFormatterMethod.bind(this) },
+    {
+      field: 'runningBalance',
+      headerName: 'Balance',
+      type: 'numericColumn',
+      valueFormatter: params => {
+        if (!params.value) return '';
+        return formatCurrency(params.value, 'en-AU', '$', 'AUD');
+      },
+    }, // , valueFormatter: this.currencyFormatterMethod.bind(this)
   ];
 
   // DefaultColDef sets props common to all Columns
@@ -86,10 +115,12 @@ export class TransactionsComponent {
   // For accessing the Grid's API
   @ViewChild(AgGridAngular) agGrid!: AgGridAngular;
 
+  rowModelType: RowModelType = 'infinite';
+
   gridOptions: GridOptions = {
     pagination: false,
     rowSelection: 'multiple',
-    rowModelType: 'infinite',
+    rowModelType: this.rowModelType,
     // cacheBlockSize: this.itemsPerPage, // you can have your custom page size
     paginationPageSize: this.itemsPerPage,
   };
@@ -171,8 +202,7 @@ export class TransactionsComponent {
     this.balance = -1;
     if (this.accountId) {
       this.account = this.getAccount(this.accountId);
-      // ZZ: Didn't work with upgrade.
-      //this.agGrid.api.setDatasource(this.dataSource);
+      this.agGrid.api.setGridOption('datasource', this.dataSource);
       this.saveCookie(TransactionsComponent.PREV_TXN_ACCOUNT_ID, this.accountId);
     }
   }
@@ -223,8 +253,7 @@ export class TransactionsComponent {
       code = 'AUD';
     }
 
-    //const val = this.currencyPipe.transform( element.value, code, 'symbol-narrow');
-    const val = formatCurrency(element.value, '$', code);
+    const val = formatCurrency(element.value, 'en-AU', '$', 'AUD');
     if (val === null) {
       return '';
     }
@@ -248,9 +277,9 @@ export class TransactionsComponent {
     //   params.api.paginationSetPageSize(this.itemsPerPage);
     // }
     // }
+
     //this.rowData$ = this.transactionService.get(this.accountId!);
-    // ZZ: Didn't work with upgrade.
-    //params.api.setDatasource(this.dataSource)
+    params.api.setGridOption('datasource', this.dataSource);
   }
 
   onModelUpdated(event: ModelUpdatedEvent<any>): void {
@@ -269,8 +298,8 @@ export class TransactionsComponent {
   }
 
   autoSize(): void {
-    // ZZ: Didn't work with upgrade.
-    //this.agGrid.columnApi.autoSizeColumns(["payee","category"], false);
+    //ZZ
+    // this.agGrid.api.autoSizeColumns(["payee","category"], false);
   }
 
   adjustedBalanceForCurrency(balance: number): number {

@@ -45,11 +45,11 @@
     [gridOptions]="gridOptions"
     [columnDefs]="columnDefs"
     [defaultColDef]="defaultColDef"
-    [rowData]="transactions"
     [animateRows]="true"
+    [rowModelType]="rowModelType"
     (gridReady)="onGridReady($event)"
     (modelUpdated)="onModelUpdated($event)"
     (cellClicked)="onCellClicked($event)"
-    [sideBar]="true"
   ></ag-grid-angular>
+  <!-- [sideBar]="true" -->
 </div>

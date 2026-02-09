@@ -149,6 +149,10 @@ public class MsMoneyService {
             log.warn("importMny: " + moneyFile + " - NOT FOUND");
             throw new FileNotFoundException();
         }
+        log.info("startImport: " + moneyFile + " password: " + (password != null ? "PROVIDED" : "NOT PROVIDED"));
+        if (password == null) {
+            password = "";
+        }
         OpenedDb oDB = null;
         FinanceImportStatus fis = null;
         try {

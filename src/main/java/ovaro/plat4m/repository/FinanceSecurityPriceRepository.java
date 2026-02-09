@@ -54,7 +54,7 @@ public interface FinanceSecurityPriceRepository extends JpaRepository<FinanceSec
     // FinanceSecurityPrice findLatestBySecurityId(@Param("id") String id);
 
     @Query(
-        value = "SELECT DISTINCT ON (sp.symbol) * " +
+        value = "SELECT DISTINCT ON (sp.symbol) sp.* " +
         "FROM fin_security_price sp INNER JOIN fin_user_security u ON sp.symbol = u.known_symbol " +
         "WHERE u.id in :ids " +
         "ORDER BY sp.symbol, sp.date DESC",

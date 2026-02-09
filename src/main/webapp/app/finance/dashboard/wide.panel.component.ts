@@ -13,10 +13,10 @@ import {
 import { GridsterItem } from 'angular-gridster2';
 import { Subscription } from 'rxjs';
 import { DatePipe, CurrencyPipe, CommonModule, NgForOf } from '@angular/common';
-import { SharedModule } from 'app/shared/shared.module';
 import { DashboardService } from './dashboard.service';
 import { TooltipModule } from 'primeng/tooltip';
 import { SkeletonModule } from 'primeng/skeleton';
+import SharedModule from 'app/shared/shared.module';
 
 @Component({
   selector: 'wide-dashboard-panel',
@@ -24,7 +24,7 @@ import { SkeletonModule } from 'primeng/skeleton';
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   standalone: true,
-  imports: [CommonModule, NgForOf, CurrencyPipe, SharedModule, TooltipModule, SkeletonModule],
+  imports: [CommonModule, SharedModule, TooltipModule, SkeletonModule],
 })
 export class WidePanelComponent implements OnInit, OnDestroy, OnChanges {
   @Input()

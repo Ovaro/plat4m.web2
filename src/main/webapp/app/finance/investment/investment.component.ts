@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, Inject, LOCALE_ID, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { InvestmentTransactions } from './investment.service';
@@ -8,7 +8,7 @@ import {
   FinanceSecurityHolding,
   InvestmentTransaction,
 } from '../finance.model';
-import { DatePipe, CurrencyPipe, formatCurrency } from '@angular/common';
+import { formatCurrency, formatDate } from '@angular/common';
 import { AccountList } from '../account-list/account-list.service';
 // import { CommonControllerServices } from 'app/core/util/common-controller.service';
 import { InvestmentPortfolio } from '../investment-portfolio/investment-portfolio.service';
@@ -89,7 +89,7 @@ export class InvestmentComponent {
     private themeService: ThemeService,
     private accountService: AccountList,
     private cookieService: CookieService,
-    private datePipe: DatePipe,
+    @Inject(LOCALE_ID) private locale: string,
   ) {
     this.historyChartOptions = {};
   }
@@ -189,8 +189,8 @@ export class InvestmentComponent {
               }
             });
             //const formatHoverX = this.dateFormat(new Date(hoverXaxis), 'YYYY-MM-DD HH:mm:ss');
-
-            let date = this.datePipe.transform(hoverXaxis);
+            const format = 'dd/MM/yyyy';
+            let date = formatDate(hoverXaxis, format, this.locale);
             let sumVal = this.currencyFormatter(sum);
             //  ${s} <div class="card"> </div>
             //
@@ -264,7 +264,7 @@ export class InvestmentComponent {
     }
 
     //const val = this.currencyPipe.transform( value, code, 'symbol-narrow');
-    const val = formatCurrency(value, '$', code);
+    const val = formatCurrency(value, 'en-AU', '$', 'AUD');
     if (val === null) {
       // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
       return '' + value;
@@ -425,7 +425,9 @@ export class InvestmentComponent {
       portfolioValueHistoryItem.snapshots.forEach((element: { date: string; value: number }) => {
         const xy = { x: '', y: 0 };
         let d = Date.parse(element.date);
-        xy.x = this.datePipe.transform(d, 'MM/dd/yyyy')!;
+        const format = 'MM/dd/yyyy';
+        //let date = formatDate(hoverXaxis, format, this.locale);
+        xy.x = formatDate(d, format, this.locale)!;
         xy.y = Math.round(element.value);
         xydataArr.push(xy);
       });

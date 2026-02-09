@@ -62,7 +62,7 @@ public class MsMoneyResource {
     @PostMapping(path = "/importFile", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<String> handleFileUpload(
         @RequestPart(name = "file") MultipartFile file,
-        @RequestParam(value = "password") String password,
+        @RequestParam(value = "password", required = false) String password,
         RedirectAttributes redirectAttributes
     ) throws IOException {
         String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
@@ -124,7 +124,7 @@ public class MsMoneyResource {
 
     private CompletableFuture<MsMoneyImportDTO> importFunction(MsMoneyImportDTO monitor, User user, String moneyFile, String password)
         throws FileNotFoundException, IOException {
-        log.info("importMny: " + moneyFile);
+        log.info("importMny: " + moneyFile + " password: " + (password != null ? "PROVIDED" : "NOT PROVIDED"));
 
         CompletableFuture<MsMoneyImportDTO> res = msMoneyService.startImport(user, moneyFile, password, monitor);
         log.info("Import Finished: " + res.getNow(monitor).toString());
@@ -139,7 +139,10 @@ public class MsMoneyResource {
      */
     @GetMapping("/importAsync")
     @CrossOrigin
-    public SseEmitter streamImport(@RequestParam(value = "moneyFile") String moneyFile, @RequestParam(value = "password") String password) {
+    public SseEmitter streamImport(
+        @RequestParam(value = "moneyFile") String moneyFile,
+        @RequestParam(value = "password", required = false) String password
+    ) {
         String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
 
         Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);

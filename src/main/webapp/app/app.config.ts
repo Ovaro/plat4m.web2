@@ -27,6 +27,7 @@ import { NgbDateDayjsAdapter } from './config/datepicker-adapter';
 import { AppPageTitleStrategy } from './app-page-title-strategy';
 import { CookieModule } from 'ngx-cookie';
 import { FinanceModule } from 'finance/finance.module';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 const routerFeatures: RouterFeatures[] = [
   withComponentInputBinding(),
@@ -62,8 +63,9 @@ export const appConfig: ApplicationConfig = {
     importProvidersFrom(TranslationModule),
     importProvidersFrom(FinanceModule),
     provideHttpClient(withInterceptorsFromDi()),
+    provideAnimationsAsync(), // Adds animation support
     Title,
-    { provide: LOCALE_ID, useValue: 'en' },
+    { provide: LOCALE_ID, useValue: 'en-AU' },
     { provide: NgbDateAdapter, useClass: NgbDateDayjsAdapter },
     httpInterceptorProviders,
     { provide: TitleStrategy, useClass: AppPageTitleStrategy },

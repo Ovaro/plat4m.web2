@@ -10,7 +10,6 @@ import { WidgetAComponent } from './widgetA.component';
   templateUrl: './parentDynamic.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  standalone: true,
   imports: [CommonModule, WidgetAComponent, StandardPanelComponent, WidePanelComponent],
 })
 export class ParentDynamicComponent implements OnChanges {

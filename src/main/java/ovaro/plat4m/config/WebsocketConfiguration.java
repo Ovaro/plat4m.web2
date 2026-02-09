@@ -2,6 +2,8 @@ package ovaro.plat4m.config;
 
 import java.security.Principal;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.*;
@@ -19,6 +21,8 @@ import tech.jhipster.config.JHipsterProperties;
 @EnableWebSocketMessageBroker
 public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer {
 
+    private static final Logger LOG = LoggerFactory.getLogger(WebsocketConfiguration.class);
+
     public static final String IP_ADDRESS = "IP_ADDRESS";
 
     private final JHipsterProperties jHipsterProperties;
@@ -29,16 +33,25 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic");
+        config.enableSimpleBroker("/topic", "/secured/user/queue/import");
+        config.setUserDestinationPrefix("/secured/user");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        LOG.info("Registering web socket endpoints");
         String[] allowedOrigins = Optional.ofNullable(jHipsterProperties.getCors().getAllowedOrigins())
             .map(origins -> origins.toArray(new String[0]))
             .orElse(new String[0]);
         registry
             .addEndpoint("/websocket/tracker")
+            .setHandshakeHandler(defaultHandshakeHandler())
+            .setAllowedOrigins(allowedOrigins)
+            .withSockJS()
+            .setInterceptors(httpSessionHandshakeInterceptor());
+
+        registry
+            .addEndpoint("/websocket/import")
             .setHandshakeHandler(defaultHandshakeHandler())
             .setAllowedOrigins(allowedOrigins)
             .withSockJS()
@@ -55,6 +68,7 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
                 WebSocketHandler wsHandler,
                 Map<String, Object> attributes
             ) throws Exception {
+                LOG.info("Websocket handshake started");
                 if (request instanceof ServletServerHttpRequest) {
                     ServletServerHttpRequest servletRequest = (ServletServerHttpRequest) request;
                     attributes.put(IP_ADDRESS, servletRequest.getRemoteAddress());
@@ -68,7 +82,9 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
                 ServerHttpResponse response,
                 WebSocketHandler wsHandler,
                 Exception exception
-            ) {}
+            ) {
+                LOG.info("Websocket handshake completed");
+            }
         };
     }
 
@@ -76,6 +92,7 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
         return new DefaultHandshakeHandler() {
             @Override
             protected Principal determineUser(ServerHttpRequest request, WebSocketHandler wsHandler, Map<String, Object> attributes) {
+                LOG.info("Websocket: determining user");
                 Principal principal = request.getPrincipal();
                 if (principal == null) {
                     Collection<SimpleGrantedAuthority> authorities = new ArrayList<>();

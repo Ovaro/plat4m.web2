@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, NgZone, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject, LOCALE_ID, NgZone, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { InvestmentPortfolio } from './investment-portfolio.service';
@@ -11,7 +11,7 @@ import {
   Periods,
   PortfolioValueHistoryItem,
 } from '../finance.model';
-import { DatePipe, CurrencyPipe, formatCurrency } from '@angular/common';
+import { formatCurrency, formatDate } from '@angular/common';
 import { AccountList } from '../account-list/account-list.service';
 //import { CommonControllerServices } from 'app/core/util/common-controller.service';
 import { CookieService } from 'ngx-cookie';
@@ -136,7 +136,7 @@ export class InvestmentPortfolioComponent {
   mainTab: string;
   activeTab: string;
 
-  pipe = new DatePipe('en-US');
+  // pipe = new DatePipe('en-US');
 
   steadyVariance = 0.01; // mark as steady if not more or less than this
 
@@ -169,10 +169,10 @@ export class InvestmentPortfolioComponent {
     private router: Router,
     private themeService: ThemeService,
     private accountService: AccountList,
-    private datePipe: DatePipe,
     private cookieService: CookieService,
     private zone: NgZone,
     private cdr: ChangeDetectorRef,
+    @Inject(LOCALE_ID) private locale: string,
   ) {
     //, private commonControllerServices:CommonControllerServices
     this.groupings = [
@@ -442,8 +442,9 @@ export class InvestmentPortfolioComponent {
               }
             });
             //const formatHoverX = this.dateFormat(new Date(hoverXaxis), 'YYYY-MM-DD HH:mm:ss');
-
-            let date = this.datePipe.transform(hoverXaxis);
+            const format = 'dd/MM/yyyy';
+            let date = formatDate(hoverXaxis, format, this.locale);
+            //let date = this.datePipe.transform(hoverXaxis);
             let sumVal = this.currencyFormatter(sum);
             //  ${s} <div class="card"> </div>
             //
@@ -607,7 +608,7 @@ export class InvestmentPortfolioComponent {
     }
 
     //const val = this.currencyPipe.transform( value, code, 'symbol-narrow');
-    const val = formatCurrency(value, '$', code);
+    const val = formatCurrency(value, 'en-AU', '$', 'AUD');
     if (val === null) {
       // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
       return '' + value;
@@ -1162,7 +1163,8 @@ export class InvestmentPortfolioComponent {
         console.log('Processing security values for: ' + portfolioValueHistoryItem.name);
 
         let time = Date.parse(element.date);
-        let x = this.pipe.transform(time, 'MM/dd/yyyy')!;
+        const format = 'MM/dd/yyyy';
+        let x = formatDate(time, format, this.locale);
         let xy = map.get(groupName + x);
         if (xy == null) {
           xy = { x: '', y: 0, d: null };
@@ -1228,7 +1230,9 @@ export class InvestmentPortfolioComponent {
       portfolioValueHistoryItem.valueOverTimePerSecurity.forEach((element: { date: string; value: number }) => {
         const xy = { x: '', y: 0 };
         let d = Date.parse(element.date);
-        xy.x = this.datePipe.transform(d, 'MM/dd/yyyy')!;
+        //xy.x = this.datePipe.transform(d, 'MM/dd/yyyy')!;
+        const format = 'MM/dd/yyyy';
+        xy.x = formatDate(d, format, this.locale);
         xy.y = Math.round(element.value);
         xydataArr.push(xy);
       });
@@ -1252,7 +1256,9 @@ export class InvestmentPortfolioComponent {
 
       portfolioValueHistoryItem.snapshots.forEach((element: { date: string; value: number }) => {
         let time = Date.parse(element.date);
-        let x = this.datePipe.transform(time, 'MM/dd/yyyy')!;
+        //let x = this.datePipe.transform(time, 'MM/dd/yyyy')!;
+        const format = 'MM/dd/yyyy';
+        let x = formatDate(time, format, this.locale);
         let xy = map.get(x);
         if (xy == null) {
           // eslint-disable-next-line no-console

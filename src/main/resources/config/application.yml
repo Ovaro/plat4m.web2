@@ -169,6 +169,11 @@ spring:
 
 server:
   servlet:
+    max-file-size: 100MB
+    max-request-size: 100MB
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
     session:
       cookie:
         http-only: true

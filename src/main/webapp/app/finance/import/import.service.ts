@@ -46,7 +46,7 @@ export class ImportService {
     //formData.append("id", "debug");
 
     //return this.http.post('/api/importFile', formData, httpOptions);
-    return this.http.post('/api/importFile?password=password', formData);
+    return this.http.post('/api/importFile?password=password', formData); //?password=password
   }
 
   makePublic(id: string): Observable<any> {

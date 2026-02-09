@@ -9,9 +9,10 @@ import {
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
-import { CommonModule, CurrencyPipe, formatCurrency, NgForOf } from '@angular/common';
+import { CommonModule, CurrencyPipe, formatCurrency, NgForOf, registerLocaleData } from '@angular/common';
 import { GridsterComponent, GridsterItemComponent, GridsterModule } from 'angular-gridster2';
 import { GridsterConfig, GridsterItem } from 'angular-gridster2';
+import locale from '@angular/common/locales/en-AU';
 import {
   Annotation,
   FinanceIndicator,
@@ -46,6 +47,7 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { FormsModule } from '@angular/forms';
 import { SplitterModule } from 'primeng/splitter';
 import { FinanceModule } from 'finance/finance.module';
+import { ParentDynamicComponent } from './parentDynamic.component';
 
 export type HistoryChartOptions = {
   series: ApexAxisChartSeries;
@@ -77,7 +79,7 @@ export type HistoryChartOptions = {
   styleUrls: ['./dashboard.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  imports: [SharedModule, SelectButtonModule, FormsModule, GridsterModule, NgApexchartsModule, SplitterModule],
+  imports: [SharedModule, SelectButtonModule, FormsModule, GridsterModule, NgApexchartsModule, SplitterModule, ParentDynamicComponent],
   // standalone: true,
   // imports: [
   //   NgForOf,
@@ -96,6 +98,7 @@ export class DashboardComponent {
   static RG_ACCOUNT_CURRENCY_PREFIX = `{RESOURCE_GROUP_PREFIX}AccountCurrency-`;
 
   static CHILDREN_OF_PREFIX = 'childrenOf:';
+  static JSON = JSON;
 
   options: GridsterConfig = {};
   dashboard: Array<GridsterItem>;
@@ -775,7 +778,7 @@ export class DashboardComponent {
       //series: [{name: 'series1', data:[{x: '2020-06-01', y: 23},{x: '2020-07-01', y: 54},{x: '2020-08-01', y: 24},{x: '2020-09-01', y: 3},{x: '2020-10-01', y: 43},{x: '2020-11-01', y: 15}]}],
       series: [],
       chart: {
-        height: '90%',
+        height: 'auto',
         type: 'area',
         stacked: true,
 
@@ -931,7 +934,7 @@ export class DashboardComponent {
       response => {
         this.isLoading = false;
         // eslint-disable-next-line no-console
-        console.log(`Response: ${JSON.stringify(response)}`);
+        // console.log(`Response: ${JSON.stringify(response)}`);
         // this.changeDetectorRef.markForCheck();
         this.allResources = response;
         this.expandRGsAndChildrenOfInDashboardSpecs(this.allResources);
@@ -1077,7 +1080,7 @@ export class DashboardComponent {
       }
     }
 
-    console.log('performCompositeCalcsOnChildrenSnapshots: ' + JSON.stringify(childrenDataTypes));
+    // console.log('performCompositeCalcsOnChildrenSnapshots: ' + JSON.stringify(childrenDataTypes));
 
     let resourceSnapshot: FinanceResourceSnapshots | null = null;
 
@@ -1098,7 +1101,7 @@ export class DashboardComponent {
           type: 'GRP_CALC',
           snapshots: [],
         };
-        console.log('Created group resource snapshot holder...');
+        //console.log('Created group resource snapshot holder...');
       }
 
       if (singleResourceSnapshot != null) {
@@ -1143,42 +1146,42 @@ export class DashboardComponent {
         if (found) {
           if (snap2.snapshots[k].fxToLocal) {
             snap1.snapshots[j].value = snap1.snapshots[j].value + snap2.snapshots[k].value * snap2.snapshots[k].fxToLocal!;
-            if (snap1.snapshots[j].date === '2023-04-30') {
-              console.log(
-                snap2.id +
-                  ',' +
-                  snap2.name +
-                  ',[' +
-                  snap1.id +
-                  "],'" +
-                  snap1.name +
-                  ',' +
-                  snap2.snapshots[k].value * snap2.snapshots[k].fxToLocal! +
-                  ',' +
-                  snap1.snapshots[j].value +
-                  ',' +
-                  snap2.snapshots[k].fxToLocal,
-              );
-            }
+            // if (snap1.snapshots[j].date === '2023-04-30') {
+            // console.log(
+            //   snap2.id +
+            //     ',' +
+            //     snap2.name +
+            //     ',[' +
+            //     snap1.id +
+            //     "],'" +
+            //     snap1.name +
+            //     ',' +
+            //     snap2.snapshots[k].value * snap2.snapshots[k].fxToLocal! +
+            //     ',' +
+            //     snap1.snapshots[j].value +
+            //     ',' +
+            //     snap2.snapshots[k].fxToLocal,
+            // );
+            // }
           } else {
             snap1.snapshots[j].value = snap1.snapshots[j].value + snap2.snapshots[k].value;
-            if (snap1.snapshots[j].date === '2023-04-30') {
-              console.log(
-                snap2.id +
-                  ',' +
-                  snap2.name +
-                  ',[' +
-                  snap1.id +
-                  "],'" +
-                  snap1.name +
-                  ',' +
-                  snap2.snapshots[k].value +
-                  ',' +
-                  snap1.snapshots[j].value +
-                  ',' +
-                  snap2.snapshots[k].fxToLocal,
-              );
-            }
+            // if (snap1.snapshots[j].date === '2023-04-30') {
+            //   console.log(
+            //     snap2.id +
+            //       ',' +
+            //       snap2.name +
+            //       ',[' +
+            //       snap1.id +
+            //       "],'" +
+            //       snap1.name +
+            //       ',' +
+            //       snap2.snapshots[k].value +
+            //       ',' +
+            //       snap1.snapshots[j].value +
+            //       ',' +
+            //       snap2.snapshots[k].fxToLocal,
+            //   );
+            // }
           }
 
           k++;
@@ -1236,7 +1239,7 @@ export class DashboardComponent {
     dataTypes: string[],
     compositeDataTypeOperation: string,
   ): CompositeValues | null {
-    console.log('Performing Composite Calc for: ' + JSON.stringify(dataTypes));
+    // console.log('Performing Composite Calc for: ' + JSON.stringify(dataTypes));
     if (!compositeDataTypeOperation) {
       compositeDataTypeOperation = 'sum';
     }
@@ -1246,16 +1249,16 @@ export class DashboardComponent {
         if (dataTypes[i].startsWith(DashboardComponent.RESOURCE_GROUP_PREFIX)) {
           let resourceGroupResult = this.performCompositeCalcsOnChildren(financeIndicators, dataTypes[i], compositeDataTypeOperation);
           if (resourceGroupResult) {
-            console.log(
-              dataTypes[i] +
-                ',' +
-                result.value +
-                ',' +
-                resourceGroupResult?.value! +
-                ',' +
-                (result.value! + resourceGroupResult?.value!) +
-                ',rgResult',
-            );
+            // console.log(
+            //   dataTypes[i] +
+            //     ',' +
+            //     result.value +
+            //     ',' +
+            //     resourceGroupResult?.value! +
+            //     ',' +
+            //     (result.value! + resourceGroupResult?.value!) +
+            //     ',rgResult',
+            // );
             this.addToCompositeValues(
               result,
               resourceGroupResult?.value!,
@@ -1280,20 +1283,20 @@ export class DashboardComponent {
                   comparisonValue = comparisonValue * fx!;
                 }
               }
-              console.log(
-                dataTypes[i] +
-                  ',' +
-                  result.value +
-                  ',' +
-                  financeIndicators[j].snapshot.value +
-                  ',' +
-                  (result.value! + financeIndicators[j].snapshot.value) +
-                  ',fi' +
-                  ',' +
-                  financeIndicators[j].snapshot.fxToLocal +
-                  ', comparison: ' +
-                  comparisonValue,
-              );
+              // console.log(
+              //   dataTypes[i] +
+              //     ',' +
+              //     result.value +
+              //     ',' +
+              //     financeIndicators[j].snapshot.value +
+              //     ',' +
+              //     (result.value! + financeIndicators[j].snapshot.value) +
+              //     ',fi' +
+              //     ',' +
+              //     financeIndicators[j].snapshot.fxToLocal +
+              //     ', comparison: ' +
+              //     comparisonValue,
+              // );
               this.addToCompositeValues(result, value, comparisonValue, comparisonValue == null);
 
               // console.log("[" + financeIndicators[j].id + "]: " + financeIndicators[j].snapshot.value + ", CompositeValue= " + result.value + ", ComparisonValue=" + financeIndicators[j].snapshot.comparisonValue + ", CompositeComparisonValue= " + result.comparisonValue);
@@ -1376,7 +1379,7 @@ export class DashboardComponent {
   fixDataTypeArray(toAppend: ArrayAppend[], dataTypes: string[]) {
     let adjustIndex = 0;
     for (const item of toAppend) {
-      console.log('Changing position ' + item.position + ' [' + dataTypes[item.position] + '] to: ' + JSON.stringify(item.values));
+      //console.log('Changing position ' + item.position + ' [' + dataTypes[item.position] + '] to: ' + JSON.stringify(item.values));
       let replaceItems = 1;
       for (const value of item.values) {
         dataTypes.splice(item.position + adjustIndex, replaceItems, value);
@@ -1479,6 +1482,7 @@ export class DashboardComponent {
             value = value * lastKnownRateToBase;
           }
 
+          //xy.push({ x: new Date(resourceSnapshot.snapshots[k].date).getTime(), y: value });
           xy.push({ x: resourceSnapshot.snapshots[k].date, y: value });
         }
       }
@@ -1544,7 +1548,7 @@ export class DashboardComponent {
     }
 
     //  = this.currencyPipe.transform(, 'symbol-narrow'
-    const val = formatCurrency(value, '$', code);
+    const val = formatCurrency(value, 'en-AU', '$', 'AUD');
     if (val === null) {
       // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
       return '' + value;

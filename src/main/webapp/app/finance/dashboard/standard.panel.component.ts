@@ -13,10 +13,10 @@ import {
 import { GridsterItem } from 'angular-gridster2';
 import { Subscription } from 'rxjs';
 import { DatePipe, CurrencyPipe } from '@angular/common';
-import { SharedModule } from 'app/shared/shared.module';
 import { DashboardService } from './dashboard.service';
 import { TooltipModule } from 'primeng/tooltip';
 import { SkeletonModule } from 'primeng/skeleton';
+import SharedModule from 'app/shared/shared.module';
 
 @Component({
   selector: 'standard-dashboard-panel',

@@ -38,7 +38,8 @@
     <div class="p-splitter-panel p-splitter-panel-nested" style="flex-basis: 180px">
       <gridster #gridster [options]="options" class="gridster-plat4m">
         <gridster-item [item]="item" *ngFor="let item of dashboard" style="background-color: unset" (click)="onClick(item)">
-          <!-- <app-parent-dynamic [widget]="item" [resizeEvent]="resizeEvent"></app-parent-dynamic> -->
+          <app-parent-dynamic [widget]="item" [resizeEvent]="resizeEvent"></app-parent-dynamic>
+          <!-- <div>Hello! {{item | json}}</div> -->
         </gridster-item>
       </gridster>
     </div>
@@ -57,6 +58,7 @@
         [markers]="historyChartOptions.options!.markers!"
         [tooltip]="historyChartOptions.options!.tooltip!"
       ></apx-chart>
+      <!--  -->
     </div>
   </div>
   <p-splitter> </p-splitter>
