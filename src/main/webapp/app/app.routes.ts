@@ -8,13 +8,6 @@ import { errorRoute } from './layouts/error/error.route';
 const routes: Routes = [
   {
     path: '',
-    loadComponent: () => import('./home/home.component'),
-    title: 'home.title',
-    canActivate: [UserRouteAccessService], // OVARO MOD ::LOGIN::
-    //loadChildren: () => import('./finance/finance.routes'),
-  },
-  {
-    path: 'finance',
     //loadComponent: () => import('./home/home.component'),
     // title: 'home.title',
     canActivate: [UserRouteAccessService], // OVARO MOD ::LOGIN::

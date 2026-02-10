@@ -240,7 +240,7 @@ export default class LoginComponent {
               this.stateStorageService.storeUrl('');
               this.router.navigate([redirect]);
             } else {
-              this.router.navigate(['/finance/dashboard']);
+              this.router.navigate(['/']);
             }
           },
           err => {

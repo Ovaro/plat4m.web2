@@ -1,0 +1,21 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Plat4m",
+      "request": "launch",
+      "mainClass": "ovaro.plat4m.Plat4MApp",
+      "projectName": "plat4m.web2",
+      "env": {
+        "JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET": "ZDNhY2M2Y2YyZjI3NDYwZTlhYjI0ZmE2ZGI0ZTJlYjEZDNhY2M2Y2YyZjI3NDYwZTlhYjI0ZmE2ZGI0ZTJlYjE="
+      },
+      "vmArgs": ""
+      //"args": "--spring.profiles.active=prod"
+      // , heroku
+    }
+  ]
+}

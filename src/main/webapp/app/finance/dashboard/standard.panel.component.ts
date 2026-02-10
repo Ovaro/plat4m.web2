@@ -12,7 +12,7 @@ import {
 
 import { GridsterItem } from 'angular-gridster2';
 import { Subscription } from 'rxjs';
-import { DatePipe, CurrencyPipe } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import { DashboardService } from './dashboard.service';
 import { TooltipModule } from 'primeng/tooltip';
 import { SkeletonModule } from 'primeng/skeleton';

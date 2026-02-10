@@ -60,7 +60,7 @@
                 {{ account.institution?.name }}
               </div>
               <div role="gridcell" class="" style="flex-grow: 1">
-                <a routerLink="/finance/transactions/{{ account.id }}">{{ account.name }}</a>
+                <a routerLink="/transactions/{{ account.id }}">{{ account.name }}</a>
               </div>
               <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="account.balance < 0">
                 <div *ngIf="!account.fxRateToLocal">
@@ -108,7 +108,7 @@
                   {{ account.institution?.name }}
                 </div>
                 <div role="gridcell" class="" style="flex-grow: 1">
-                  <a routerLink="/finance/transactions/{{ account.id }}">{{ account.name }}</a>
+                  <a routerLink="/transactions/{{ account.id }}">{{ account.name }}</a>
                 </div>
                 <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="account.balance < 0">
                   <div *ngIf="!account.fxRateToLocal">
@@ -158,7 +158,7 @@
                   {{ account.institution?.name }}
                 </div>
                 <div role="gridcell" class="" style="flex-grow: 1">
-                  <a routerLink="/finance/transactions/{{ account.id }}">{{ account.name }}</a>
+                  <a routerLink="/transactions/{{ account.id }}">{{ account.name }}</a>
                 </div>
 
                 <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="account.balance < 0">
@@ -195,7 +195,7 @@
                 style="margin-right: 6px"
                 (click)="expandedInvestment = !expandedInvestment"
               ></fa-icon>
-              <div role="gridcell" class="" style="flex-grow: 1"><a routerLink="/finance/portfolio">Investment</a></div>
+              <div role="gridcell" class="" style="flex-grow: 1"><a routerLink="/portfolio">Investment</a></div>
               <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="bankSum < 0">{{ investmentSum | currency }}</div>
             </div>
             <ul class="account-card-holder" *ngIf="expandedInvestment">
@@ -209,7 +209,7 @@
                   {{ account.institution?.name }}
                 </div>
                 <div role="gridcell" class="" style="flex-grow: 1">
-                  <a routerLink="/finance/portfolio/{{ account.id }}">{{ account.name }}</a>
+                  <a routerLink="/portfolio/{{ account.id }}">{{ account.name }}</a>
                 </div>
                 <!-- <div role="gridcell" class="" style="flex-grow: 0;" [class.negative-value]="account.balance < 0">
                                     {{account.balance|currency:account.currencyCode:'symbol-narrow'}}
@@ -263,7 +263,7 @@
                   {{ account.institution?.name }}
                 </div>
                 <div role="gridcell" class="" style="flex-grow: 1">
-                  <a routerLink="/finance/transactions/{{ account.id }}">{{ account.name }}</a>
+                  <a routerLink="/transactions/{{ account.id }}">{{ account.name }}</a>
                 </div>
                 <!-- <div role="gridcell" class="" style="flex-grow: 0;" [class.negative-value]="account.balance < 0">
                                     {{account.balance|currency:account.currencyCode:'symbol-narrow'}}</div> -->

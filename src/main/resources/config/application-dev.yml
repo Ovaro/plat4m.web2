@@ -25,6 +25,8 @@ logging:
     org.springframework.web.socket: TRACE
     org.springframework.web.socket.handler.LoggingWebSocketHandlerDecorator: DEBUG
     org.springframework.web.socket.config.WebSocketMessageBrokerStats: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2.server.resource.web.authentication: TRACE
 
 spring:
   devtools:

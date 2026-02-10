@@ -413,9 +413,9 @@
                         *ngIf="
                           selectedGroup.value !== 'holdings' ||
                           !selectedInvestmentName ||
-                            selectedInvestmentName === null ||
-                            selectedInvestmentName === '' ||
-                            selectedInvestmentName === holding.name
+                          selectedInvestmentName === null ||
+                          selectedInvestmentName === '' ||
+                          selectedInvestmentName === holding.name
                         "
                         role="row"
                         class="app-table-row-with-subtotal"
@@ -424,14 +424,14 @@
                         <td role="gridcell" class="app-table-cell app-table--align-left">
                           <p-skeleton *ngIf="isLoading"></p-skeleton>
                           <span *ngIf="!isLoading">
-                            <a class="table-link" routerLink="/finance/investment/{{ holding.id }}">{{ holding.userSymbol }}</a>
+                            <a class="table-link" routerLink="/investment/{{ holding.id }}">{{ holding.userSymbol }}</a>
                           </span>
                         </td>
 
                         <td class="app-table-cell app-table--align-left">
                           <p-skeleton *ngIf="isLoading"></p-skeleton>
                           <span *ngIf="!isLoading">
-                            <a class="table-link" routerLink="/finance/investment/{{ holding.id }}">{{ holding.name }}</a>
+                            <a class="table-link" routerLink="/investment/{{ holding.id }}">{{ holding.name }}</a>
                           </span>
                         </td>
 

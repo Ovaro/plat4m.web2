@@ -93,6 +93,8 @@
     "@ngx-translate/http-loader": "16.0.1",
     "@popperjs/core": "2.11.8",
     "@primeuix/themes": "2.0.3",
+    "@stomp/rx-stomp": "2.3.0",
+    "@stomp/stompjs": "7.3.0",
     "ag-grid-angular": "35.0.1",
     "ag-grid-community": "35.0.1",
     "angular-gridster2": "14.1.5",

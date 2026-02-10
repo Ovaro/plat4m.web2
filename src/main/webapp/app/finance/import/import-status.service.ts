@@ -36,10 +36,10 @@ export class ImportStatusService {
     // building absolute path so that websocket doesn't fail when deploying with a context path
     let url = '/websocket/import';
     url = this.location.prepareExternalUrl(url);
-    // const authToken = this.authServerProvider.getToken();
-    // if (authToken) {
-    //   url += '?access_token=' + authToken;
-    // }
+    const authToken = this.authServerProvider.getToken();
+    if (authToken) {
+      url += '?access_token=' + authToken;
+    }
     const socket: WebSocket = new SockJS(url);
     this.stompClient = Stomp.over(socket, { protocols: ['v12.stomp'] });
     const headers: ConnectionHeaders = {};

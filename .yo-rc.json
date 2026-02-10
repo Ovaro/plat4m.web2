@@ -25,6 +25,7 @@
     "nativeLanguage": "en",
     "packageName": "ovaro.plat4m",
     "prodDatabaseType": "postgresql",
+    "websocket": "spring-websocket",
     "reactive": false,
     "serverPort": null,
     "serviceDiscoveryType": null,

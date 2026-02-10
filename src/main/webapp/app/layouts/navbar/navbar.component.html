@@ -2,7 +2,7 @@
   <nav data-cy="navbar" class="navbar navbar-expand-md" [ngClass]="'navbar-' + [theme]">
     <!-- bg-dark -->
     <div class="full-width float-left">
-      <a class="navbar-brand logo float-left" routerLink="/finance/dashboard" (click)="collapseNavbar()">
+      <a class="navbar-brand logo float-left" routerLink="/dashboard" (click)="collapseNavbar()">
         <span class="logo-img"></span>
         <span jhiTranslate="global.title" class="navbar-title" [ngClass]="'navbar-title-' + [theme]">Plat4m</span>
         <span [ngClass]="'navbar-module-name-' + [theme]">Finance</span>
@@ -160,13 +160,7 @@
               </a>
             </li>
             <li *ngSwitchCase="true">
-              <a
-                class="dropdown-item"
-                routerLink="/finance/import"
-                routerLinkActive="active"
-                (click)="collapseNavbar()"
-                data-cy="importData"
-              >
+              <a class="dropdown-item" routerLink="/import" routerLinkActive="active" (click)="collapseNavbar()" data-cy="importData">
                 <fa-icon icon="file-import" [fixedWidth]="true"></fa-icon>
                 <span jhiTranslate="global.menu.finance.import">Import Data</span>
               </a>

@@ -33,6 +33,7 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
+        //config.enableSimpleBroker("/topic");
         config.enableSimpleBroker("/topic", "/secured/user/queue/import");
         config.setUserDestinationPrefix("/secured/user");
     }
@@ -68,11 +69,11 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
                 WebSocketHandler wsHandler,
                 Map<String, Object> attributes
             ) throws Exception {
-                LOG.info("Websocket handshake started");
                 if (request instanceof ServletServerHttpRequest) {
                     ServletServerHttpRequest servletRequest = (ServletServerHttpRequest) request;
                     attributes.put(IP_ADDRESS, servletRequest.getRemoteAddress());
                 }
+                // LOG.info("WS Before Handshake");
                 return true;
             }
 
@@ -82,8 +83,7 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
                 ServerHttpResponse response,
                 WebSocketHandler wsHandler,
                 Exception exception
-            ) {
-                LOG.info("Websocket handshake completed");
+            ) { //LOG.info("WS After Handshake");
             }
         };
     }
@@ -92,13 +92,13 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
         return new DefaultHandshakeHandler() {
             @Override
             protected Principal determineUser(ServerHttpRequest request, WebSocketHandler wsHandler, Map<String, Object> attributes) {
-                LOG.info("Websocket: determining user");
                 Principal principal = request.getPrincipal();
                 if (principal == null) {
                     Collection<SimpleGrantedAuthority> authorities = new ArrayList<>();
                     authorities.add(new SimpleGrantedAuthority(AuthoritiesConstants.ANONYMOUS));
                     principal = new AnonymousAuthenticationToken("WebsocketConfiguration", "anonymous", authorities);
                 }
+                //LOG.info("WS determineUser");
                 return principal;
             }
         };

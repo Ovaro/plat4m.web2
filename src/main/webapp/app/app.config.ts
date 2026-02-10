@@ -1,4 +1,4 @@
-import { ApplicationConfig, LOCALE_ID, importProvidersFrom, inject } from '@angular/core';
+import { ApplicationConfig, DEFAULT_CURRENCY_CODE, LOCALE_ID, importProvidersFrom, inject } from '@angular/core';
 import { BrowserModule, Title } from '@angular/platform-browser';
 import {
   NavigationError,
@@ -66,6 +66,7 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(), // Adds animation support
     Title,
     { provide: LOCALE_ID, useValue: 'en-AU' },
+    { provide: DEFAULT_CURRENCY_CODE, useValue: 'AUD' },
     { provide: NgbDateAdapter, useClass: NgbDateDayjsAdapter },
     httpInterceptorProviders,
     { provide: TitleStrategy, useClass: AppPageTitleStrategy },
