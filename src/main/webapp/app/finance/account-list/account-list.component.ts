@@ -1,5 +1,5 @@
 import { HttpResponse } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRouteSnapshot, Router, RouterModule } from '@angular/router';
 import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { FinancialAccount } from '../finance.model';
@@ -44,9 +44,11 @@ export class AccountListComponent {
 
   title = '';
 
+  private themeService = inject(ThemeService);
+
   constructor(
     private accountListService: AccountList,
-    private themeService: ThemeService,
+
     private router: Router,
   ) {}
 

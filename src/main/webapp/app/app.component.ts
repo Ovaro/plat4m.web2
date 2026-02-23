@@ -10,7 +10,6 @@ import { TrackerService } from './core/tracker/tracker.service';
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
 import { fontAwesomeIcons } from './config/font-awesome-icons';
 import MainComponent from './layouts/main/main.component';
-import { FinanceModule } from 'finance/finance.module';
 import { AllCommunityModule, ClientSideRowModelModule, InfiniteRowModelModule, ModuleRegistry } from 'ag-grid-community';
 
 ModuleRegistry.registerModules([AllCommunityModule, ClientSideRowModelModule, InfiniteRowModelModule]);
@@ -20,7 +19,6 @@ ModuleRegistry.registerModules([AllCommunityModule, ClientSideRowModelModule, In
   template: '<jhi-main />',
   imports: [
     MainComponent,
-    FinanceModule,
     // jhipster-needle-angular-add-module JHipster will add new module here
   ],
 })

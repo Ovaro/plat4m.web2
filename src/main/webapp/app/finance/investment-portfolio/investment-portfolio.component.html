@@ -4,7 +4,8 @@
       <div class="row">
         <div class="col col-auto">
           <div class="breadcrumbs">
-            <div class="primary-breadcrumb" style="padding-top: 4px" jhiTranslate="{{ title }}">{{ title }}</div>
+            <div class="primary-breadcrumb" style="padding-top: 4px">{{ title }}</div>
+            <!-- jhiTranslate="{{ title }}" -->
           </div>
         </div>
         <div class="col">
@@ -142,7 +143,7 @@
                 <span class="d-none d-xxl-inline"
                   ><span class="pc-return" *ngIf="portfolio && portfolio.totalCapitalGainPC && !isNaN(portfolio.totalCapitalGainPC)"
                     >| </span
-                  ><span *ngIf="portfolio.totalCapitalGainPC && !isNaN(portfolio.totalCapitalGainPC)">{{
+                  ><span *ngIf="portfolio && portfolio.totalCapitalGainPC && !isNaN(portfolio.totalCapitalGainPC)">{{
                     portfolio.totalCapitalGainPC | percent: '1.2-2'
                   }}</span
                   ><span *ngIf="portfolio && portfolio.totalCapitalGainPC && !isNaN(portfolio.totalCapitalGainPC)" class="superscript"
@@ -173,7 +174,7 @@
                 {{ portfolio.totalIncome | currency: portfolio.currencyIsoCode : 'symbol-narrow' }}
                 <span class="d-none d-xxl-inline"
                   ><span class="pc-return" *ngIf="portfolio && portfolio.totalIncomePC">| </span
-                  ><span *ngIf="portfolio.totalIncomePC && !isNaN(portfolio.totalIncomePC)">{{
+                  ><span *ngIf="portfolio && portfolio.totalIncomePC && !isNaN(portfolio.totalIncomePC)">{{
                     portfolio.totalIncomePC | percent: '1.2-2'
                   }}</span
                   ><span *ngIf="portfolio && portfolio.totalIncomePC" class="superscript">&nbsp;p.a.</span></span
@@ -202,7 +203,7 @@
                 {{ portfolio.totalCurrencyGain | currency }}
                 <span class="d-none d-xxl-inline"
                   ><span class="pc-return" *ngIf="portfolio && portfolio.totalCurrencyGainPC">| </span
-                  ><span *ngIf="portfolio.totalCurrencyGainPC && !isNaN(portfolio.totalCurrencyGainPC)">{{
+                  ><span *ngIf="portfolio && portfolio.totalCurrencyGainPC && !isNaN(portfolio.totalCurrencyGainPC)">{{
                     portfolio.totalCurrencyGainPC | percent: '1.2-2'
                   }}</span
                   ><span *ngIf="portfolio && portfolio.totalCurrencyGainPC" class="superscript">&nbsp;p.a.</span></span
@@ -231,10 +232,12 @@
                 {{ portfolio.totalReturn | currency: portfolio!.currencyIsoCode : 'symbol-narrow' }}
                 <span class="d-none d-xxl-inline"
                   ><span class="pc-return" *ngIf="portfolio && portfolio.totalReturnPC">| </span
-                  ><span *ngIf="portfolio.totalReturnPC && !isNaN(portfolio.totalReturnPC)">{{
+                  ><span *ngIf="portfolio && portfolio.totalReturnPC && !isNaN(portfolio.totalReturnPC)">{{
                     portfolio.totalReturnPC | percent: '1.2-2'
                   }}</span
-                  ><span *ngIf="portfolio && portfolio.totalReturnPC" class="superscript">&nbsp;p.a.</span></span
+                  ><span *ngIf="portfolio && portfolio.totalReturnPC && !isNaN(portfolio.totalReturnPC)" class="superscript"
+                    >&nbsp;p.a.</span
+                  ></span
                 >
               </div>
               <jhi-delta-value

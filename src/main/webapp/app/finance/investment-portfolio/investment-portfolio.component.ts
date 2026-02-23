@@ -1118,6 +1118,14 @@ export class InvestmentPortfolioComponent {
   }
 
   public isNaN(num: unknown): boolean {
+    //console.log('Checking if NaN: ' + num + ' isNaN: ' + Number.isNaN(num));
+    if (num === null || num === undefined) {
+      return true;
+    }
+
+    if (num === '' || num === 'null' || num === 'undefined' || num === 'NaN') {
+      return true;
+    }
     return Number.isNaN(num);
   }
 

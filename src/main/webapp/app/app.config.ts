@@ -26,7 +26,6 @@ import routes from './app.routes';
 import { NgbDateDayjsAdapter } from './config/datepicker-adapter';
 import { AppPageTitleStrategy } from './app-page-title-strategy';
 import { CookieModule } from 'ngx-cookie';
-import { FinanceModule } from 'finance/finance.module';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 const routerFeatures: RouterFeatures[] = [
@@ -61,7 +60,6 @@ export const appConfig: ApplicationConfig = {
     // Set this to true to enable service worker (PWA)
     importProvidersFrom(ServiceWorkerModule.register('ngsw-worker.js', { enabled: false })),
     importProvidersFrom(TranslationModule),
-    importProvidersFrom(FinanceModule),
     provideHttpClient(withInterceptorsFromDi()),
     provideAnimationsAsync(), // Adds animation support
     Title,

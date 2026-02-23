@@ -34,19 +34,25 @@
     </div>
   </div>
 
-  <div class="p-splitter p-component p-splitter-vertical" style="height: 100%">
-    <div class="p-splitter-panel p-splitter-panel-nested" style="flex-basis: 180px">
-      <gridster #gridster [options]="options" class="gridster-plat4m">
-        <gridster-item [item]="item" *ngFor="let item of dashboard" style="background-color: unset" (click)="onClick(item)">
-          <app-parent-dynamic [widget]="item" [resizeEvent]="resizeEvent"></app-parent-dynamic>
-          <!-- <div>Hello! {{item | json}}</div> -->
-        </gridster-item>
-      </gridster>
-    </div>
+  <jhi-history-chart-dialog #historyChartDialog></jhi-history-chart-dialog>
 
-    <div *ngIf="selectedItem" class="p-splitter-panel p-splitter-panel-nested" style="flex-basis: calc(100% - 180px)">
-      <!-- <ng-template pTemplate></ng-template> -->
-      <apx-chart
+  <gridster #gridster [options]="options" class="gridster-plat4m">
+    <gridster-item [item]="item" *ngFor="let item of dashboard" style="background-color: unset" (click)="onClick(item)">
+      <app-parent-dynamic [widget]="item" [resizeEvent]="resizeEvent"></app-parent-dynamic>
+      <!-- <div>Hello! {{item | json}}</div> -->
+    </gridster-item>
+  </gridster>
+  <!-- <div class="p-splitter p-component p-splitter-vertical" > -->
+  <!-- style="height: 100%" -->
+  <!-- <div class="p-splitter-panel p-splitter-panel-nested" >  -->
+  <!-- style="flex-basis: 180px" -->
+
+  <!-- </div> -->
+
+  <!-- <div  class="p-splitter-panel p-splitter-panel-nested" style="height: 500px"> -->
+  <!-- style="flex-basis: calc(100% - 280px)" -->
+  <!-- <ng-template pTemplate></ng-template> -->
+  <!-- <apx-chart
         style="width: 100%"
         #historyChart
         [series]="historyChartOptions.series!"
@@ -57,11 +63,14 @@
         [dataLabels]="historyChartOptions.options!.dataLabels!"
         [markers]="historyChartOptions.options!.markers!"
         [tooltip]="historyChartOptions.options!.tooltip!"
-      ></apx-chart>
-      <!--  -->
-    </div>
-  </div>
-  <p-splitter> </p-splitter>
+      ></apx-chart> -->
+
+  <!-- <jhi-history-chart #historyChart></jhi-history-chart> -->
+
+  <!--  -->
+  <!-- </div> -->
+  <!-- </div> -->
+  <!-- <p-splitter> </p-splitter> -->
 
   <!-- <div class="p-splitter-gutter" ng-reflect-ng-style="[object Object]" style="height: 4px;">
             <div class="p-splitter-gutter-handle"></div>

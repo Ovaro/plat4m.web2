@@ -28,38 +28,13 @@ import {
 import { DashboardService } from './dashboard.service';
 
 import { CookieService } from 'ngx-cookie';
-import {
-  ApexAnnotations,
-  ApexAxisChartSeries,
-  ApexChart,
-  ApexOptions,
-  ApexTitleSubtitle,
-  ApexTooltip,
-  ApexFill,
-  ApexXAxis,
-  ApexYAxis,
-  ChartComponent,
-  ChartType,
-  NgApexchartsModule,
-} from 'ng-apexcharts';
 import SharedModule from 'app/shared/shared.module';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { FormsModule } from '@angular/forms';
 import { SplitterModule } from 'primeng/splitter';
-import { FinanceModule } from 'finance/finance.module';
 import { ParentDynamicComponent } from './parentDynamic.component';
-
-export type HistoryChartOptions = {
-  series: ApexAxisChartSeries;
-  chart: ApexChart;
-  xaxis: ApexXAxis;
-  yaxis: ApexYAxis;
-  // title: ApexTitleSubtitle;
-  stacked: boolean;
-  options: ApexOptions;
-  // tooltip: ApexTooltip;
-  // annotations: ApexAnnotations;
-};
+import { HistoryChartComponent } from '../history-chart/history-chart.component';
+import { HistoryChartDialogComponent } from '../history-chart-dialog/history-chart-dialog.component';
 
 // declare type XYData = {
 //   x: any;
@@ -79,7 +54,16 @@ export type HistoryChartOptions = {
   styleUrls: ['./dashboard.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  imports: [SharedModule, SelectButtonModule, FormsModule, GridsterModule, NgApexchartsModule, SplitterModule, ParentDynamicComponent],
+  imports: [
+    SharedModule,
+    SelectButtonModule,
+    FormsModule,
+    GridsterModule,
+    SplitterModule,
+    ParentDynamicComponent,
+    HistoryChartComponent,
+    HistoryChartDialogComponent,
+  ],
   // standalone: true,
   // imports: [
   //   NgForOf,
@@ -126,10 +110,6 @@ export class DashboardComponent {
   portfolioSnapshots: FinanceResourceSnapshots[];
 
   financeIndicators: FinanceIndicator[];
-
-  @ViewChild('historyChart', { static: false }) historyChart!: ChartComponent;
-  public historyChartOptions: Partial<HistoryChartOptions>;
-
   //  eventsSubject: Subject<void> = new Subject<void>();
 
   itemChange(item: any, itemComponent: any) {
@@ -149,6 +129,12 @@ export class DashboardComponent {
   private dashboardService = inject(DashboardService);
   //private currencyPipe  = inject(CurrencyPipe);
   private cookieService = inject(CookieService);
+
+  @ViewChild('historyChart', { static: false })
+  historyChart!: HistoryChartComponent;
+
+  @ViewChild('historyChartDialog', { static: false })
+  historyChartDialog!: HistoryChartDialogComponent;
 
   constructor(
     private changeDetectorRef: ChangeDetectorRef,
@@ -193,7 +179,6 @@ export class DashboardComponent {
     this.portfolioSnapshots = [];
     this.financeIndicators = [];
     this.allResources = [];
-    this.historyChartOptions = {};
   }
 
   ngOnInit(): void {
@@ -774,53 +759,6 @@ export class DashboardComponent {
       }
     }
 
-    this.historyChartOptions = {
-      //series: [{name: 'series1', data:[{x: '2020-06-01', y: 23},{x: '2020-07-01', y: 54},{x: '2020-08-01', y: 24},{x: '2020-09-01', y: 3},{x: '2020-10-01', y: 43},{x: '2020-11-01', y: 15}]}],
-      series: [],
-      chart: {
-        height: 'auto',
-        type: 'area',
-        stacked: true,
-
-        animations: {
-          enabled: false,
-          dynamicAnimation: {
-            enabled: true,
-          },
-        },
-      },
-      options: {
-        stroke: {
-          show: false,
-          curve: 'straight',
-        },
-        markers: {
-          size: 1,
-          strokeOpacity: 0.1,
-          fillOpacity: 0.1,
-          hover: {
-            size: 4,
-            sizeOffset: 3,
-          },
-        },
-        dataLabels: {
-          enabled: false,
-        },
-      },
-      xaxis: {
-        type: 'datetime',
-      },
-      yaxis: {
-        labels: {
-          formatter: function (val) {
-            // eslint-disable-next-line
-            return ptr.currencyFormatter(val);
-            //return "$"+(val).toFixed(2);
-          },
-        },
-      },
-    };
-
     //this.selectedResourceIds = ['4b0db8fa-e1a7-4e63-8293-7496743fa15d'];
     this.loadResources();
     this.loadAccountIndicators();
@@ -1193,9 +1131,11 @@ export class DashboardComponent {
   processDetailedPanel() {
     if (this.selectedItem) {
       let series = this.processSnapshots(this.selectedItem);
-      if (series) {
-        this.historyChartOptions.series = series;
-      }
+
+      // Set the series
+      // if (series) {
+      //   this.historyChartOptions.series = series;
+      // }
 
       this.changeDetectorRef.markForCheck();
     }
@@ -1436,7 +1376,7 @@ export class DashboardComponent {
     return result;
   }
 
-  processSnapshots(item: GridsterItem): ApexAxisChartSeries | null {
+  processSnapshots(item: GridsterItem) {
     let resourceIds: string[] | null = null;
     if (item != null) {
       resourceIds = item.dataTypeSpecs[0].dataType;
@@ -1444,85 +1384,29 @@ export class DashboardComponent {
       if (!ct) {
         ct = 'bar';
       }
-
-      if (this.historyChartOptions.chart!.type !== ct) {
-        this.historyChartOptions.chart!.stackType = 'normal';
-        this.historyChartOptions.chart!.stacked = true;
-        this.historyChartOptions.chart!.type = ct as ChartType;
-        if (this.historyChart) {
-          this.historyChart.updateOptions(this.historyChartOptions);
-        }
-      }
-    }
-
-    if (resourceIds == null) {
-      return null;
-    }
-
-    let serieses: ApexAxisChartSeries = [];
-    for (let i = 0; i < resourceIds.length; i++) {
-      let xy: [any?] = [];
-      let series = { name: resourceIds[i], data: xy };
-      let atLeastOne = false;
-
-      let resourceSnapshot: FinanceResourceSnapshots | null = this.findResourceSnapshot(resourceIds[i]);
-      if (resourceSnapshot != null && resourceSnapshot.snapshots != null) {
-        if (resourceSnapshot.name != null) {
-          series.name = resourceSnapshot.name;
-        }
-        // Add value
-        let lastKnownRateToBase = null;
-        for (let k = 0; k < resourceSnapshot.snapshots.length; k++) {
-          atLeastOne = true;
-          if (resourceSnapshot.snapshots[k].fxToLocal) {
-            lastKnownRateToBase = resourceSnapshot.snapshots[k].fxToLocal;
-          }
-          let value = resourceSnapshot.snapshots[k].value;
-          if (lastKnownRateToBase) {
-            value = value * lastKnownRateToBase;
-          }
-
-          //xy.push({ x: new Date(resourceSnapshot.snapshots[k].date).getTime(), y: value });
-          xy.push({ x: resourceSnapshot.snapshots[k].date, y: value });
-        }
+      if (resourceIds == null) {
+        return;
       }
 
-      if (atLeastOne) {
-        serieses.push(series);
-      }
-    }
-
-    let combineSeries = item.dataTypeSpecs[0].detailedPanelSpec?.combineSeries;
-    if (combineSeries) {
-      serieses = this.combineSeries(serieses, 'Combined');
-    }
-    return serieses;
-  }
-
-  combineSeries(inputSerieses: ApexAxisChartSeries, name: string) {
-    let serieses: ApexAxisChartSeries = [];
-    let xy: [any?] = [];
-    let series = { name: name, data: xy };
-    serieses.push(series);
-
-    // Combine
-    for (let i = 0; i < inputSerieses.length; i++) {
-      let currentSeriesXY = inputSerieses[i].data;
-      if (currentSeriesXY) {
-        for (let j = 0; j < currentSeriesXY.length; j++) {
-          let item = currentSeriesXY[j] as any;
-          if (xy[j]) {
-            if (item) {
-              xy[j].y = xy[j].y + item.y;
-            }
-          } else {
-            xy.push(item);
-          }
+      // ZZ Set on history-chart
+      let resourceSnapshots: FinanceResourceSnapshots[] = [];
+      for (let i = 0; i < resourceIds.length; i++) {
+        let resourceSnapshot: FinanceResourceSnapshots | null = this.findResourceSnapshot(resourceIds[i]);
+        if (resourceSnapshot) {
+          resourceSnapshots.push(resourceSnapshot);
         }
       }
-    }
+      let combineSeries = item.dataTypeSpecs[0].detailedPanelSpec?.combineSeries;
+      if (this.historyChart) {
+        this.historyChart.setData(resourceSnapshots, ct, combineSeries);
+      }
 
-    return serieses;
+      if (this.historyChartDialog) {
+        let header: string = item.dataTypeSpecs[0].title ? item.dataTypeSpecs[0].title : item.header ? item.header : 'Graph';
+        this.historyChartDialog.setData(header, resourceSnapshots, ct, combineSeries);
+        this.historyChartDialog.showDialog();
+      }
+    }
   }
 
   getCookie(key: string): any {
