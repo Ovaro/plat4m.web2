@@ -44,18 +44,18 @@ echo ---------------------------------------------------
 echo Building
 echo ---------------------------------------------------
 ./gradlew -Pprod bootJar -x test
-cp ./build/libs/plat4m-0.0.1-SNAPSHOT.jar ./build/libs/plat4m-$new_name.jar
+cp ./build/libs/plat-4-m-0.0.1-SNAPSHOT.jar ./build/libs/plat4m-$new_name.jar
 echo ---------------------------------------------------
 echo Uploading 
 echo ---------------------------------------------------
-scp ./build/libs/plat4m-$new_name.jar bitnami@3.24.110.213:~/builds/plat4m-$new_name.jar
+scp ./build/libs/plat4m-$new_name.jar bitnami@3.24.110.213:~/plat4m/builds/plat4m-$new_name.jar
 if [ $? -eq 0 ]; then
 	echo "SCP command was successful."
 
 	echo ---------------------------------------------------
 	echo Replacing old build
 	echo ---------------------------------------------------
-	ssh bitnami@3.24.110.213 "cp ~/builds/bitnami-$new_name.jar ~/plat4m/prod/bitnami-live.jar" 
+	ssh bitnami@3.24.110.213 "cp ~/plat4m/builds/bitnami-$new_name.jar ~/plat4m/prod/bitnami-live.jar" 
 	echo ---------------------------------------------------
 	echo Restarting Service 
 	echo ---------------------------------------------------
