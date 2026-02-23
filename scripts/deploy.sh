@@ -39,7 +39,7 @@ else
     echo "No commit made."
   fi
 fi
-new_name=$(git describe 2>/dev/null)
+new_name=$(git describe --tags 2>/dev/null)
 echo ---------------------------------------------------
 echo Building
 echo ---------------------------------------------------
@@ -55,17 +55,17 @@ if [ $? -eq 0 ]; then
 	echo ---------------------------------------------------
 	echo Replacing old build
 	echo ---------------------------------------------------
-	ssh bitnami@3.24.110.213 "cp ~/plat4m/builds/bitnami-$new_name.jar ~/plat4m/prod/bitnami-live.jar" 
+	ssh bitnami@3.24.110.213 "cp ~/plat4m/builds/plat4m-$new_name.jar ~/plat4m/prod/bitnami-live.jar" 
 	echo ---------------------------------------------------
 	echo Restarting Service 
 	echo ---------------------------------------------------
-	ssh bitnami@3.24.110.213 "sudo systemctl stop ovee.service;sudo systemctl start ovee.service;sudo systemctl status ovee.service"  
+	ssh bitnami@3.24.110.213 "sudo systemctl stop plat4m.service;sudo systemctl start plat4m.service;sudo systemctl status plat4m.service"  
 	sleep 15
-	ssh bitnami@3.24.110.213 "sudo systemctl status ovee.service"  
+	ssh bitnami@3.24.110.213 "sudo systemctl status plat4m.service"  
 	sleep 15
-	ssh bitnami@3.24.110.213 "sudo systemctl status ovee.service"  
+	ssh bitnami@3.24.110.213 "sudo systemctl status plat4m.service"  
 	sleep 10
-	ssh bitnami@3.24.110.213 "sudo systemctl status ovee.service"  
+	ssh bitnami@3.24.110.213 "sudo systemctl status plat4m.service"  
 else
 	echo "SCP command failed. Exit code: $?"
 fi
