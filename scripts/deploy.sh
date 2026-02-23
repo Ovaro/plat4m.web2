@@ -55,7 +55,7 @@ if [ $? -eq 0 ]; then
 	echo ---------------------------------------------------
 	echo Replacing old build
 	echo ---------------------------------------------------
-	ssh bitnami@3.24.110.213 "cp ~/plat4m/builds/plat4m-$new_name.jar ~/plat4m/prod/bitnami-live.jar" 
+	ssh bitnami@3.24.110.213 "cp ~/plat4m/builds/plat4m-$new_name.jar ~/plat4m/prod/plat4m-live.jar" 
 	echo ---------------------------------------------------
 	echo Restarting Service 
 	echo ---------------------------------------------------
