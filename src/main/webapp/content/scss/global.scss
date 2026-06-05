@@ -613,7 +613,7 @@ ui bootstrap tweaks
 /* ==========================================================================
 angular-cli removes postcss-rtl processed inline css, processed rules must be added here instead
 ========================================================================== */
-/* page-ribbon.component.scss */
+/* page-ribbon.scss */
 .ribbon {
   left: -3.5em;
   -moz-transform: rotate(-45deg);
@@ -623,7 +623,7 @@ angular-cli removes postcss-rtl processed inline css, processed rules must be ad
   transform: rotate(-45deg);
 }
 
-/* navbar.component.scss */
+/* navbar.scss */
 .navbar {
   ul.navbar-nav {
     .nav-item {
@@ -678,20 +678,68 @@ angular-cli removes postcss-rtl processed inline css, processed rules must be ad
 /* jhipster-needle-scss-add-main JHipster will add new css style */
 
 /* Ng Prime Theme overrides */
-.theme-dark .p-dropdown {
+.theme-dark .p-dropdown,
+.theme-dark .p-select {
   background-color: var(--app-colours-background-med-dark);
 }
 
-.theme-light .p-dropdown {
+.theme-light .p-dropdown,
+.theme-light .p-select {
   background-color: var(--app-colours-background-med-light);
+}
+
+.theme-light .p-select,
+.theme-dark .p-select {
+  color: var(--text-color);
 }
 
 .theme-dark .file-upload {
   background-color: var(--app-colours-background-med-dark);
 }
 
-.p-dropdown {
+.p-dropdown,
+.p-select {
   border: none;
+}
+
+.theme-light .p-select-overlay,
+.theme-light .p-dropdown-panel {
+  background-color: var(--app-colours-background-high-light) !important;
+  border: 1px solid var(--app-colours-border-low-light) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  color: var(--app-colours-primary-text-light) !important;
+}
+
+.theme-light .p-select-header,
+.theme-light .p-dropdown-header {
+  background-color: var(--app-colours-background-high-light) !important;
+  color: var(--app-colours-primary-text-light) !important;
+  border-bottom: 1px solid var(--app-colours-border-low-light) !important;
+}
+
+.theme-light .p-select-option,
+.theme-light .p-dropdown-item {
+  background-color: transparent !important;
+  color: var(--app-colours-primary-text-light) !important;
+}
+
+.theme-light .p-select-option:hover,
+.theme-light .p-select-option.p-focus,
+.theme-light .p-dropdown-item:hover {
+  background-color: var(--app-colours-background-med-light) !important;
+  color: var(--app-colours-primary-text-light) !important;
+}
+
+.theme-light .p-select-option.p-select-option-selected,
+.theme-light .p-dropdown-item.p-highlight {
+  background-color: var(--app-colours-background-med-light) !important;
+  color: var(--app-colours-primary-action-background-light) !important;
+}
+
+.theme-light .p-select-filter,
+.theme-light .p-dropdown-filter {
+  background-color: var(--app-colours-background-med-light) !important;
+  color: var(--app-colours-primary-text-light) !important;
 }
 
 .p-inputtext {
@@ -714,33 +762,45 @@ angular-cli removes postcss-rtl processed inline css, processed rules must be ad
   color: var(--ps-colors-text-dark);
 }
 
-.theme-dark .p-dropdown-panel {
-  background-color: var(--app-colours-background-high-dark);
+.theme-dark .p-dropdown-panel,
+.theme-dark .p-select-overlay {
+  background-color: var(--app-colours-background-high-dark) !important;
+  border: 1px solid var(--app-colours-border-low-dark) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  color: var(--app-colours-primary-text-dark) !important;
 }
 
-.theme-dark .p-dropdown-item {
+.theme-dark .p-dropdown-item,
+.theme-dark .p-select-option {
+  background-color: transparent !important;
   color: var(--app-colours-text-dark) !important;
 }
 
-.theme-dark .p-dropdown-header {
+.theme-dark .p-dropdown-header,
+.theme-dark .p-select-header {
   background-color: var(--app-colours-background-high-dark) !important;
   color: var(--app-colours-primary-action-background-dark) !important;
 }
 
-.theme-dark .p-dropdown-item.p-highlight {
-  background-color: var(--app-colours-background-high-dark) !important;
+.theme-dark .p-dropdown-item.p-highlight,
+.theme-dark .p-select-option.p-select-option-selected {
+  background-color: var(--app-colours-background-med-dark) !important;
   color: var(--app-colours-primary-action-background-dark) !important;
 }
 
-.theme-dark .p-dropdown-item.p-highlight:hover {
+.theme-dark .p-dropdown-item.p-highlight:hover,
+.theme-dark .p-select-option.p-select-option-selected.p-focus {
   color: var(--app-colours-text-dark) !important;
 }
 
-.theme-dark .p-dropdown-item:hover {
+.theme-dark .p-dropdown-item:hover,
+.theme-dark .p-select-option:hover,
+.theme-dark .p-select-option.p-focus {
   background-color: var(--app-colours-primary-action-background-dark) !important;
 }
 
-.theme-dark .p-dropdown-filter {
+.theme-dark .p-dropdown-filter,
+.theme-dark .p-select-filter {
   background-color: var(--app-colours-background-med-dark) !important;
 }
 

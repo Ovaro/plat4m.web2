@@ -1,5 +1,4 @@
-import { HttpResponse } from '@angular/common/http';
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRouteSnapshot, Router, RouterModule } from '@angular/router';
 import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { FinancialAccount } from '../finance.model';
@@ -13,36 +12,23 @@ import SharedModule from 'app/shared/shared.module';
   imports: [SharedModule, RouterModule],
 })
 export class AccountListComponent {
-  // implements OnInit
-  theme = 'light';
-  isLoading = false;
+  theme = signal('light');
+  isLoading = signal(false);
+  accounts = signal<FinancialAccount[] | null>(null);
 
-  accounts: FinancialAccount[] | null = null;
-  bankSum = 0;
-  investmentSum = 0;
-  liabilitySum = 0;
-  creditSum = 0;
-  assetSum = 0;
+  filterBanking = signal(false);
+  filterCredit = signal(false);
+  filterInvestment = signal(false);
+  filterLoans = signal(false);
+  filterAssets = signal(false);
 
-  totalSum = 0;
-  totalInvestmentsSum = 0;
-  totalLiabilitiesSum = 0;
-  totalCashSum = 0;
-  totalSumWithoutAssets = 0;
+  expandedBanking = signal(true);
+  expandedCredit = signal(true);
+  expandedInvestment = signal(true);
+  expandedLoans = signal(true);
+  expandedAssets = signal(true);
 
-  filterBanking = false;
-  filterCredit = false;
-  filterInvestment = false;
-  filterLoans = false;
-  filterAssets = false;
-
-  expandedBanking = true;
-  expandedCredit = true;
-  expandedInvestment = true;
-  expandedLoans = true;
-  expandedAssets = true;
-
-  title = '';
+  title = signal('');
 
   private themeService = inject(ThemeService);
 
@@ -56,106 +42,64 @@ export class AccountListComponent {
     this.load();
 
     this.themeService.onChange.subscribe((event: ThemeChangeEvent) => {
-      this.theme = event.theme;
+      this.theme.set(event.theme);
     });
 
-    this.title = this.getPageTitle(this.router.routerState.snapshot.root);
+    this.title.set(this.getPageTitle(this.router.routerState.snapshot.root));
   }
 
-  get onlyBankAccounts(): FinancialAccount[] | undefined {
-    return this.accounts?.filter(x => (x.accountType === 'bank' && x.relatedToAccountId == null) || x.accountType === 'cash');
-  }
+  readonly onlyBankAccounts = computed(
+    () => this.accounts()?.filter(x => (x.accountType === 'bank' && x.relatedToAccountId == null) || x.accountType === 'cash') ?? [],
+  );
 
-  get onlyCreditAccounts(): FinancialAccount[] | undefined {
-    return this.accounts?.filter(x => x.accountType === 'credit');
-  }
+  readonly onlyCreditAccounts = computed(() => this.accounts()?.filter(x => x.accountType === 'credit') ?? []);
 
-  get onlyLiabilityAccounts(): FinancialAccount[] | undefined {
-    return this.accounts?.filter(x => x.accountType === 'liability' || x.accountType === 'loan');
-  }
+  readonly onlyLiabilityAccounts = computed(
+    () => this.accounts()?.filter(x => x.accountType === 'liability' || x.accountType === 'loan') ?? [],
+  );
 
-  get onlyAssetAccounts(): FinancialAccount[] | undefined {
-    return this.accounts?.filter(x => x.accountType === 'asset');
-  }
+  readonly onlyAssetAccounts = computed(() => this.accounts()?.filter(x => x.accountType === 'asset') ?? []);
 
-  get onlyInvestmentAccounts(): FinancialAccount[] | undefined {
-    return this.accounts?.filter(x => x.accountType === 'investment');
-  }
+  readonly onlyInvestmentAccounts = computed(() => this.accounts()?.filter(x => x.accountType === 'investment') ?? []);
+
+  readonly bankSum = computed(() => this.sumGroup(this.onlyBankAccounts()));
+  readonly creditSum = computed(() => this.sumGroup(this.onlyCreditAccounts()));
+  readonly liabilitySum = computed(() => this.sumGroup(this.onlyLiabilityAccounts()));
+  readonly investmentSum = computed(() => this.sumGroup(this.onlyInvestmentAccounts()));
+  readonly assetSum = computed(() => this.sumGroup(this.onlyAssetAccounts()));
+
+  readonly totalCashSum = computed(() => this.bankSum());
+  readonly totalLiabilitiesSum = computed(() => this.creditSum() + this.liabilitySum());
+  readonly totalInvestmentsSum = computed(() => this.investmentSum());
+  readonly totalSumWithoutAssets = computed(() => this.bankSum() + this.creditSum() + this.liabilitySum() + this.investmentSum());
+  readonly totalSum = computed(() => this.totalSumWithoutAssets() + this.assetSum());
 
   load(): void {
     // eslint-disable-next-line no-console
     console.log('Loading Accounts');
-    this.isLoading = true;
-    this.accountListService.get().subscribe(
-      response => {
-        this.isLoading = false;
-        // eslint-disable-next-line no-console
+    this.isLoading.set(true);
+    this.accountListService.get().subscribe({
+      next: response => {
+        this.isLoading.set(false);
         console.log(`Response: ${JSON.stringify(response)}`);
-        this.accounts = response;
-
-        this.sumAccounts();
+        this.accounts.set(response);
       },
-      error => {
-        this.isLoading = false;
+      error: () => {
+        this.isLoading.set(false);
       },
-      () => {
-        // eslint-disable-next-line no-console
+      complete: () => {
         console.log(`Completed`);
-        this.isLoading = false;
+        this.isLoading.set(false);
       },
-    );
+    });
   }
 
-  sumAccounts(): void {
-    this.totalSum = 0;
-    this.totalCashSum = 0;
-    this.totalInvestmentsSum = 0;
-    this.totalLiabilitiesSum = 0;
-    this.totalSumWithoutAssets = 0;
-
+  private sumGroup(accounts: FinancialAccount[]): number {
     let sum = 0;
-    this.onlyBankAccounts?.forEach(element => {
+    accounts.forEach(element => {
       sum += this.subtotal(element);
     });
-
-    this.totalSum += sum;
-    this.totalCashSum += sum;
-    this.bankSum = sum;
-
-    sum = 0;
-    this.onlyCreditAccounts?.forEach(element => {
-      sum += this.subtotal(element);
-    });
-
-    this.totalLiabilitiesSum += sum;
-    this.totalSum += sum;
-    this.creditSum = sum;
-
-    sum = 0;
-    this.onlyLiabilityAccounts?.forEach(element => {
-      sum += this.subtotal(element);
-    });
-
-    this.totalLiabilitiesSum += sum;
-    this.totalSum += sum;
-    this.liabilitySum = sum;
-
-    sum = 0;
-    this.onlyInvestmentAccounts?.forEach(element => {
-      sum += this.subtotal(element);
-    });
-
-    this.totalSum += sum;
-    this.investmentSum = sum;
-    this.totalSumWithoutAssets = this.totalSum;
-
-    sum = 0;
-    this.onlyAssetAccounts?.forEach(element => {
-      sum += this.subtotal(element);
-    });
-
-    this.totalSum += sum;
-    this.assetSum = sum;
+    return sum;
   }
 
   subtotal(account: FinancialAccount): number {
@@ -167,6 +111,46 @@ export class AccountListComponent {
     }
 
     return account.balance;
+  }
+
+  toggleFilterBanking(): void {
+    this.filterBanking.update(value => !value);
+  }
+
+  toggleFilterLoans(): void {
+    this.filterLoans.update(value => !value);
+  }
+
+  toggleFilterCredit(): void {
+    this.filterCredit.update(value => !value);
+  }
+
+  toggleFilterInvestment(): void {
+    this.filterInvestment.update(value => !value);
+  }
+
+  toggleFilterAssets(): void {
+    this.filterAssets.update(value => !value);
+  }
+
+  toggleExpandedBanking(): void {
+    this.expandedBanking.update(value => !value);
+  }
+
+  toggleExpandedLoans(): void {
+    this.expandedLoans.update(value => !value);
+  }
+
+  toggleExpandedCredit(): void {
+    this.expandedCredit.update(value => !value);
+  }
+
+  toggleExpandedInvestment(): void {
+    this.expandedInvestment.update(value => !value);
+  }
+
+  toggleExpandedAssets(): void {
+    this.expandedAssets.update(value => !value);
   }
 
   private getPageTitle(routeSnapshot: ActivatedRouteSnapshot): string {

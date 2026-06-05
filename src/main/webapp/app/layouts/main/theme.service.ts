@@ -29,6 +29,14 @@ export class ThemeService {
     // });
   }
 
+  private syncDocumentTheme(theme: string): void {
+    const normalizedTheme = theme === 'auto' ? this.getOSTheme() : theme;
+    this.document.body.classList.remove('theme-light', 'theme-dark');
+    this.document.documentElement.classList.remove('theme-light', 'theme-dark');
+    this.document.body.classList.add(`theme-${normalizedTheme}`);
+    this.document.documentElement.classList.add(`theme-${normalizedTheme}`);
+  }
+
   switchTheme(theme: string): void {
     const themeLink = this.document.getElementById('app-theme') as HTMLLinkElement;
     themeLink.href = theme + '.css';
@@ -51,10 +59,9 @@ export class ThemeService {
       this.currentTheme = this.getOSTheme();
     }
 
-    if (this.currentTheme === 'auto') {
-      return this.getOSTheme();
-    }
-    return this.currentTheme;
+    const resolvedTheme = this.currentTheme === 'auto' ? this.getOSTheme() : this.currentTheme;
+    this.syncDocumentTheme(resolvedTheme);
+    return resolvedTheme;
   }
 
   toggleTheme(): void {
@@ -72,6 +79,7 @@ export class ThemeService {
   }
 
   public sendThemeEvent(theme: string): void {
+    this.syncDocumentTheme(theme);
     // do something, then...
     this.onChange.emit({ theme });
   }

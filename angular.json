@@ -38,7 +38,7 @@
             "outputPath": "build/resources/main/static/",
             "index": "src/main/webapp/index.html",
             "main": "src/main/webapp/main.ts",
-            "polyfills": ["zone.js"],
+            "polyfills": ["./src/main/webapp/sockjs-client.polyfill", "@angular/localize/init"],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
@@ -108,9 +108,13 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular-builders/jest:run",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "configPath": "jest.conf.js",
+            "runner": "vitest",
+            "buildTarget": "::development",
+            "runnerConfig": true,
+            "coverageReporters": ["text", "lcov"],
+            "reporters": ["default", ["vitest-sonar-reporter", { "outputFile": "./build/test-results/TESTS-results-sonar-vitest.xml" }]],
             "tsConfig": "tsconfig.spec.json"
           }
         }

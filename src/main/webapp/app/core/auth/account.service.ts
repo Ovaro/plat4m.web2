@@ -1,18 +1,19 @@
-import { Injectable, Signal, WritableSignal, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { HttpClient, HttpResponse } from '@angular/common/http';
-import { TranslateService } from '@ngx-translate/core';
-import { Observable, ReplaySubject, of } from 'rxjs';
-import { catchError, shareReplay, tap } from 'rxjs/operators';
 
-import { StateStorageService } from 'app/core/auth/state-storage.service';
+import { TranslateService } from '@ngx-translate/core';
+import { Observable, catchError, of, shareReplay, tap } from 'rxjs';
+
 import { Account } from 'app/core/auth/account.model';
+import { StateStorageService } from 'app/core/auth/state-storage.service';
 import { ApplicationConfigService } from '../config/application-config.service';
 
 @Injectable({ providedIn: 'root' })
 export class AccountService {
   private readonly userIdentity = signal<Account | null>(null);
-  private readonly authenticationState = new ReplaySubject<Account | null>(1);
+  // eslint-disable-next-line @typescript-eslint/member-ordering
+  readonly account = this.userIdentity.asReadonly();
   private accountCache$?: Observable<Account> | null;
 
   private readonly translateService = inject(TranslateService);
@@ -27,14 +28,9 @@ export class AccountService {
 
   authenticate(identity: Account | null): void {
     this.userIdentity.set(identity);
-    this.authenticationState.next(this.userIdentity());
     if (!identity) {
       this.accountCache$ = null;
     }
-  }
-
-  trackCurrentAccount(): Signal<Account | null> {
-    return this.userIdentity.asReadonly();
   }
 
   hasAnyAuthority(authorities: string[] | string): boolean {
@@ -57,7 +53,7 @@ export class AccountService {
           // After retrieve the account info, the language will be changed to
           // the user's preferred language configured in the account setting
           // unless user have chosen another language in the current session
-          if (!this.stateStorageService.getLocale()) {
+          if (account.langKey && !this.stateStorageService.getLocale()) {
             this.translateService.use(account.langKey);
           }
 
@@ -73,10 +69,6 @@ export class AccountService {
     return this.userIdentity() !== null;
   }
 
-  getAuthenticationState(): Observable<Account | null> {
-    return this.authenticationState.asObservable();
-  }
-
   private fetch(): Observable<Account> {
     return this.http.get<Account>(this.applicationConfigService.getEndpointFor('api/account'));
   }
@@ -89,17 +81,5 @@ export class AccountService {
       this.stateStorageService.clearUrl();
       this.router.navigateByUrl(previousUrl);
     }
-  }
-
-  checkExists(login: string): Observable<HttpResponse<any>> {
-    return this.http.post<any>(SERVER_API_URL + 'api/userExists', login, { observe: 'response' });
-  }
-
-  isIdentityResolved(): boolean {
-    return this.userIdentity !== null;
-  }
-
-  getUserIdentity(): WritableSignal<Account | null> {
-    return this.userIdentity;
   }
 }

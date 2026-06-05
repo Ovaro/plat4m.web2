@@ -18,3 +18,109 @@ jhi-transactions {
   font-weight: var(--ps-type-font-weight-strong);
   text-transform: uppercase;
 }
+
+:host ::ng-deep .transactions-account-select-col {
+  width: 18rem;
+  max-width: 100%;
+  flex: 0 0 18rem;
+}
+
+:host ::ng-deep .transactions-account-select {
+  width: 100%;
+  border: 1px solid var(--app-colours-border-low-light);
+  border-radius: 8px;
+  background-color: var(--app-colours-background-high-light);
+  color: var(--app-colours-primary-text-light);
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-account-select {
+  border-color: var(--app-colours-border-low-dark);
+  background-color: var(--app-colours-background-high-dark);
+  color: var(--app-colours-primary-text-dark);
+}
+
+:host ::ng-deep .transactions-account-select .p-select-label {
+  color: inherit;
+}
+
+:host ::ng-deep .transactions-account-select .p-select-dropdown {
+  color: var(--ps-colors-text-icon-low-on-light);
+  width: 2.5rem;
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-account-select .p-select-dropdown {
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
+:host ::ng-deep .transactions-account-select .p-select-clear-icon {
+  color: var(--ps-colors-text-icon-low-on-light);
+  inset-inline-end: 2.5rem;
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-account-select .p-select-clear-icon {
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
+:host ::ng-deep .transactions-account-select-panel {
+  background-color: var(--app-colours-background-high-light) !important;
+  border: 1px solid var(--app-colours-border-low-light) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14) !important;
+  color: var(--app-colours-primary-text-light) !important;
+}
+
+:host ::ng-deep .transactions-account-select-panel .p-select-header {
+  background-color: var(--app-colours-background-high-light) !important;
+  border-bottom: 1px solid var(--app-colours-border-low-light) !important;
+}
+
+:host ::ng-deep .transactions-account-select-panel .p-select-filter {
+  color: var(--app-colours-primary-text-light) !important;
+  background-color: var(--app-colours-background-med-light) !important;
+}
+
+:host ::ng-deep .transactions-account-select-panel .p-select-option {
+  color: var(--app-colours-primary-text-light) !important;
+  background-color: transparent !important;
+}
+
+:host ::ng-deep .transactions-account-select-panel .p-select-option:hover,
+:host ::ng-deep .transactions-account-select-panel .p-select-option.p-focus {
+  background-color: var(--app-colours-background-med-light) !important;
+}
+
+:host ::ng-deep .transactions-account-select-panel .p-select-option.p-select-option-selected {
+  background-color: var(--app-colours-background-med-light) !important;
+  color: var(--app-colours-primary) !important;
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-account-select-panel {
+  background-color: var(--app-colours-background-high-dark) !important;
+  border-color: var(--app-colours-border-low-dark) !important;
+  color: var(--app-colours-primary-text-dark) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4) !important;
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-account-select-panel .p-select-header {
+  background-color: var(--app-colours-background-high-dark) !important;
+  border-bottom-color: var(--app-colours-border-low-dark) !important;
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-account-select-panel .p-select-filter {
+  color: var(--app-colours-primary-text-dark) !important;
+  background-color: var(--app-colours-background-med-dark) !important;
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-account-select-panel .p-select-option {
+  color: var(--app-colours-primary-text-dark) !important;
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-account-select-panel .p-select-option:hover,
+:host-context(.theme-dark) ::ng-deep .transactions-account-select-panel .p-select-option.p-focus {
+  background-color: var(--app-colours-background-med-dark) !important;
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-account-select-panel .p-select-option.p-select-option-selected {
+  background-color: var(--app-colours-background-med-dark) !important;
+  color: var(--app-colours-primary) !important;
+}

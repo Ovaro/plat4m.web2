@@ -8,11 +8,10 @@ pluginManagement {
             mavenCentral()
         }
         dependencies {
-            classpath group: 'org.liquibase', name: 'liquibase-core', version: "${liquibaseVersion}"
+            classpath "org.liquibase:liquibase-core:${liquibaseVersion}"
         }
     }
     plugins {
-        id 'com.gorylenko.gradle-git-properties' version "${gitPropertiesPluginVersion}"
         id "org.liquibase.gradle" version "${liquibasePluginVersion}"
         // jhipster-needle-gradle-plugin-management-plugins - JHipster will add additional entries here
     }

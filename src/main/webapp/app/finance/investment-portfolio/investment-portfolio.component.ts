@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Inject, LOCALE_ID, NgZone, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject, LOCALE_ID, NgZone, ViewChild, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { InvestmentPortfolio } from './investment-portfolio.service';
@@ -34,8 +34,6 @@ import {
   NgApexchartsModule,
 } from 'ng-apexcharts';
 import SharedModule from 'app/shared/shared.module';
-import { DropdownModule } from 'primeng/dropdown';
-import { InputSwitchModule } from 'primeng/inputswitch';
 import { SkeletonModule } from 'primeng/skeleton';
 import { DeltaValueComponent } from 'app/shared/delta-value/delta-value.component';
 
@@ -88,7 +86,7 @@ export type TreeMapChartOptions = {
   selector: 'jhi-investment-portfolio',
   templateUrl: './investment-portfolio.component.html',
   styleUrls: ['./investment-portfolio.component.scss'],
-  imports: [SharedModule, RouterModule, DropdownModule, NgApexchartsModule, InputSwitchModule, SkeletonModule],
+  imports: [SharedModule, RouterModule, NgApexchartsModule, SkeletonModule],
 })
 export class InvestmentPortfolioComponent {
   // implements OnInit
@@ -110,48 +108,49 @@ export class InvestmentPortfolioComponent {
     fxRateToLocal: null,
   };
 
-  title = '';
-  theme = 'light';
-  isLoading = false;
-  isLoadingSummaries = false;
-  isLoadingHistory = false;
-  isHistoryLoaded = false;
+  private readonly _title = signal('');
+  private readonly _theme = signal('light');
+  private readonly _isLoading = signal(false);
+  private readonly _isLoadingSummaries = signal(false);
+  private readonly _isLoadingHistory = signal(false);
+  private readonly _isHistoryLoaded = signal(false);
+  private readonly _showHistoryChart = signal(false);
 
-  accountId: string | null = null;
-  account: FinancialAccount | null = null;
+  private readonly _accountId = signal<string | null>(null);
+  private readonly _account = signal<FinancialAccount | null>(null);
   groupings: Group[];
 
-  includeClosedPositions = false;
+  private readonly _includeClosedPositions = signal(false);
 
-  showAnnotations = false;
+  private readonly _showAnnotations = signal(false);
 
-  selectedGroup: Group;
+  private readonly _selectedGroup = signal<Group>({ name: 'Holdings', value: 'holdings', groups: null });
 
   periods: Periods[];
-  selectedPeriod: Periods;
+  private readonly _selectedPeriod = signal<Periods>({ name: 'ALL', value: '' });
 
-  selectedInvestmentName: string | null = null;
+  private readonly _selectedInvestmentName = signal<string | null>(null);
 
   /* Tabs */
   mainTab: string;
-  activeTab: string;
+  private readonly _activeTab = signal('holdings');
 
   // pipe = new DatePipe('en-US');
 
   steadyVariance = 0.01; // mark as steady if not more or less than this
 
   // Data that gets displayed in the grid
-  public holdings!: FinanceSecurityHolding[] | null;
+  private readonly _holdings = signal<FinanceSecurityHolding[] | null>(null);
 
-  public accounts!: FinancialAccount[] | null;
+  private readonly _accounts = signal<FinancialAccount[] | null>(null);
 
-  public summaries!: FinanceInvestmentSnapshotDetails[] | null;
+  private readonly _summaries = signal<FinanceInvestmentSnapshotDetails[] | null>(null);
 
-  public portfolio!: InvestmentPortfolioDetails | null;
+  private readonly _portfolio = signal<InvestmentPortfolioDetails | null>(null);
 
-  public portfolioValueHistoryItems!: FinanceResourceSnapshots[] | null;
+  private readonly _portfolioValueHistoryItems = signal<FinanceResourceSnapshots[] | null>(null);
 
-  public comparisonPortfolio!: InvestmentPortfolioDetails | null; // The period to compare against
+  private readonly _comparisonPortfolio = signal<InvestmentPortfolioDetails | null>(null); // The period to compare against
 
   /* Charts */
   @ViewChild('pieChart', { static: false }) pieChart!: ChartComponent;
@@ -162,6 +161,177 @@ export class InvestmentPortfolioComponent {
 
   @ViewChild('historyChart', { static: false }) historyChart!: ChartComponent;
   public historyChartOptions: Partial<AreaChartOptions>;
+
+  readonly emptyTreemapSeries: ApexAxisChartSeries = [{ name: 'Holdings', data: [] }];
+  readonly emptyHistorySeries: ApexAxisChartSeries = [{ name: 'All Holdings', data: [] }];
+
+  get title(): string {
+    return this._title();
+  }
+
+  set title(value: string) {
+    this._title.set(value);
+  }
+
+  get theme(): string {
+    return this._theme();
+  }
+
+  set theme(value: string) {
+    this._theme.set(value);
+  }
+
+  get isLoading(): boolean {
+    return this._isLoading();
+  }
+
+  set isLoading(value: boolean) {
+    this._isLoading.set(value);
+  }
+
+  get isLoadingSummaries(): boolean {
+    return this._isLoadingSummaries();
+  }
+
+  set isLoadingSummaries(value: boolean) {
+    this._isLoadingSummaries.set(value);
+  }
+
+  get isLoadingHistory(): boolean {
+    return this._isLoadingHistory();
+  }
+
+  set isLoadingHistory(value: boolean) {
+    this._isLoadingHistory.set(value);
+  }
+
+  get isHistoryLoaded(): boolean {
+    return this._isHistoryLoaded();
+  }
+
+  set isHistoryLoaded(value: boolean) {
+    this._isHistoryLoaded.set(value);
+  }
+
+  get showHistoryChart(): boolean {
+    return this._showHistoryChart();
+  }
+
+  set showHistoryChart(value: boolean) {
+    this._showHistoryChart.set(value);
+  }
+
+  get accountId(): string | null {
+    return this._accountId();
+  }
+
+  set accountId(value: string | null) {
+    this._accountId.set(value);
+  }
+
+  get account(): FinancialAccount | null {
+    return this._account();
+  }
+
+  set account(value: FinancialAccount | null) {
+    this._account.set(value);
+  }
+
+  get includeClosedPositions(): boolean {
+    return this._includeClosedPositions();
+  }
+
+  set includeClosedPositions(value: boolean) {
+    this._includeClosedPositions.set(value);
+  }
+
+  get showAnnotations(): boolean {
+    return this._showAnnotations();
+  }
+
+  set showAnnotations(value: boolean) {
+    this._showAnnotations.set(value);
+  }
+
+  get selectedGroup(): Group {
+    return this._selectedGroup();
+  }
+
+  set selectedGroup(value: Group | null) {
+    this._selectedGroup.set(value ?? this.groupings[0]);
+  }
+
+  get selectedPeriod(): Periods {
+    return this._selectedPeriod();
+  }
+
+  set selectedPeriod(value: Periods | null) {
+    this._selectedPeriod.set(value ?? this.periods[this.periods.length - 1]);
+  }
+
+  get selectedInvestmentName(): string | null {
+    return this._selectedInvestmentName();
+  }
+
+  set selectedInvestmentName(value: string | null) {
+    this._selectedInvestmentName.set(value);
+  }
+
+  get activeTab(): string {
+    return this._activeTab();
+  }
+
+  set activeTab(value: string) {
+    this._activeTab.set(value);
+  }
+
+  get holdings(): FinanceSecurityHolding[] | null {
+    return this._holdings();
+  }
+
+  set holdings(value: FinanceSecurityHolding[] | null) {
+    this._holdings.set(value);
+  }
+
+  get accounts(): FinancialAccount[] | null {
+    return this._accounts();
+  }
+
+  set accounts(value: FinancialAccount[] | null) {
+    this._accounts.set(value);
+  }
+
+  get summaries(): FinanceInvestmentSnapshotDetails[] | null {
+    return this._summaries();
+  }
+
+  set summaries(value: FinanceInvestmentSnapshotDetails[] | null) {
+    this._summaries.set(value);
+  }
+
+  get portfolio(): InvestmentPortfolioDetails | null {
+    return this._portfolio();
+  }
+
+  set portfolio(value: InvestmentPortfolioDetails | null) {
+    this._portfolio.set(value);
+  }
+
+  get portfolioValueHistoryItems(): FinanceResourceSnapshots[] | null {
+    return this._portfolioValueHistoryItems();
+  }
+
+  set portfolioValueHistoryItems(value: FinanceResourceSnapshots[] | null) {
+    this._portfolioValueHistoryItems.set(value);
+  }
+
+  get comparisonPortfolio(): InvestmentPortfolioDetails | null {
+    return this._comparisonPortfolio();
+  }
+
+  set comparisonPortfolio(value: InvestmentPortfolioDetails | null) {
+    this._comparisonPortfolio.set(value);
+  }
 
   constructor(
     private investmentService: InvestmentPortfolio,
@@ -225,7 +395,7 @@ export class InvestmentPortfolioComponent {
     };
 
     this.treemapChartOptions = {
-      series: [],
+      series: this.emptyTreemapSeries,
       legend: {
         show: true,
       },
@@ -238,7 +408,10 @@ export class InvestmentPortfolioComponent {
       },
     };
 
-    this.historyChartOptions = {};
+    this.historyChartOptions = {
+      series: this.emptyHistorySeries,
+      annotations: {},
+    };
 
     this.mainTab = 'holdings';
     this.activeTab = 'holdings';
@@ -250,7 +423,9 @@ export class InvestmentPortfolioComponent {
     this.themeService.onChange.subscribe((event: ThemeChangeEvent) => {
       this.theme = event.theme;
 
-      this.historyChart.updateOptions({ tooltip: { theme: this.theme } });
+      if (this.historyChart) {
+        this.historyChart.updateOptions({ tooltip: { theme: this.theme } });
+      }
     });
 
     //this.title = this.commonControllerServices.getPageTitle(this.router.routerState.snapshot.root);
@@ -327,7 +502,7 @@ export class InvestmentPortfolioComponent {
       },
     };
 
-    (this.treemapChartOptions.chart = {
+    ((this.treemapChartOptions.chart = {
       type: 'treemap',
       height: 600,
       events: {
@@ -348,7 +523,7 @@ export class InvestmentPortfolioComponent {
           function (val: string, op: any): string | number {
             return ptr.currencyFormatter(op.value); // + '<br>' + String(op.value)
           },
-      });
+      }));
 
     this.treemapChartOptions.tooltip = {
       enabled: true,
@@ -487,7 +662,12 @@ export class InvestmentPortfolioComponent {
   }
 
   navigateToInvestmentFromSeriesIndex(series: number, index: number): void {
-    const dp = this.treemapChartOptions.series![series].data[index] as { x: any; y: any };
+    const selectedSeries = this.treemapChartOptions.series?.[series];
+    const dp = selectedSeries?.data?.[index] as { x: any; y: any } | undefined;
+
+    if (!dp) {
+      return;
+    }
 
     for (let i = 0; i < this.holdings!.length; i++) {
       if (this.holdings![i].name === dp.x) {
@@ -523,17 +703,28 @@ export class InvestmentPortfolioComponent {
   }
 
   onChangeGrouping(event: any): void {
-    if (this.holdings) {
+    const nextGroup = event?.value as Group | null | undefined;
+    if (nextGroup) {
+      this.selectedGroup = nextGroup;
+    }
+
+    if (this.holdings && this.selectedGroup) {
       this.selectedInvestmentName = null;
       this.processGroup(this.selectedGroup, this.holdings);
-      if (this.isHistoryLoaded) {
-        let series = this.configureHistorySeriesByGroup(this.selectedGroup.groups!, this.portfolioValueHistoryItems!);
-        this.historyChart.updateSeries(series);
+      if (this.isHistoryLoaded && this.selectedGroup.groups && this.portfolioValueHistoryItems) {
+        this.setHistorySeries(this.configureHistorySeriesByGroup(this.selectedGroup.groups, this.portfolioValueHistoryItems));
+        this.setHistoryAnnotations(this.showAnnotations ? this.processAnnotations(this.portfolioValueHistoryItems) : {});
+        this.refreshHistoryChart();
       }
     }
   }
 
   onChangePeriod(event: any): void {
+    const nextPeriod = event?.value as Periods | null | undefined;
+    if (nextPeriod) {
+      this.selectedPeriod = nextPeriod;
+    }
+
     this.zone.run(() => {
       this.comparisonPortfolio = null;
       this.saveCookie(InvestmentPortfolioComponent.PERIOD_DEFAULT_COOKIE_ID, this.selectedPeriod.value);
@@ -564,7 +755,7 @@ export class InvestmentPortfolioComponent {
     // // console.log('activetab pre: ' + this.activetab);
     this.activeTab = tabName;
     if (this.activeTab === 'treemap') {
-      this.treemapChartOptions.series = this.processTreemapData();
+      this.setTreemapSeries(this.processTreemapData());
     } else if (this.activeTab === 'history') {
       //this.historyChartOptions.series = this.processTreemapData();
       //this.loadHistory();
@@ -792,19 +983,29 @@ export class InvestmentPortfolioComponent {
       this.pieChartOptions.labels.length = 0;
     }
 
+    if (!this.holdings || this.holdings.length === 0) {
+      return;
+    }
+
     if (this.selectedGroup.value === 'holdings') {
-      this.pieDataByHolding(this.holdings!);
-    } else {
-      this.pieDataByGroup(this.selectedGroup.groups!);
+      this.pieDataByHolding(this.holdings);
+    } else if (this.selectedGroup.groups) {
+      this.pieDataByGroup(this.selectedGroup.groups);
     }
   }
 
   private processTreemapData(): ApexAxisChartSeries {
-    if (this.selectedGroup.value === 'holdings') {
-      return this.treemapDataByHolding(this.holdings!);
-    } else {
-      return this.treemapDataByGroup(this.selectedGroup.groups!);
+    if (!this.holdings || this.holdings.length === 0) {
+      return this.emptyTreemapSeries;
     }
+
+    if (this.selectedGroup.value === 'holdings') {
+      return this.treemapDataByHolding(this.holdings);
+    } else if (this.selectedGroup.groups) {
+      return this.treemapDataByGroup(this.selectedGroup.groups);
+    }
+
+    return this.emptyTreemapSeries;
   }
 
   private processGroup(group: Group, allHoldings: FinanceSecurityHolding[]): void {
@@ -839,7 +1040,7 @@ export class InvestmentPortfolioComponent {
 
     this.processPieChartData();
     if (this.activeTab === 'treemap') {
-      this.treemapChartOptions.series = this.processTreemapData();
+      this.setTreemapSeries(this.processTreemapData());
     }
 
     // ZZZ this.processComparisonData(group.groups!, this.comparisonPortfolio?.summaries);
@@ -1100,20 +1301,19 @@ export class InvestmentPortfolioComponent {
 
         // this.selectedGroup.groups
         if (this.selectedGroup.groups != null) {
-          this.historyChartOptions.series = this.configureHistorySeriesByGroup(
-            this.selectedGroup.groups!,
-            this.portfolioValueHistoryItems!,
-          );
+          this.setHistorySeries(this.configureHistorySeriesByGroup(this.selectedGroup.groups, this.portfolioValueHistoryItems));
         } else {
-          this.historyChartOptions.series = this.configureHistorySeriesNoGrouping(this.portfolioValueHistoryItems!);
+          this.setHistorySeries(this.configureHistorySeriesNoGrouping(this.portfolioValueHistoryItems));
         }
+
         if (this.showAnnotations) {
-          this.historyChartOptions.annotations = this.processAnnotations(this.portfolioValueHistoryItems!);
+          this.setHistoryAnnotations(this.processAnnotations(this.portfolioValueHistoryItems));
         } else {
-          this.historyChartOptions.annotations = {};
+          this.setHistoryAnnotations({});
         }
+        this.refreshHistoryChart();
       },
-      error: () => ((this.isLoadingHistory = false), (this.isHistoryLoaded = true)),
+      error: () => ((this.isLoadingHistory = false), (this.isHistoryLoaded = true), (this.showHistoryChart = false)),
     });
   }
 
@@ -1130,12 +1330,11 @@ export class InvestmentPortfolioComponent {
   }
 
   private configureHistorySeriesByGroup(groupData: GroupData, portfolioValueHistoryItems: FinanceResourceSnapshots[]): ApexAxisChartSeries {
-    let xydataArr = [{ x: '', y: 0 }];
-
+    let xydataArr = [{ x: 0, y: 0 }];
     let serieses: ApexAxisChartSeries = []; // {data:[0]},{data:[0]}
 
     if (portfolioValueHistoryItems == null) {
-      return serieses;
+      return this.emptyHistorySeries;
     }
     // eslint-disable-next-line no-console
     console.log('Processing History with By Group');
@@ -1166,19 +1365,19 @@ export class InvestmentPortfolioComponent {
         xydataArr = xyseries.data;
       }
 
-      portfolioValueHistoryItem.snapshots.forEach((element: { date: string; value: number }) => {
+      portfolioValueHistoryItem.snapshots?.forEach((element: { date: string; value: number }) => {
         // eslint-disable-next-line no-console
         console.log('Processing security values for: ' + portfolioValueHistoryItem.name);
 
         let time = Date.parse(element.date);
-        const format = 'MM/dd/yyyy';
-        let x = formatDate(time, format, this.locale);
-        let xy = map.get(groupName + x);
+        if (Number.isNaN(time) || element.value == null) {
+          return;
+        }
+
+        let xy = map.get(groupName + time);
         if (xy == null) {
-          xy = { x: '', y: 0, d: null };
-          xy.time = time;
-          xy.x = x;
-          map.set(groupName + x, xy);
+          xy = { x: time, y: 0, time };
+          map.set(groupName + time, xy);
           console.log('Created new Date holder in series for: ' + element.date);
           xydataArr.push(xy);
         }
@@ -1200,23 +1399,29 @@ export class InvestmentPortfolioComponent {
     }
 
     // Sort everything
-    serieses.forEach((element: any) => {
-      let sortedData = element.data.sort(function (a: any, b: any) {
-        return a.time - b.time;
-      });
-      element.data = sortedData;
-    });
+    serieses = serieses
+      .filter((element: any) => Array.isArray(element?.data))
+      .map((element: any) => {
+        let sortedData = element.data.sort(function (a: any, b: any) {
+          return a.time - b.time;
+        });
+        element.data = sortedData;
+        return element;
+      })
+      .filter((element: any) => element.data.length > 0);
+
+    if (serieses.length === 0) {
+      return this.emptyHistorySeries;
+    }
 
     return serieses;
   }
 
   private mapSecurityIntoGroups(groupData: GroupData): Map<string, string> {
-    // Object.values(groupData).forEach((value: FinanceSecurityHolding[] | null, index: number) => {
-    // });
     let map: Map<string, string> = new Map<string, string>();
 
-    Object.keys(groupData).forEach((groupValue: string, groupIndex: number) => {
-      groupData[groupValue]!.forEach((value: FinanceSecurityHolding, index: number) => {
+    Object.keys(groupData).forEach((groupValue: string) => {
+      groupData[groupValue]?.forEach((value: FinanceSecurityHolding) => {
         map.set(value.id, groupValue);
       });
     });
@@ -1225,7 +1430,7 @@ export class InvestmentPortfolioComponent {
   }
 
   private configureHistorySeriesPerHolding(portfolioValueHistoryItems: PortfolioValueHistoryItem[], type: string): ApexAxisChartSeries {
-    let xydataArr = [{ x: '', y: 0 }];
+    let xydataArr = [{ x: 0, y: 0 }];
 
     let serieses: ApexAxisChartSeries = []; // {data:[0]},{data:[0]}
 
@@ -1236,12 +1441,11 @@ export class InvestmentPortfolioComponent {
       serieses.push(xyseries);
 
       portfolioValueHistoryItem.valueOverTimePerSecurity.forEach((element: { date: string; value: number }) => {
-        const xy = { x: '', y: 0 };
         let d = Date.parse(element.date);
-        //xy.x = this.datePipe.transform(d, 'MM/dd/yyyy')!;
-        const format = 'MM/dd/yyyy';
-        xy.x = formatDate(d, format, this.locale);
-        xy.y = Math.round(element.value);
+        if (Number.isNaN(d)) {
+          return;
+        }
+        const xy = { x: d, y: Math.round(element.value), time: d };
         xydataArr.push(xy);
       });
     }
@@ -1250,52 +1454,40 @@ export class InvestmentPortfolioComponent {
   }
 
   private configureHistorySeriesNoGrouping(portfolioValueHistoryItems: FinanceResourceSnapshots[]): ApexAxisChartSeries {
-    let xydataArr = [{ x: '', y: 0, time: 0 }];
+    let xydataArr = [{ x: 0, y: 0, time: 0 }];
 
     xydataArr = [];
     // eslint-disable-next-line no-console
     console.log('Processing History with no grouping');
 
-    let map: Map<String, any> = new Map<String, any>();
+    let map: Map<string, any> = new Map<string, any>();
     for (let i = 0; i < portfolioValueHistoryItems.length; i++) {
       let portfolioValueHistoryItem: FinanceResourceSnapshots = portfolioValueHistoryItems[i];
       // eslint-disable-next-line no-console
       console.log('Processing security values for: ' + portfolioValueHistoryItem.name);
 
-      portfolioValueHistoryItem.snapshots.forEach((element: { date: string; value: number }) => {
+      portfolioValueHistoryItem.snapshots?.forEach((element: { date: string; value: number }) => {
         let time = Date.parse(element.date);
-        //let x = this.datePipe.transform(time, 'MM/dd/yyyy')!;
-        const format = 'MM/dd/yyyy';
-        let x = formatDate(time, format, this.locale);
-        let xy = map.get(x);
-        if (xy == null) {
-          // eslint-disable-next-line no-console
-          console.log('Date: ' + xy.time + ' not found in array. Adding new holder.');
-          xy = { x: '', y: 0, d: null };
-          xy.time = time;
-          xy.x = x;
-          map.set(x, xy);
+        if (Number.isNaN(time)) {
+          return;
         }
-        // eslint-disable-next-line no-console
-        console.log(
-          'Date: ' +
-            xy.time +
-            ' - ' +
-            Math.round(element.value) +
-            ', being added to existing value: ' +
-            xy.y +
-            '. Now is: ' +
-            (xy.y + Math.round(element.value)),
-        );
-
+        let xy = map.get(String(time));
+        if (xy == null) {
+          xy = { x: time, y: 0, time };
+          map.set(String(time), xy);
+          xydataArr.push(xy);
+        }
         xy.y = xy.y + Math.round(element.value);
-        xydataArr.push(xy);
       });
     }
 
     let elements = xydataArr.sort(function (a, b) {
       return a.time - b.time;
     });
+
+    if (elements.length === 0) {
+      return this.emptyHistorySeries;
+    }
 
     let serieses: ApexAxisChartSeries = []; // {data:[0]},{data:[0]}
     const xyseries = { name: 'All Holdings', data: elements };
@@ -1341,5 +1533,60 @@ export class InvestmentPortfolioComponent {
     if (this.selectedPeriod.value == 'ALL') {
       return '';
     } else return this.selectedPeriod.value;
+  }
+
+  private setHistorySeries(series: ApexAxisChartSeries): void {
+    this.historyChartOptions = {
+      ...this.historyChartOptions,
+      series: this.normalizeAxisSeries(series, 'All Holdings'),
+    };
+  }
+
+  private setHistoryAnnotations(annotations: ApexAnnotations): void {
+    this.historyChartOptions = {
+      ...this.historyChartOptions,
+      annotations,
+    };
+  }
+
+  private setTreemapSeries(series: ApexAxisChartSeries): void {
+    this.treemapChartOptions = {
+      ...this.treemapChartOptions,
+      series: this.normalizeAxisSeries(series, this.selectedGroup.name),
+    };
+  }
+
+  private normalizeAxisSeries(series: ApexAxisChartSeries | null | undefined, defaultName: string): ApexAxisChartSeries {
+    if (!Array.isArray(series) || series.length === 0) {
+      return [{ name: defaultName, data: [] }];
+    }
+
+    const normalizedSeries = series
+      .filter((entry: any) => entry != null)
+      .map((entry: any, index: number) => ({
+        name: entry.name ?? `${defaultName} ${index + 1}`,
+        data: Array.isArray(entry.data)
+          ? entry.data
+              .filter((point: any) => point != null)
+              .map((point: any) => ({
+                x: typeof point.x === 'number' ? point.x : Date.parse(point.x),
+                y: typeof point.y === 'number' ? point.y : Number(point.y ?? 0),
+              }))
+              .filter((point: { x: number; y: number }) => !Number.isNaN(point.x) && !Number.isNaN(point.y))
+          : [],
+      }))
+      .filter((entry: any) => Array.isArray(entry.data));
+
+    if (normalizedSeries.length === 0) {
+      return [{ name: defaultName, data: [] }];
+    }
+
+    return normalizedSeries;
+  }
+
+  private refreshHistoryChart(): void {
+    this.showHistoryChart = false;
+    this.cdr.detectChanges();
+    this.showHistoryChart = true;
   }
 }

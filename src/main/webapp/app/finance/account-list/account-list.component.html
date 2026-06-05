@@ -4,58 +4,56 @@
       <div class="row">
         <div class="col">
           <div class="breadcrumbs">
-            <div class="primary-breadcrumb" jhiTranslate="{{ title }}">{{ title }}</div>
+            <div class="primary-breadcrumb" jhiTranslate="{{ title() }}">{{ title() }}</div>
           </div>
         </div>
         <div class="col">
           <ul class="filter-toggle-list float-right">
             <li>
-              <a class="filter-toggle" [class.filter-toggle-selected]="!filterBanking" (click)="filterBanking = !filterBanking">Banking</a>
+              <a class="filter-toggle" [class.filter-toggle-selected]="!filterBanking()" (click)="toggleFilterBanking()">Banking</a>
             </li>
             <li>
-              <a class="filter-toggle" [class.filter-toggle-selected]="!filterLoans" (click)="filterLoans = !filterLoans"
-                >Loan & Liabilities</a
-              >
+              <a class="filter-toggle" [class.filter-toggle-selected]="!filterLoans()" (click)="toggleFilterLoans()">Loan & Liabilities</a>
             </li>
             <li>
-              <a class="filter-toggle" [class.filter-toggle-selected]="!filterCredit" (click)="filterCredit = !filterCredit">Credit</a>
+              <a class="filter-toggle" [class.filter-toggle-selected]="!filterCredit()" (click)="toggleFilterCredit()">Credit</a>
             </li>
             <li>
-              <a class="filter-toggle" [class.filter-toggle-selected]="!filterInvestment" (click)="filterInvestment = !filterInvestment"
+              <a class="filter-toggle" [class.filter-toggle-selected]="!filterInvestment()" (click)="toggleFilterInvestment()"
                 >Investments</a
               >
             </li>
             <li>
-              <a class="filter-toggle" [class.filter-toggle-selected]="!filterAssets" (click)="filterAssets = !filterAssets">Assets</a>
+              <a class="filter-toggle" [class.filter-toggle-selected]="!filterAssets()" (click)="toggleFilterAssets()">Assets</a>
             </li>
           </ul>
         </div>
       </div>
     </div>
     <div class="row m-t">
-      <div class="col" *ngIf="!filterBanking">
+      <div class="col" *ngIf="!filterBanking()">
         <div class="account-group">
           <div class="account-group-header">
             <fa-icon
-              [class.collapsable-button--is-open]="!expandedBanking"
+              [class.collapsable-button--is-open]="!expandedBanking()"
               class="collapsable-button"
               [icon]="'angle-down'"
               [fixedWidth]="true"
               style="margin-right: 6px"
-              (click)="expandedBanking = !expandedBanking"
+              (click)="toggleExpandedBanking()"
             ></fa-icon>
 
             <div role="gridcell" class="" style="flex-grow: 1">Banking</div>
-            <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="bankSum < 0">{{ bankSum | currency }}</div>
+            <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="bankSum() < 0">{{ bankSum() | currency }}</div>
           </div>
-          <ul class="account-card-holder" *ngIf="expandedBanking">
+          <ul class="account-card-holder" *ngIf="expandedBanking()">
             <!-- [style.overflow]="!expandedBanking ? 'hidden': 'visible' "  [style.height]="!expandedBanking ? '0px': 'auto' " [style.padding-bottom]="!expandedBanking ? '0': 'inherit' "-->
-            <div *ngIf="!onlyBankAccounts || onlyBankAccounts.length == 0">
+            <div *ngIf="onlyBankAccounts().length === 0">
               <li class="account-card">
                 <div role="gridcell" class="" style="flex-grow: 0">None</div>
               </li>
             </div>
-            <li *ngFor="let account of onlyBankAccounts" class="account-card">
+            <li *ngFor="let account of onlyBankAccounts()" class="account-card">
               <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                 {{ account.institution?.name }}
               </div>
@@ -81,29 +79,31 @@
           </ul>
         </div>
       </div>
-      <div class="col" *ngIf="!filterCredit || !filterLoans">
-        <div *ngIf="!filterLoans">
+      <div class="col" *ngIf="!filterCredit() || !filterLoans()">
+        <div *ngIf="!filterLoans()">
           <div class="account-group">
             <div class="account-group-header">
               <fa-icon
-                [class.collapsable-button--is-open]="!expandedLoans"
+                [class.collapsable-button--is-open]="!expandedLoans()"
                 class="collapsable-button"
                 [icon]="'angle-down'"
                 [fixedWidth]="true"
                 style="margin-right: 6px"
-                (click)="expandedLoans = !expandedLoans"
+                (click)="toggleExpandedLoans()"
               ></fa-icon>
 
               <div role="gridcell" class="" style="flex-grow: 1">Loans & Liabilities</div>
-              <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="bankSum < 0">{{ liabilitySum | currency }}</div>
+              <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="bankSum() < 0">
+                {{ liabilitySum() | currency }}
+              </div>
             </div>
-            <ul class="account-card-holder" *ngIf="expandedLoans">
-              <div *ngIf="!onlyLiabilityAccounts || onlyLiabilityAccounts.length == 0">
+            <ul class="account-card-holder" *ngIf="expandedLoans()">
+              <div *ngIf="onlyLiabilityAccounts().length === 0">
                 <li class="account-card">
                   <div role="gridcell" class="" style="flex-grow: 0">None</div>
                 </li>
               </div>
-              <li *ngFor="let account of onlyLiabilityAccounts" class="account-card">
+              <li *ngFor="let account of onlyLiabilityAccounts()" class="account-card">
                 <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
                 </div>
@@ -132,28 +132,28 @@
           </div>
         </div>
         <br />
-        <div *ngIf="!filterCredit">
+        <div *ngIf="!filterCredit()">
           <div class="account-group">
             <div class="account-group-header">
               <fa-icon
-                [class.collapsable-button--is-open]="!expandedCredit"
+                [class.collapsable-button--is-open]="!expandedCredit()"
                 class="collapsable-button"
                 [icon]="'angle-down'"
                 [fixedWidth]="true"
                 style="margin-right: 6px"
-                (click)="expandedCredit = !expandedCredit"
+                (click)="toggleExpandedCredit()"
               ></fa-icon>
 
               <div role="gridcell" class="" style="flex-grow: 1">Credit</div>
-              <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="creditSum < 0">{{ creditSum | currency }}</div>
+              <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="creditSum() < 0">{{ creditSum() | currency }}</div>
             </div>
-            <ul class="account-card-holder" *ngIf="expandedCredit">
-              <div *ngIf="!onlyCreditAccounts || onlyCreditAccounts.length == 0">
+            <ul class="account-card-holder" *ngIf="expandedCredit()">
+              <div *ngIf="onlyCreditAccounts().length === 0">
                 <li class="account-card">
                   <div role="gridcell" class="" style="flex-grow: 0">None</div>
                 </li>
               </div>
-              <li *ngFor="let account of onlyCreditAccounts" class="account-card">
+              <li *ngFor="let account of onlyCreditAccounts()" class="account-card">
                 <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
                 </div>
@@ -183,28 +183,30 @@
           </div>
         </div>
       </div>
-      <div class="col" *ngIf="!filterInvestment || !filterAssets">
-        <div *ngIf="!filterInvestment">
+      <div class="col" *ngIf="!filterInvestment() || !filterAssets()">
+        <div *ngIf="!filterInvestment()">
           <div class="account-group">
             <div class="account-group-header">
               <fa-icon
-                [class.collapsable-button--is-open]="!expandedInvestment"
+                [class.collapsable-button--is-open]="!expandedInvestment()"
                 class="collapsable-button"
                 [icon]="'angle-down'"
                 [fixedWidth]="true"
                 style="margin-right: 6px"
-                (click)="expandedInvestment = !expandedInvestment"
+                (click)="toggleExpandedInvestment()"
               ></fa-icon>
               <div role="gridcell" class="" style="flex-grow: 1"><a routerLink="/portfolio">Investment</a></div>
-              <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="bankSum < 0">{{ investmentSum | currency }}</div>
+              <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="bankSum() < 0">
+                {{ investmentSum() | currency }}
+              </div>
             </div>
-            <ul class="account-card-holder" *ngIf="expandedInvestment">
-              <div *ngIf="!onlyInvestmentAccounts || onlyInvestmentAccounts.length == 0">
+            <ul class="account-card-holder" *ngIf="expandedInvestment()">
+              <div *ngIf="onlyInvestmentAccounts().length === 0">
                 <li class="account-card">
                   <div role="gridcell" class="" style="flex-grow: 0">None</div>
                 </li>
               </div>
-              <li *ngFor="let account of onlyInvestmentAccounts" class="account-card">
+              <li *ngFor="let account of onlyInvestmentAccounts()" class="account-card">
                 <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
                 </div>
@@ -238,27 +240,27 @@
           </div>
         </div>
         <br />
-        <div *ngIf="!filterAssets">
+        <div *ngIf="!filterAssets()">
           <div class="account-group">
             <div class="account-group-header">
               <fa-icon
-                [class.collapsable-button--is-open]="!expandedAssets"
+                [class.collapsable-button--is-open]="!expandedAssets()"
                 class="collapsable-button"
                 [icon]="'angle-down'"
                 [fixedWidth]="true"
                 style="margin-right: 6px"
-                (click)="expandedAssets = !expandedAssets"
+                (click)="toggleExpandedAssets()"
               ></fa-icon>
               <div role="gridcell" class="" style="flex-grow: 1">Assets</div>
-              <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="bankSum < 0">{{ assetSum | currency }}</div>
+              <div role="gridcell" class="" style="flex-grow: 0" [class.negative-value]="bankSum() < 0">{{ assetSum() | currency }}</div>
             </div>
-            <ul class="account-card-holder" *ngIf="expandedAssets">
-              <div *ngIf="!onlyAssetAccounts || onlyAssetAccounts.length == 0">
+            <ul class="account-card-holder" *ngIf="expandedAssets()">
+              <div *ngIf="onlyAssetAccounts().length === 0">
                 <li class="account-card">
                   <div role="gridcell" class="" style="flex-grow: 0">None</div>
                 </li>
               </div>
-              <li *ngFor="let account of onlyAssetAccounts" class="account-card">
+              <li *ngFor="let account of onlyAssetAccounts()" class="account-card">
                 <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
                 </div>
@@ -309,22 +311,24 @@
     <div class="row">
       <div class="col" style="display: flex">
         <div class="sub-total-header">Total Cash:</div>
-        <div class="sub-total-value account-sum" [class.negative-value]="totalCashSum < 0">{{ totalCashSum | currency }}</div>
+        <div class="sub-total-value account-sum" [class.negative-value]="totalCashSum() < 0">{{ totalCashSum() | currency }}</div>
       </div>
 
       <div class="col" style="display: flex">
         <div class="sub-total-header">Total Liabilities & Loans:</div>
-        <div class="sub-total-value account-sum" [class.negative-value]="totalLiabilitiesSum < 0">{{ totalLiabilitiesSum | currency }}</div>
+        <div class="sub-total-value account-sum" [class.negative-value]="totalLiabilitiesSum() < 0">
+          {{ totalLiabilitiesSum() | currency }}
+        </div>
       </div>
       <div class="col" style="display: flex">
         <div class="sub-total-header">Total (without assets):</div>
-        <div class="sub-total-value account-sum" [class.negative-value]="totalSumWithoutAssets < 0">
-          {{ totalSumWithoutAssets | currency }}
+        <div class="sub-total-value account-sum" [class.negative-value]="totalSumWithoutAssets() < 0">
+          {{ totalSumWithoutAssets() | currency }}
         </div>
       </div>
       <div class="col" style="display: flex">
         <div class="sub-total-header">Total:</div>
-        <div class="sub-total-value account-sum" [class.negative-value]="totalSum < 0">{{ totalSum | currency }}</div>
+        <div class="sub-total-value account-sum" [class.negative-value]="totalSum() < 0">{{ totalSum() | currency }}</div>
       </div>
     </div>
   </div>

@@ -4,11 +4,11 @@
       <div class="row">
         <div class="col col-auto">
           <div class="breadcrumbs">
-            <div class="primary-breadcrumb" style="padding-top: 4px" jhiTranslate="{{ title }}">{{ title }}</div>
+            <div class="primary-breadcrumb" style="padding-top: 4px">{{ title }}</div>
           </div>
         </div>
         <div class="col">
-          <p-dropdown
+          <p-select
             [options]="holdings!"
             [(ngModel)]="securityId"
             [filter]="true"
@@ -18,9 +18,8 @@
             (onChange)="onChangeHolding($event)"
             [required]="false"
             placeholder="All"
-            [autoDisplayFirst]="false"
           >
-          </p-dropdown>
+          </p-select>
         </div>
         <div class="col app-table--align-right">
           <div class="float-right" style="display: flex"></div>
@@ -68,10 +67,10 @@
         <div class="col col-auto">
           <div class="header-settings-toggle-container">
             <span style="padding-right: 4px">&nbsp;Chart Annotations&nbsp;</span
-            ><p-inputSwitch [(ngModel)]="showAnnotations" (onChange)="onChangeAnnotationsSwitch($event)"></p-inputSwitch>&nbsp;<span
+            ><p-toggleSwitch [(ngModel)]="showAnnotations" (onChange)="onChangeAnnotationsSwitch($event)"></p-toggleSwitch>&nbsp;<span
               style="padding-right: 4px"
               >Show Closed Positions?&nbsp;</span
-            ><p-inputSwitch [(ngModel)]="includeClosedPositions" (onChange)="onChangePositionsSwitch($event)"></p-inputSwitch>
+            ><p-toggleSwitch [(ngModel)]="includeClosedPositions" (onChange)="onChangePositionsSwitch($event)"></p-toggleSwitch>
           </div>
         </div>
       </div>
@@ -190,7 +189,7 @@
   </div>
 
   <div class="row m-t">
-    <div *ngIf="!isLoadingHistory" class="col">
+    <div *ngIf="!isLoadingHistory && showHistoryChart" class="col">
       <apx-chart
         #historyChart
         [series]="historyChartOptions.series!"
@@ -205,7 +204,7 @@
         [theme]="historyChartOptions.options!.theme!"
       ></apx-chart>
     </div>
-    <div *ngIf="isLoadingHistory" class="col">
+    <div *ngIf="isLoadingHistory || !showHistoryChart" class="col">
       <p-skeleton height="300px"></p-skeleton>
     </div>
   </div>

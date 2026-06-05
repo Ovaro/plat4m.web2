@@ -13,7 +13,7 @@
       "env": {
         "JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET": "ZDNhY2M2Y2YyZjI3NDYwZTlhYjI0ZmE2ZGI0ZTJlYjEZDNhY2M2Y2YyZjI3NDYwZTlhYjI0ZmE2ZGI0ZTJlYjE="
       },
-      "vmArgs": ""
+      "vmArgs": ["-Dspring.profiles.active=dev"]
       //"args": "--spring.profiles.active=prod"
       // , heroku
     }

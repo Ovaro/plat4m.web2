@@ -97,8 +97,12 @@ public class FinancePortfoliosResource {
 
         LocalDate d = WebUIUtils.getDateFromPeriod(periodAgo);
         sw.start("investmentSummaries");
-        FinanceInvestmentPortfolioSummaryDTO result =
-            this.financeSecurityService.portfolioSummaries(u.get(), userSecurities, includeClosed, d); //.minusYears(5)
+        FinanceInvestmentPortfolioSummaryDTO result = this.financeSecurityService.portfolioSummaries(
+            u.get(),
+            userSecurities,
+            includeClosed,
+            d
+        ); //.minusYears(5)
 
         sw.stop();
         log.info(sw.prettyPrint());
@@ -116,6 +120,14 @@ public class FinancePortfoliosResource {
         @RequestParam(name = "numberOfPeriods", defaultValue = "30") String numberOfPeriods,
         @RequestParam(name = "includeClosed", defaultValue = "false") boolean includeClosed
     ) throws IOException {
+        log.warn(
+            "investmentHistory request received. accountId={}, userSecurityId={}, periodAgo={}, numberOfPeriods={}, includeClosed={}",
+            accountId,
+            userSecurityId,
+            periodAgo,
+            numberOfPeriods,
+            includeClosed
+        );
         String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
 
         Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
@@ -132,8 +144,18 @@ public class FinancePortfoliosResource {
             if (osec.isPresent()) {
                 checkInvestmentEventsAreGeneratedForUserSecurity(u.get(), osec.get());
                 userSecurities = convertUserSecurityToList(osec);
+            } else {
+                log.warn("No user security found for history request. userSecurityId={}", userSecurityId);
+                return List.of();
             }
         }
+
+        log.warn(
+            "investmentHistory resolved user securities. count={}, accountId={}, userSecurityId={}",
+            userSecurities != null ? userSecurities.size() : null,
+            accountId,
+            userSecurityId
+        );
 
         LocalDate d = null;
 
@@ -142,19 +164,25 @@ public class FinancePortfoliosResource {
         }
 
         sw.start("historicalInvestmentValues");
-        Collection<FinanceSnapshotsPerResourceDTO> history =
-            this.financeSecurityService.historicalInvestmentValues(
-                    u.get(),
-                    d,
-                    LocalDate.now(),
-                    userSecurities,
-                    numberOfPeriodsInt,
-                    true,
-                    includeClosed
-                ); //.minusYears(5)
+        Collection<FinanceSnapshotsPerResourceDTO> history = this.financeSecurityService.historicalInvestmentValues(
+            u.get(),
+            d,
+            LocalDate.now(),
+            userSecurities,
+            numberOfPeriodsInt,
+            true,
+            includeClosed
+        ); //.minusYears(5)
 
         sw.stop();
         log.info(sw.prettyPrint());
+        log.warn(
+            "investmentHistory response prepared. resourceCount={}, accountId={}, userSecurityId={}, periodAgo={}",
+            history != null ? history.size() : null,
+            accountId,
+            userSecurityId,
+            periodAgo
+        );
         return history;
     }
 
@@ -312,15 +340,23 @@ public class FinancePortfoliosResource {
         Map<String, FinanceUserSecurity> indexedUS = indexUserSecurities(userSecurities);
 
         sw.start("investmentSummaries");
-        FinanceInvestmentPortfolioSummaryDTO result =
-            this.financeSecurityService.portfolioSummaries(u.get(), userSecurities, true, LocalDate.now()); //.minusYears(5)
+        FinanceInvestmentPortfolioSummaryDTO result = this.financeSecurityService.portfolioSummaries(
+            u.get(),
+            userSecurities,
+            true,
+            LocalDate.now()
+        ); //.minusYears(5)
 
         List<FinanceIndicatorDTO> indicators = new ArrayList<FinanceIndicatorDTO>();
         this.processSummaryValues(result.getSummaries(), indicators, indexedUS);
 
         if (d != null) {
-            FinanceInvestmentPortfolioSummaryDTO comparisonResult =
-                this.financeSecurityService.portfolioSummaries(u.get(), userSecurities, true, d);
+            FinanceInvestmentPortfolioSummaryDTO comparisonResult = this.financeSecurityService.portfolioSummaries(
+                u.get(),
+                userSecurities,
+                true,
+                d
+            );
             this.updateBasicValuesWithDelta(comparisonResult.getSummaries(), d, indicators);
         }
 

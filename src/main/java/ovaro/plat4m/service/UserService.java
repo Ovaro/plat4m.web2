@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.CacheManager;
@@ -23,6 +22,7 @@ import ovaro.plat4m.security.AuthoritiesConstants;
 import ovaro.plat4m.security.SecurityUtils;
 import ovaro.plat4m.service.dto.AdminUserDTO;
 import ovaro.plat4m.service.dto.UserDTO;
+import ovaro.plat4m.util.EmailValidationUtil;
 import tech.jhipster.security.RandomUtil;
 
 /**
@@ -56,16 +56,14 @@ public class UserService {
 
     public Optional<User> activateRegistration(String key) {
         LOG.debug("Activating user for activation key {}", key);
-        return userRepository
-            .findOneByActivationKey(key)
-            .map(user -> {
-                // activate given user for the registration key.
-                user.setActivated(true);
-                user.setActivationKey(null);
-                this.clearUserCaches(user);
-                LOG.debug("Activated user: {}", user);
-                return user;
-            });
+        return userRepository.findOneByActivationKey(key).map(user -> {
+            // activate given user for the registration key.
+            user.setActivated(true);
+            user.setActivationKey(null);
+            this.clearUserCaches(user);
+            LOG.debug("Activated user: {}", user);
+            return user;
+        });
     }
 
     public Optional<User> completePasswordReset(String newPassword, String key) {
@@ -95,22 +93,18 @@ public class UserService {
     }
 
     public User registerUser(AdminUserDTO userDTO, String password) {
-        userRepository
-            .findOneByLogin(userDTO.getLogin().toLowerCase())
-            .ifPresent(existingUser -> {
-                boolean removed = removeNonActivatedUser(existingUser);
-                if (!removed) {
-                    throw new UsernameAlreadyUsedException();
-                }
-            });
-        userRepository
-            .findOneByEmailIgnoreCase(userDTO.getEmail())
-            .ifPresent(existingUser -> {
-                boolean removed = removeNonActivatedUser(existingUser);
-                if (!removed) {
-                    throw new EmailAlreadyUsedException();
-                }
-            });
+        userRepository.findOneByLogin(userDTO.getLogin().toLowerCase()).ifPresent(existingUser -> {
+            boolean removed = removeNonActivatedUser(existingUser);
+            if (!removed) {
+                throw new UsernameAlreadyUsedException();
+            }
+        });
+        userRepository.findOneByEmailIgnoreCase(userDTO.getEmail()).ifPresent(existingUser -> {
+            boolean removed = removeNonActivatedUser(existingUser);
+            if (!removed) {
+                throw new EmailAlreadyUsedException();
+            }
+        });
         User newUser = new User();
         String encryptedPassword = passwordEncoder.encode(password);
         newUser.setLogin(userDTO.getLogin().toLowerCase());
@@ -220,13 +214,11 @@ public class UserService {
     }
 
     public void deleteUser(String login) {
-        userRepository
-            .findOneByLogin(login)
-            .ifPresent(user -> {
-                userRepository.delete(user);
-                this.clearUserCaches(user);
-                LOG.debug("Deleted User: {}", user);
-            });
+        userRepository.findOneByLogin(login).ifPresent(user -> {
+            userRepository.delete(user);
+            this.clearUserCaches(user);
+            LOG.debug("Deleted User: {}", user);
+        });
     }
 
     /**
@@ -283,7 +275,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public Optional<User> getUserWithAuthoritiesByLogin(String login) {
-        if (new EmailValidator().isValid(login, null)) {
+        if (EmailValidationUtil.isEmail(login)) {
             return userRepository.findOneWithAuthoritiesByEmailIgnoreCase(login);
         }
 

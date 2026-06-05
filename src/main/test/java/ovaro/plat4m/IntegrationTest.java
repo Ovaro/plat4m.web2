@@ -5,8 +5,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import ovaro.plat4m.config.AsyncSyncConfiguration;
-import ovaro.plat4m.config.EmbeddedSQL;
+import ovaro.plat4m.config.DatabaseTestcontainer;
 import ovaro.plat4m.config.JacksonConfiguration;
 
 /**
@@ -14,7 +15,13 @@ import ovaro.plat4m.config.JacksonConfiguration;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@SpringBootTest(classes = { Plat4MApp.class, JacksonConfiguration.class, AsyncSyncConfiguration.class })
-@EmbeddedSQL
-public @interface IntegrationTest {
-}
+@SpringBootTest(
+    classes = {
+        Plat4MApp.class,
+        JacksonConfiguration.class,
+        AsyncSyncConfiguration.class,
+        ovaro.plat4m.config.JacksonHibernateConfiguration.class,
+    }
+)
+@ImportTestcontainers(DatabaseTestcontainer.class)
+public @interface IntegrationTest {}

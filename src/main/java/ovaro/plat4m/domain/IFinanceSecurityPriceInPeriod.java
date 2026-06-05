@@ -1,7 +1,7 @@
 package ovaro.plat4m.domain;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public interface IFinanceSecurityPriceInPeriod {
     // public String getId();
@@ -12,9 +12,9 @@ public interface IFinanceSecurityPriceInPeriod {
 
     public void setPrice(BigDecimal price);
 
-    public LocalDate getDate();
+    public LocalDateTime getDate();
 
-    public void setDate(LocalDate date);
+    public void setDate(LocalDateTime date);
 
     // public ZonedDateTime getSerialDateTime();
 

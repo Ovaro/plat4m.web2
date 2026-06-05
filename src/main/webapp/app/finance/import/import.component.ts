@@ -15,7 +15,6 @@ import { ImportStatus } from './import-status.model';
 import { Source } from '../finance.model';
 import SharedModule from 'app/shared/shared.module';
 import { NgApexchartsModule } from 'ng-apexcharts';
-import { DropdownModule } from 'primeng/dropdown';
 import { SelectModule } from 'primeng/select';
 
 const initialAccount: Account = {} as Account;
@@ -23,7 +22,7 @@ const initialAccount: Account = {} as Account;
 @Component({
   selector: 'import',
   templateUrl: './import.component.html',
-  imports: [SharedModule, FileUploadModule, NgApexchartsModule, DropdownModule, SelectModule],
+  imports: [SharedModule, FileUploadModule, NgApexchartsModule, SelectModule],
 })
 export class ImportComponent implements OnInit {
   success = false;

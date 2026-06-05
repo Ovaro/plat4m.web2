@@ -9,7 +9,7 @@
           </div>
         </div>
         <div class="col">
-          <p-dropdown
+          <p-select
             [options]="accounts!"
             [(ngModel)]="accountId"
             [filter]="true"
@@ -19,9 +19,8 @@
             (onChange)="onChangeAccount($event)"
             [required]="false"
             placeholder="All"
-            [autoDisplayFirst]="false"
           >
-          </p-dropdown>
+          </p-select>
         </div>
       </div>
     </div>
@@ -50,7 +49,8 @@
             <p-selectButton
               styleClass="period-selector"
               [options]="periods"
-              [(ngModel)]="selectedPeriod"
+              [ngModel]="selectedPeriod"
+              [allowEmpty]="false"
               emptyMessage="All"
               optionLabel="name"
               (onChange)="onChangePeriod($event)"
@@ -65,7 +65,8 @@
           <div class="float-right" style="display: flex; padding-top: 5px">
             <p-selectButton
               [options]="groupings"
-              [(ngModel)]="selectedGroup"
+              [ngModel]="selectedGroup"
+              [allowEmpty]="false"
               emptyMessage="All"
               optionLabel="name"
               (onChange)="onChangeGrouping($event)"
@@ -78,10 +79,10 @@
           <div class="col col-auto" style="padding-top: 5px">
             <div class="header-settings-toggle-container">
               <span style="padding-right: 4px">&nbsp;Chart Annotations&nbsp;</span
-              ><p-inputSwitch [(ngModel)]="showAnnotations" (onChange)="onChangeAnnotationsSwitch($event)"></p-inputSwitch>&nbsp;<span
+              ><p-toggleSwitch [(ngModel)]="showAnnotations" (onChange)="onChangeAnnotationsSwitch($event)"></p-toggleSwitch>&nbsp;<span
                 style="padding-right: 4px"
                 >&nbsp;Show Closed Positions?&nbsp;</span
-              ><p-inputSwitch [(ngModel)]="includeClosedPositions" (onChange)="onChangePositionsSwitch($event)"></p-inputSwitch>
+              ><p-toggleSwitch [(ngModel)]="includeClosedPositions" (onChange)="onChangePositionsSwitch($event)"></p-toggleSwitch>
             </div>
           </div>
         </div>
@@ -262,12 +263,12 @@
         <div class="col "></div>
         <div class="col col-auto" >
             <div class="vert-line"></div>
-            <div class="col col-auto" style=" padding-top:5px"><div class="header-settings-toggle-container"><span style="padding-right:4px;">&nbsp;Annotations&nbsp;</span><p-inputSwitch [(ngModel)]="showAnnotations" (onChange)="onChangeAnnotationsSwitch($event)"></p-inputSwitch></div>
+            <div class="col col-auto" style=" padding-top:5px"><div class="header-settings-toggle-container"><span style="padding-right:4px;">&nbsp;Annotations&nbsp;</span><p-toggleSwitch [(ngModel)]="showAnnotations" (onChange)="onChangeAnnotationsSwitch($event)"></p-toggleSwitch></div>
             </div>
         </div>
     </div> -->
   <div *ngIf="holdings && holdings.length > 0" class="row m-t">
-    <div *ngIf="!isLoadingHistory" class="col">
+    <div *ngIf="!isLoadingHistory && showHistoryChart" class="col">
       <apx-chart
         #historyChart
         [series]="historyChartOptions.series!"
@@ -282,7 +283,7 @@
         [theme]="historyChartOptions.options!.theme!"
       ></apx-chart>
     </div>
-    <div *ngIf="isLoadingHistory" class="col">
+    <div *ngIf="isLoadingHistory || !showHistoryChart" class="col">
       <p-skeleton height="300px"></p-skeleton>
     </div>
   </div>
@@ -334,13 +335,13 @@
     </div>
     <div class="tab-content">
       <div class="tab-pane tab-fade" [ngClass]="{ active: activeTab === 'holdings' }" id="holdings" role="tabpanel">
-        <div *ngFor="let item of selectedGroup.groups | keyvalue">
+        <div *ngFor="let item of selectedGroup?.groups | keyvalue">
           <div
             *ngIf="
               !selectedInvestmentName ||
               selectedInvestmentName === null ||
               selectedInvestmentName === '' ||
-              selectedGroup.value === 'holdings' ||
+              selectedGroup?.value === 'holdings' ||
               selectedInvestmentName === item.key
             "
             class="row m-t"
@@ -364,7 +365,7 @@
                     </th>
                     <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
                       <!--*ngIf="comparisonPortfolio && selectedPeriod.value !== ''" -->
-                      <div>% Change ({{ selectedPeriod.name }})&nbsp;</div>
+                      <div>% Change ({{ selectedPeriod?.name }})&nbsp;</div>
                     </th>
                     <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
                       <div>Qty&nbsp;</div>
@@ -414,7 +415,7 @@
                       <!-- selectedGroup.value === 'holdings' || selectedInvestmentName === item.key" or [class.selected-row]="this.selectedInvestmentName === holding.name"-->
                       <tr
                         *ngIf="
-                          selectedGroup.value !== 'holdings' ||
+                          selectedGroup?.value !== 'holdings' ||
                           !selectedInvestmentName ||
                           selectedInvestmentName === null ||
                           selectedInvestmentName === '' ||

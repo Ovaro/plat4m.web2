@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core';
 
-import { AlertComponent } from './alert/alert.component';
-import { AlertErrorComponent } from './alert/alert-error.component';
+import { Alert as AlertComponent } from './alert/alert';
+import { AlertError as AlertErrorComponent } from './alert/alert-error';
 // import { HasAnyAuthorityDirective } from './auth/has-any-authority.directive';
 // import { DurationPipe } from './date/duration.pipe';
 // import { FormatMediumDatetimePipe } from './date/format-medium-datetime.pipe';
@@ -21,9 +21,10 @@ import FindLanguageFromKeyPipe from './language/find-language-from-key.pipe';
 import TranslateDirective from './language/translate.directive';
 import { Tooltip, TooltipModule } from 'primeng/tooltip';
 import { SelectButton, SelectButtonModule } from 'primeng/selectbutton';
-import { DropdownModule } from 'primeng/dropdown';
 import { FormsModule } from '@angular/forms';
 import { SkeletonModule } from 'primeng/skeleton';
+import { SelectModule } from 'primeng/select';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 
 @NgModule({
   imports: [AlertComponent, AlertErrorComponent, FindLanguageFromKeyPipe, TranslateDirective, DeltaValueComponent],
@@ -65,7 +66,8 @@ import { SkeletonModule } from 'primeng/skeleton';
     TooltipModule,
     FormsModule,
     SelectButtonModule,
-    DropdownModule,
+    SelectModule,
+    ToggleSwitchModule,
     DeltaValueComponent,
     SkeletonModule,
   ],

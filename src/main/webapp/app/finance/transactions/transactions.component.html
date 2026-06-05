@@ -7,16 +7,23 @@
             <div class="primary-breadcrumb" style="padding-top: 4px" jhiTranslate="{{ title }}">{{ title }}</div>
           </div>
         </div>
-        <div class="col">
-          <p-dropdown
+        <div class="col-auto transactions-account-select-col">
+          <p-select
+            inputId="transactions-account-select"
             [options]="accounts!"
             [(ngModel)]="accountId"
             [filter]="true"
             filterBy="name"
+            filterPlaceholder="Search accounts"
             optionLabel="name"
             optionValue="id"
+            placeholder="Select account"
+            [showClear]="true"
+            appendTo="body"
+            styleClass="transactions-account-select"
+            panelStyleClass="transactions-account-select-panel"
             (onChange)="onChangeAccount($event)"
-          ></p-dropdown>
+          ></p-select>
         </div>
         <div class="col" *ngIf="balance != -1 && balance != undefined">
           <br *ngIf="account?.currencyCode === 'AUD'" />

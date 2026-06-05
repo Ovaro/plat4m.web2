@@ -1,7 +1,10 @@
-import { TestBed } from '@angular/core/testing';
+import { beforeEach, describe, expect, it, vitest } from 'vitest';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { TestBed } from '@angular/core/testing';
+
 import { AuthServerProvider } from 'app/core/auth/auth-jwt.service';
+import { AUTHENTICATION_TOKEN_KEY } from 'app/shared/jhipster/constants';
+
 import { StateStorageService } from './state-storage.service';
 
 describe('Auth JWT', () => {
@@ -11,7 +14,7 @@ describe('Auth JWT', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClientTesting()],
     });
 
     mockStorageService = TestBed.inject(StateStorageService);
@@ -26,13 +29,13 @@ describe('Auth JWT', () => {
     });
 
     it('should return token from session storage if local storage is empty', () => {
-      sessionStorage.setItem('jhi-authenticationToken', JSON.stringify('sessionStorageToken'));
+      sessionStorage.setItem(AUTHENTICATION_TOKEN_KEY, JSON.stringify('sessionStorageToken'));
       const result = service.getToken();
       expect(result).toEqual('sessionStorageToken');
     });
 
     it('should return token from localstorage storage', () => {
-      localStorage.setItem('jhi-authenticationToken', JSON.stringify('localStorageToken'));
+      localStorage.setItem(AUTHENTICATION_TOKEN_KEY, JSON.stringify('localStorageToken'));
       const result = service.getToken();
       expect(result).toEqual('localStorageToken');
     });
@@ -41,7 +44,7 @@ describe('Auth JWT', () => {
   describe('Login', () => {
     it('should clear session storage and save in local storage when rememberMe is true', () => {
       // GIVEN
-      mockStorageService.storeAuthenticationToken = jest.fn();
+      mockStorageService.storeAuthenticationToken = vitest.fn();
 
       // WHEN
       service.login({ username: 'John', password: '123', rememberMe: true }).subscribe();
@@ -54,7 +57,7 @@ describe('Auth JWT', () => {
 
     it('should clear local storage and save in session storage when rememberMe is false', () => {
       // GIVEN
-      mockStorageService.storeAuthenticationToken = jest.fn();
+      mockStorageService.storeAuthenticationToken = vitest.fn();
 
       // WHEN
       service.login({ username: 'John', password: '123', rememberMe: false }).subscribe();
@@ -69,7 +72,7 @@ describe('Auth JWT', () => {
   describe('Logout', () => {
     it('should clear storage', () => {
       // GIVEN
-      mockStorageService.clearAuthenticationToken = jest.fn();
+      mockStorageService.clearAuthenticationToken = vitest.fn();
 
       // WHEN
       service.logout().subscribe();

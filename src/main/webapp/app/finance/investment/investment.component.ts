@@ -1,4 +1,4 @@
-import { Component, Inject, LOCALE_ID, ViewChild } from '@angular/core';
+import { Component, Inject, LOCALE_ID, ViewChild, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { InvestmentTransactions } from './investment.service';
@@ -59,27 +59,146 @@ export type AreaChartOptions = {
 })
 export class InvestmentComponent {
   // implements OnInit
-  title = '';
-  theme = 'light';
-  isLoading = false;
-  isSummaryLoading = false;
-  isLoadingHistory = false;
-
-  securityId: string | null = null;
-  holding: FinanceSecurityHolding | null = null;
-  includeClosedPositions = false;
-
-  public holdings!: FinanceSecurityHolding[] | null;
+  private readonly _title = signal('');
+  private readonly _theme = signal('light');
+  private readonly _isLoading = signal(false);
+  private readonly _isSummaryLoading = signal(false);
+  private readonly _isLoadingHistory = signal(false);
+  private readonly _securityId = signal<string | null>(null);
+  private readonly _holding = signal<FinanceSecurityHolding | null>(null);
+  private readonly _includeClosedPositions = signal(false);
+  private readonly _holdings = signal<FinanceSecurityHolding[] | null>(null);
+  private readonly _investmentSummary = signal<FinanceInvestmentSnapshotDetails | null>(null);
+  private readonly _marketValue = signal(0);
+  private readonly _transactions = signal<InvestmentTransaction[] | null>(null);
+  private readonly _portfolioValueHistoryItems = signal<FinanceResourceSnapshots[] | null>(null);
+  private readonly _showAnnotations = signal(false);
+  private readonly _showHistoryChart = signal(false);
 
   //public investmen2!: InvestmentDetails | null;
-  public investmentSummary!: FinanceInvestmentSnapshotDetails | null;
-  public marketValue = 0;
-  public transactions!: InvestmentTransaction[] | null;
-
   @ViewChild('historyChart', { static: false }) historyChart!: ChartComponent;
   public historyChartOptions: Partial<AreaChartOptions>;
-  public portfolioValueHistoryItems!: FinanceResourceSnapshots[] | null;
-  showAnnotations = false;
+  readonly emptyHistorySeries: ApexAxisChartSeries = [{ name: 'History', data: [] }];
+
+  get title(): string {
+    return this._title();
+  }
+
+  set title(value: string) {
+    this._title.set(value);
+  }
+
+  get theme(): string {
+    return this._theme();
+  }
+
+  set theme(value: string) {
+    this._theme.set(value);
+  }
+
+  get isLoading(): boolean {
+    return this._isLoading();
+  }
+
+  set isLoading(value: boolean) {
+    this._isLoading.set(value);
+  }
+
+  get isSummaryLoading(): boolean {
+    return this._isSummaryLoading();
+  }
+
+  set isSummaryLoading(value: boolean) {
+    this._isSummaryLoading.set(value);
+  }
+
+  get isLoadingHistory(): boolean {
+    return this._isLoadingHistory();
+  }
+
+  set isLoadingHistory(value: boolean) {
+    this._isLoadingHistory.set(value);
+  }
+
+  get securityId(): string | null {
+    return this._securityId();
+  }
+
+  set securityId(value: string | null) {
+    this._securityId.set(value);
+  }
+
+  get holding(): FinanceSecurityHolding | null {
+    return this._holding();
+  }
+
+  set holding(value: FinanceSecurityHolding | null) {
+    this._holding.set(value);
+  }
+
+  get includeClosedPositions(): boolean {
+    return this._includeClosedPositions();
+  }
+
+  set includeClosedPositions(value: boolean) {
+    this._includeClosedPositions.set(value);
+  }
+
+  get holdings(): FinanceSecurityHolding[] | null {
+    return this._holdings();
+  }
+
+  set holdings(value: FinanceSecurityHolding[] | null) {
+    this._holdings.set(value);
+  }
+
+  get investmentSummary(): FinanceInvestmentSnapshotDetails | null {
+    return this._investmentSummary();
+  }
+
+  set investmentSummary(value: FinanceInvestmentSnapshotDetails | null) {
+    this._investmentSummary.set(value);
+  }
+
+  get marketValue(): number {
+    return this._marketValue();
+  }
+
+  set marketValue(value: number) {
+    this._marketValue.set(value);
+  }
+
+  get transactions(): InvestmentTransaction[] | null {
+    return this._transactions();
+  }
+
+  set transactions(value: InvestmentTransaction[] | null) {
+    this._transactions.set(value);
+  }
+
+  get portfolioValueHistoryItems(): FinanceResourceSnapshots[] | null {
+    return this._portfolioValueHistoryItems();
+  }
+
+  set portfolioValueHistoryItems(value: FinanceResourceSnapshots[] | null) {
+    this._portfolioValueHistoryItems.set(value);
+  }
+
+  get showAnnotations(): boolean {
+    return this._showAnnotations();
+  }
+
+  set showAnnotations(value: boolean) {
+    this._showAnnotations.set(value);
+  }
+
+  get showHistoryChart(): boolean {
+    return this._showHistoryChart();
+  }
+
+  set showHistoryChart(value: boolean) {
+    this._showHistoryChart.set(value);
+  }
 
   constructor(
     private investmentPortfolio: InvestmentPortfolio,
@@ -91,13 +210,19 @@ export class InvestmentComponent {
     private cookieService: CookieService,
     @Inject(LOCALE_ID) private locale: string,
   ) {
-    this.historyChartOptions = {};
+    this.historyChartOptions = {
+      series: this.emptyHistorySeries,
+      annotations: {},
+    };
   }
 
   ngOnInit(): void {
     this.theme = this.themeService.theme();
     this.themeService.onChange.subscribe((event: ThemeChangeEvent) => {
       this.theme = event.theme;
+      if (this.historyChart) {
+        this.historyChart.updateOptions({ tooltip: { theme: this.theme } });
+      }
     });
 
     //this.title = this.commonControllerServices.getPageTitle(this.router.routerState.snapshot.root);
@@ -118,7 +243,7 @@ export class InvestmentComponent {
     const ptr = this;
 
     this.historyChartOptions = {
-      series: [], //44, 55, 13, 33
+      series: this.emptyHistorySeries,
       chart: {
         height: 300,
         type: 'area',
@@ -331,6 +456,7 @@ export class InvestmentComponent {
       next: (res: FinanceInvestmentSnapshotDetails) => {
         this.isSummaryLoading = false;
         this.investmentSummary = res;
+        this.title = this.holding?.name ?? '';
         this.marketValue = Math.round((this.investmentSummary.price * this.investmentSummary.quantity + Number.EPSILON) * 100) / 100;
       },
       error: () => (this.isSummaryLoading = false),
@@ -397,22 +523,21 @@ export class InvestmentComponent {
         console.log('Done Loading History');
         this.isLoadingHistory = false;
         this.portfolioValueHistoryItems = res;
-        //this.historyChartOptions.series = this.configureHistorySeriesPerHolding(this.portfolioValueHistoryItems!, 'xy');
-
-        this.historyChartOptions.series = this.configureHistorySeriesPerHolding(this.portfolioValueHistoryItems!, 'xy');
+        this.setHistorySeries(this.configureHistorySeriesPerHolding(this.portfolioValueHistoryItems!, 'xy'));
 
         if (this.showAnnotations) {
-          this.historyChartOptions.annotations = this.processAnnotations(this.portfolioValueHistoryItems!);
+          this.setHistoryAnnotations(this.processAnnotations(this.portfolioValueHistoryItems!));
         } else {
-          this.historyChartOptions.annotations = {};
+          this.setHistoryAnnotations({});
         }
+        this.refreshHistoryChart();
       },
-      error: () => (this.isLoadingHistory = false),
+      error: () => ((this.isLoadingHistory = false), (this.showHistoryChart = false)),
     });
   }
 
   private configureHistorySeriesPerHolding(portfolioValueHistoryItems: FinanceResourceSnapshots[], type: string): ApexAxisChartSeries {
-    let xydataArr = [{ x: '', y: 0 }];
+    let xydataArr = [{ x: 0, y: 0, time: 0 }];
 
     let serieses: ApexAxisChartSeries = []; // {data:[0]},{data:[0]}
 
@@ -422,18 +547,17 @@ export class InvestmentComponent {
       const xyseries = { name: portfolioValueHistoryItem.name, data: xydataArr };
       serieses.push(xyseries);
 
-      portfolioValueHistoryItem.snapshots.forEach((element: { date: string; value: number }) => {
-        const xy = { x: '', y: 0 };
+      portfolioValueHistoryItem.snapshots?.forEach((element: { date: string; value: number }) => {
         let d = Date.parse(element.date);
-        const format = 'MM/dd/yyyy';
-        //let date = formatDate(hoverXaxis, format, this.locale);
-        xy.x = formatDate(d, format, this.locale)!;
-        xy.y = Math.round(element.value);
+        if (Number.isNaN(d)) {
+          return;
+        }
+        const xy = { x: d, y: Math.round(element.value), time: d };
         xydataArr.push(xy);
       });
     }
 
-    return serieses;
+    return this.normalizeAxisSeries(serieses, 'History');
   }
 
   private processAnnotations(portfolioValueHistoryItems: FinanceResourceSnapshots[]): ApexAnnotations {
@@ -443,7 +567,7 @@ export class InvestmentComponent {
     for (let i = 0; i < portfolioValueHistoryItems.length; i++) {
       let portfolioValueHistoryItem: FinanceResourceSnapshots = portfolioValueHistoryItems[i];
 
-      portfolioValueHistoryItem.annotations.forEach(
+      portfolioValueHistoryItem.annotations?.forEach(
         (element: { date: string; annotation: string; type: string; quantity: number; price: number; totalValue: number }) => {
           let d = Date.parse(element.date);
           let bg = '#fff';
@@ -481,9 +605,58 @@ export class InvestmentComponent {
   }
   onChangeAnnotationsSwitch(event: any): void {
     if (this.showAnnotations) {
-      this.historyChartOptions.annotations = this.processAnnotations(this.portfolioValueHistoryItems!);
+      this.setHistoryAnnotations(this.processAnnotations(this.portfolioValueHistoryItems!));
     } else {
-      this.historyChartOptions.annotations = {};
+      this.setHistoryAnnotations({});
     }
+    this.refreshHistoryChart();
+  }
+
+  private setHistorySeries(series: ApexAxisChartSeries): void {
+    this.historyChartOptions = {
+      ...this.historyChartOptions,
+      series: this.normalizeAxisSeries(series, 'History'),
+    };
+  }
+
+  private setHistoryAnnotations(annotations: ApexAnnotations): void {
+    this.historyChartOptions = {
+      ...this.historyChartOptions,
+      annotations,
+    };
+  }
+
+  private normalizeAxisSeries(series: ApexAxisChartSeries | null | undefined, defaultName: string): ApexAxisChartSeries {
+    if (!Array.isArray(series) || series.length === 0) {
+      return [{ name: defaultName, data: [] }];
+    }
+
+    const normalizedSeries = series
+      .filter((entry: any) => entry != null)
+      .map((entry: any, index: number) => ({
+        name: entry.name ?? `${defaultName} ${index + 1}`,
+        data: Array.isArray(entry.data)
+          ? entry.data
+              .filter((point: any) => point != null)
+              .map((point: any) => ({
+                x: typeof point.x === 'number' ? point.x : Date.parse(point.x),
+                y: typeof point.y === 'number' ? point.y : Number(point.y ?? 0),
+              }))
+              .filter((point: { x: number; y: number }) => !Number.isNaN(point.x) && !Number.isNaN(point.y))
+          : [],
+      }));
+
+    if (normalizedSeries.length === 0) {
+      return [{ name: defaultName, data: [] }];
+    }
+
+    return normalizedSeries;
+  }
+
+  private refreshHistoryChart(): void {
+    this.showHistoryChart = false;
+    queueMicrotask(() => {
+      this.showHistoryChart = true;
+    });
   }
 }

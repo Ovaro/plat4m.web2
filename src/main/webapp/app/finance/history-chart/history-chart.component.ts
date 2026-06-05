@@ -1,6 +1,15 @@
 import { formatCurrency } from '@angular/common';
 import { Component, effect, ElementRef, OnInit, viewChild, ViewChild } from '@angular/core';
-import { ApexAxisChartSeries, ApexChart, ApexOptions, ChartComponent, ChartType, NgApexchartsModule } from 'ng-apexcharts';
+import {
+  ApexAxisChartSeries,
+  ApexChart,
+  ApexOptions,
+  ApexXAxis,
+  ApexYAxis,
+  ChartComponent,
+  ChartType,
+  NgApexchartsModule,
+} from 'ng-apexcharts';
 import { FinanceResourceSnapshots } from '../finance.model';
 import SharedModule from 'app/shared/shared.module';
 

@@ -1,27 +1,29 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { HttpResponse } from '@angular/common/http';
 import { ActivatedRouteSnapshot, Router } from '@angular/router';
-import { EMPTY, Observable, of } from 'rxjs';
-import { mergeMap } from 'rxjs/operators';
+
+import { EMPTY, Observable, catchError, of } from 'rxjs';
 
 import { IAuthority } from '../authority.model';
 import { AuthorityService } from '../service/authority.service';
 
 const authorityResolve = (route: ActivatedRouteSnapshot): Observable<null | IAuthority> => {
-  const id = route.params.name;
-  if (id) {
-    return inject(AuthorityService)
-      .find(id)
-      .pipe(
-        mergeMap((authority: HttpResponse<IAuthority>) => {
-          if (authority.body) {
-            return of(authority.body);
-          }
-          inject(Router).navigate(['404']);
-          return EMPTY;
-        }),
-      );
+  const { name } = route.params;
+  if (name) {
+    const router = inject(Router);
+    const service = inject(AuthorityService);
+    return service.find(name).pipe(
+      catchError((error: HttpErrorResponse) => {
+        if (error.status === 404) {
+          router.navigate(['404']);
+        } else {
+          router.navigate(['error']);
+        }
+        return EMPTY;
+      }),
+    );
   }
+
   return of(null);
 };
 

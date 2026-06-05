@@ -141,16 +141,38 @@ public class FinanceSecurityService {
     ) {
         // Get Events
         List<FinanceSnapshotsPerResourceDTO> results = new ArrayList<FinanceSnapshotsPerResourceDTO>();
+        log.warn(
+            "historicalInvestmentValues start. user={}, start={}, end={}, userSecurityCount={}, numberOfPeriods={}, includeClosed={}",
+            user.getLogin(),
+            start,
+            end,
+            userSecurities != null ? userSecurities.size() : null,
+            numberOfPeriods,
+            includeClosed
+        );
+
+        if (userSecurities == null || userSecurities.isEmpty()) {
+            log.warn("historicalInvestmentValues exiting early because no user securities were supplied.");
+            return results;
+        }
 
         List<String> userSecurityIds = new ArrayList<String>(userSecurities.size());
         for (FinanceUserSecurity us : userSecurities) {
             userSecurityIds.add(us.getId().toString());
         }
 
-        List<FinanceInvestmentEvent> allEvents =
-            this.investmentEventRepository.findAllByUserSecurityIdsOrderByDate(userSecurityIds, end.plusDays(1));
+        List<FinanceInvestmentEvent> allEvents = this.investmentEventRepository.findAllByUserSecurityIdsOrderByDate(
+            userSecurityIds,
+            end.plusDays(1)
+        );
+        log.warn(
+            "historicalInvestmentValues loaded events. eventCount={}, firstSecurityId={}",
+            allEvents != null ? allEvents.size() : null,
+            userSecurityIds.isEmpty() ? null : userSecurityIds.get(0)
+        );
 
         if (allEvents == null || allEvents.isEmpty()) {
+            log.warn("historicalInvestmentValues exiting early because no investment events were found.");
             return results;
         }
         // Get period
@@ -181,6 +203,7 @@ public class FinanceSecurityService {
 
         // Partition by User Security / Filter out if not a user security being included.
         Map<String, List<FinanceInvestmentEvent>> allEventsByUserSecurity = partitionByUserSecurityAndFilter(user, allEvents, usMap);
+        log.warn("historicalInvestmentValues partitioned events. groupedSecurityCount={}", allEventsByUserSecurity.size());
 
         // Generate annotation series
         Map<String, List<FinanceDateAnnotationDTO>> annotationsPerSecurity = generateAnnotationSeries(allEventsByUserSecurity, start, end);
@@ -200,35 +223,71 @@ public class FinanceSecurityService {
         // Update the period snapshots with the latest known security prices and FX values.
         updateWithLatestPrices(valuesPerSecurity, usMap, user.getLocalCurrency(), days);
 
+        log.info(
+            "Historical investment values prepared. userSecurities={}, events={}, groupedSeries={}",
+            userSecurities.size(),
+            allEvents.size(),
+            valuesPerSecurity.size()
+        );
+
         // Generate the DTO response.
         for (FinanceUserSecurity us : userSecurities) {
             String usId = us.getId().toString();
+            List<FinanceSnapshot> snapshots = valuesPerSecurity.get(usId);
+            if (snapshots == null || snapshots.isEmpty()) {
+                log.info("Excluding history series for {} [{}] because no snapshots were generated.", us.getName(), usId);
+                continue;
+            }
 
-            boolean hasNonZeroValue = false;
-            if (valuesPerSecurity.get(usId) != null) {
-                for (FinanceSnapshot s : valuesPerSecurity.get(usId)) {
-                    if (s.getValue().doubleValue() > 0.0) {
-                        hasNonZeroValue = true;
-                        break;
-                    }
-                }
+            if (!hasRenderableSnapshots(snapshots)) {
+                log.info(
+                    "Excluding history series for {} [{}] because snapshots had no positive quantity or value. snapshotCount={}",
+                    us.getName(),
+                    usId,
+                    snapshots.size()
+                );
+                continue;
+            }
 
-                if (hasNonZeroValue) {
-                    // As long as data we will create DTO
-                    FinanceSnapshotsPerResourceDTO dto = new FinanceSnapshotsPerResourceDTO();
-                    dto.setId(usId);
-                    dto.setName(us.getName());
-                    dto.setSymbol(us.getSymbol());
-                    dto.setCurrencyCode(us.getCurrencyCode());
-                    dto.setType("userSecurity");
-                    dto.setSnapshots(valuesPerSecurity.get(usId));
-                    dto.setAnnotations(annotationsPerSecurity.get(usId));
-                    results.add(dto);
-                }
+            FinanceSnapshotsPerResourceDTO dto = new FinanceSnapshotsPerResourceDTO();
+            dto.setId(usId);
+            dto.setName(us.getName());
+            dto.setSymbol(us.getSymbol());
+            dto.setCurrencyCode(us.getCurrencyCode());
+            dto.setType("userSecurity");
+            dto.setSnapshots(snapshots);
+            dto.setAnnotations(annotationsPerSecurity.get(usId));
+            results.add(dto);
+            log.info(
+                "Including history series for {} [{}]. snapshotCount={}, firstDate={}, lastDate={}",
+                us.getName(),
+                usId,
+                snapshots.size(),
+                snapshots.get(0).getDate(),
+                snapshots.get(snapshots.size() - 1).getDate()
+            );
+        }
+
+        log.warn("historicalInvestmentValues finished. resultCount={}", results.size());
+
+        return results;
+    }
+
+    private boolean hasRenderableSnapshots(List<FinanceSnapshot> snapshots) {
+        for (FinanceSnapshot snapshot : snapshots) {
+            if (snapshot == null) {
+                continue;
+            }
+            if (snapshot.getValue() != null && snapshot.getValue().doubleValue() > 0.0) {
+                return true;
+            }
+            FinanceInvestmentSnapshotDetails inv = snapshot.checkAndGetInvestment();
+            if (inv.getQuantity() != null && inv.getQuantity() > 0.0) {
+                return true;
             }
         }
 
-        return results;
+        return false;
     }
 
     /**
@@ -295,15 +354,15 @@ public class FinanceSecurityService {
             FinanceUserSecurity fus = usMap.get(usId);
             log.info(
                 "UserSecurity: " +
-                fus.getName() +
-                "[" +
-                usId +
-                "] being processed. Between: " +
-                fromDate +
-                " - " +
-                toDate +
-                ". Periods: " +
-                period
+                    fus.getName() +
+                    "[" +
+                    usId +
+                    "] being processed. Between: " +
+                    fromDate +
+                    " - " +
+                    toDate +
+                    ". Periods: " +
+                    period
             );
             LocalDate currentPeriodEnd = fromDate.with(TemporalAdjusters.lastDayOfMonth());
             LocalDate toDateEndMonth = toDate.with(TemporalAdjusters.lastDayOfMonth());
@@ -315,15 +374,15 @@ public class FinanceSecurityService {
             for (FinanceInvestmentEvent fie : allEventsByUserSecurity.get(usId)) {
                 log.info(
                     "FIE: " +
-                    fus.getName() +
-                    " (" +
-                    fie.getDate() +
-                    ") [" +
-                    fie.getHolding() +
-                    " $" +
-                    fie.getPrice() +
-                    "] - periodEnd: " +
-                    currentPeriodEnd
+                        fus.getName() +
+                        " (" +
+                        fie.getDate() +
+                        ") [" +
+                        fie.getHolding() +
+                        " $" +
+                        fie.getPrice() +
+                        "] - periodEnd: " +
+                        currentPeriodEnd
                 );
 
                 if (fie.getCapitalDelta() == null || fie.getHolding() == null) {
@@ -346,23 +405,23 @@ public class FinanceSecurityService {
                         while (fie.getDate().isAfter(currentPeriodEnd)) {
                             log.info(
                                 fie.getDate() +
-                                " is after or equal to the end of the period: " +
-                                currentPeriodEnd +
-                                " so storing current holding & last price and rolling forward to next period. "
+                                    " is after or equal to the end of the period: " +
+                                    currentPeriodEnd +
+                                    " so storing current holding & last price and rolling forward to next period. "
                             );
                             // STORE [1]
                             this.storeSnapshotValue(
-                                    valuesPerSecurity,
-                                    usMap.get(usId),
-                                    currentPeriodEnd,
-                                    holdingBalance,
-                                    lastPrice,
-                                    true,
-                                    lastPriceDate,
-                                    lastFX,
-                                    lastFXDate,
-                                    user.getLocalCurrency()
-                                );
+                                valuesPerSecurity,
+                                usMap.get(usId),
+                                currentPeriodEnd,
+                                holdingBalance,
+                                lastPrice,
+                                true,
+                                lastPriceDate,
+                                lastFX,
+                                lastFXDate,
+                                user.getLocalCurrency()
+                            );
                             currentPeriodEnd = addPeriodToDate(currentPeriodEnd, period);
                         }
 
@@ -374,10 +433,10 @@ public class FinanceSecurityService {
                             // We are inside the period, just save it and move to the next FIE
                             log.info(
                                 fie.getDate() +
-                                " is before the end of the period: " +
-                                currentPeriodEnd +
-                                " so storing investment event on the date: " +
-                                fie.getDate()
+                                    " is before the end of the period: " +
+                                    currentPeriodEnd +
+                                    " so storing investment event on the date: " +
+                                    fie.getDate()
                             );
 
                             holdingBalance = fie.getHolding();
@@ -396,29 +455,29 @@ public class FinanceSecurityService {
             while (currentPeriodEnd.isBefore(toDateEndMonth) || currentPeriodEnd.isEqual(toDateEndMonth)) {
                 log.info(
                     "Closing period: " +
-                    currentPeriodEnd +
-                    " for: " +
-                    fus.getName() +
-                    " (" +
-                    (fus.getSecurity() != null ? fus.getSecurity().getSymbol() : fus.getSymbol()) +
-                    "). Holding: " +
-                    holdingBalance +
-                    ", lastPrice: " +
-                    lastPrice
+                        currentPeriodEnd +
+                        " for: " +
+                        fus.getName() +
+                        " (" +
+                        (fus.getSecurity() != null ? fus.getSecurity().getSymbol() : fus.getSymbol()) +
+                        "). Holding: " +
+                        holdingBalance +
+                        ", lastPrice: " +
+                        lastPrice
                 );
                 // STORE [3]
                 this.storeSnapshotValue(
-                        valuesPerSecurity,
-                        usMap.get(usId),
-                        currentPeriodEnd,
-                        holdingBalance,
-                        lastPrice,
-                        true,
-                        lastPriceDate,
-                        lastFX,
-                        lastFXDate,
-                        user.getLocalCurrency()
-                    );
+                    valuesPerSecurity,
+                    usMap.get(usId),
+                    currentPeriodEnd,
+                    holdingBalance,
+                    lastPrice,
+                    true,
+                    lastPriceDate,
+                    lastFX,
+                    lastFXDate,
+                    user.getLocalCurrency()
+                );
 
                 currentPeriodEnd = addPeriodToDate(currentPeriodEnd, period);
             }
@@ -477,68 +536,76 @@ public class FinanceSecurityService {
             if (prices == null || prices.size() == 0) {
                 prices = securitySPRepository.findLatestInPeriod(symbols, fromDate.minusYears(5), fromDate);
             }
+            if (prices == null || prices.isEmpty()) {
+                continue;
+            }
             // Update the prices
             Map<String, FinanceSnapshot> securitiesToSnapshot = indexedPeriodsAndSecurities.get(d);
+            if (securitiesToSnapshot == null || securitiesToSnapshot.isEmpty()) {
+                continue;
+            }
             for (IFinanceSecurityPriceInPeriod price : prices) {
-                log.info(
-                    "Processing price : " + price.getSymbol() + " [" + price.getDate() + " $" + price.getPrice() + "] for period: " + d
-                );
+                LocalDate priceDate = price.getDate() != null ? price.getDate().toLocalDate() : null;
+                log.info("Processing price : " + price.getSymbol() + " [" + priceDate + " $" + price.getPrice() + "] for period: " + d);
                 FinanceSnapshot snapshot = securitiesToSnapshot.get(price.getSymbol());
-                FinanceInvestmentSnapshotDetails inv = snapshot.checkAndGetInvestment();
                 if (snapshot == null) {
                     log.info("Cannot find snapshot for : " + price.getSymbol() + " for period: " + d);
-                } else if (inv.getPriceDate() == null) {
+                    continue;
+                }
+
+                FinanceInvestmentSnapshotDetails inv = snapshot.checkAndGetInvestment();
+                if (inv.getPriceDate() == null) {
                     log.warn("Snapshot date for : " + price.getSymbol() + " for period: " + d + " is null");
-                } else if (!inv.getPriceDate().isAfter(price.getDate())) {
+                } else if (priceDate != null && !inv.getPriceDate().isAfter(priceDate)) {
                     snapshot.setId(price.getSymbol());
                     if (snapshot.getCurrencyIsoCode() == null || snapshot.getCurrencyIsoCode().equals(baseCurrency)) {
                         //log.info("Updating snapshot for " + price.getSymbol() + " in period: " + d + " - FROM: " + inv.getPriceDate() + " " +  snapshot.getValue() +"($" + inv.getPrice() + ") to  " + price.getPrice().multiply(BigDecimal.valueOf(inv.getQuantity())) + " ($" + price.getPrice() + ") - Price Date: " + price.getDate());
-                        updateSnapshotValue(snapshot, price.getPrice(), price.getDate(), null, null, baseCurrency);
+                        updateSnapshotValue(snapshot, price.getPrice(), priceDate, null, null, baseCurrency);
                     } else {
                         // Need Currency Conversion update as well.
                         log.info(
                             "Updating (foreign FX snapshot) for " +
-                            price.getSymbol() +
-                            " in period: " +
-                            d +
-                            " - FROM: " +
-                            inv.getPriceDate() +
-                            " " +
-                            snapshot.getValue() +
-                            "($" +
-                            inv.getPrice() +
-                            ") to  " +
-                            price.getPrice().multiply(BigDecimal.valueOf(inv.getQuantity())) +
-                            " ($" +
-                            price.getPrice() +
-                            ") - Price Date: " +
-                            price.getDate()
+                                price.getSymbol() +
+                                " in period: " +
+                                d +
+                                " - FROM: " +
+                                inv.getPriceDate() +
+                                " " +
+                                snapshot.getValue() +
+                                "($" +
+                                inv.getPrice() +
+                                ") to  " +
+                                price.getPrice().multiply(BigDecimal.valueOf(inv.getQuantity())) +
+                                " ($" +
+                                price.getPrice() +
+                                ") - Price Date: " +
+                                priceDate
                         );
                         Map<String, FinanceFX> curFXMap = fxMap.get(d);
                         if (curFXMap != null) {
                             FinanceFX fx = curFXMap.get(snapshot.getCurrencyIsoCode());
-                            if (snapshot.getFxDate() == null || fx.getDate().toLocalDate().isAfter(snapshot.getFxDate())) {
+                            if (fx == null) {
+                                log.info(
+                                    "Updating snapshot without FX because no FX match was found for currency {} on period {}.",
+                                    snapshot.getCurrencyIsoCode(),
+                                    d
+                                );
+                                updateSnapshotValue(snapshot, price.getPrice(), priceDate, null, null, baseCurrency);
+                            } else if (snapshot.getFxDate() == null || fx.getDate().toLocalDate().isAfter(snapshot.getFxDate())) {
                                 // Lets use it because it looks to be more recent
                                 Double rate = fx.getRate();
                                 if (fx.getFromIsoCode().equals(baseCurrency)) {
                                     rate = 1 / fx.getRate();
                                 }
                                 log.info("Updating snapshot using new FX values: " + fx.getDate().toLocalDate() + ", rate: " + rate);
-                                updateSnapshotValue(
-                                    snapshot,
-                                    price.getPrice(),
-                                    price.getDate(),
-                                    rate,
-                                    fx.getDate().toLocalDate(),
-                                    baseCurrency
-                                );
+                                updateSnapshotValue(snapshot, price.getPrice(), priceDate, rate, fx.getDate().toLocalDate(), baseCurrency);
                             } else {
                                 log.info("Updating snapshot but using old FX value because we don't have a more recent one.");
-                                updateSnapshotValue(snapshot, price.getPrice(), price.getDate(), null, null, baseCurrency);
+                                updateSnapshotValue(snapshot, price.getPrice(), priceDate, null, null, baseCurrency);
                             }
                         } else {
                             log.info("Updating snapshot without FX since not registered.");
-                            updateSnapshotValue(snapshot, price.getPrice(), price.getDate(), null, null, baseCurrency);
+                            updateSnapshotValue(snapshot, price.getPrice(), priceDate, null, null, baseCurrency);
                         }
                     }
                     // snapshot.setPriceDate(price.getDate());
@@ -546,15 +613,15 @@ public class FinanceSecurityService {
                 } else {
                     log.info(
                         "Not updating snapshot for : " +
-                        price.getSymbol() +
-                        " for period: " +
-                        d +
-                        " since it is after price date: " +
-                        price.getDate() +
-                        " (compared to: " +
-                        inv.getPriceDate() +
-                        "). Value: " +
-                        snapshot.getValue()
+                            price.getSymbol() +
+                            " for period: " +
+                            d +
+                            " since it is after price date: " +
+                            priceDate +
+                            " (compared to: " +
+                            inv.getPriceDate() +
+                            "). Value: " +
+                            snapshot.getValue()
                     );
                 }
             }
@@ -608,12 +675,12 @@ public class FinanceSecurityService {
                         } else {
                             log.debug(
                                 "[" +
-                                currency +
-                                "] [" +
-                                periodDate +
-                                "]  LastFX: " +
-                                lastFX.getDate() +
-                                " was the last one before the end of the period. Storing."
+                                    currency +
+                                    "] [" +
+                                    periodDate +
+                                    "]  LastFX: " +
+                                    lastFX.getDate() +
+                                    " was the last one before the end of the period. Storing."
                             );
                             store(result, periodDate, currency, lastFX);
                             lastFX = fx;
@@ -658,10 +725,17 @@ public class FinanceSecurityService {
         Map<String, String> currenciesMap = new HashMap<String, String>();
         for (String usId : valuesPerSecurity.keySet()) {
             FinanceUserSecurity fus = usMap.get(usId);
+            if (fus == null) {
+                continue;
+            }
             if (fus.getSecurity() != null || fus.getSymbol() != null) {
                 String symbol = fus.getSymbol();
                 if (fus.getSecurity() != null) {
                     symbol = fus.getSecurity().getSymbol();
+                }
+                if (symbol == null || symbol.isBlank()) {
+                    log.info("(No symbol for : " + fus.getName() + " so not processing)");
+                    continue;
                 }
                 if (fus.getCurrencyCode() != null && !fus.getCurrencyCode().equals(baseCurrency)) {
                     currenciesMap.put(fus.getCurrencyCode(), fus.getCurrencyCode());
@@ -791,13 +865,13 @@ public class FinanceSecurityService {
         FinanceInvestmentSnapshotDetails inv = snapshot.checkAndGetInvestment();
         log.info(
             "Updating " +
-            snapshot.getId() +
-            ". Price: " +
-            price +
-            ", PriceDate: " +
-            priceDate +
-            ", New Value: " +
-            price.multiply(BigDecimal.valueOf(inv.getQuantity()))
+                snapshot.getId() +
+                ". Price: " +
+                price +
+                ", PriceDate: " +
+                priceDate +
+                ", New Value: " +
+                price.multiply(BigDecimal.valueOf(inv.getQuantity()))
         );
         inv.setPriceDate(priceDate);
         inv.setPrice(price);
@@ -823,7 +897,6 @@ public class FinanceSecurityService {
         //     // use supplied FX
         //     snapshot.setValue(price.multiply(BigDecimal.valueOf(inv.getQuantity())).multiply(BigDecimal.valueOf(rateToBase)));
         // }
-
     }
 
     public Map<String, FinanceUserSecurity> mapUserSecurities(List<FinanceUserSecurity> includedUserSecurities) {
@@ -1036,6 +1109,15 @@ public class FinanceSecurityService {
         // Check and lock the userSecurity to stop parrallel activities occuring (multi-threading)
         Optional<FinanceUserSecurity> osec = this.lockingUserSecurityRepository.findById(UUID.fromString(userSecurityId));
         FinanceUserSecurity usec = osec.get();
+        if (usec.getUserGuid() == null || !usec.getUserGuid().equals(user.getGuid().toString())) {
+            log.warn(
+                "Realigning FinanceUserSecurity ownership during event generation. userSecurityId={}, existingUserGuid={}, currentUserGuid={}",
+                userSecurityId,
+                usec.getUserGuid(),
+                user.getGuid()
+            );
+            usec.setUserGuid(user.getGuid().toString());
+        }
         //Optional<FinanceUserSecurity> osec = this.getUserSecurity(user, userSecurityId);
         // if(osec.isPresent() && !osec.get().isEventsValid()) {
         //     osec.get().setEventsValid(true);
@@ -1225,7 +1307,8 @@ public class FinanceSecurityService {
         }
 
         if (events.size() > 0) {
-            if (usec != null) { //&& !usec.isEventsValid()
+            if (usec != null) {
+                //&& !usec.isEventsValid()
                 usec.setEventsValid(true);
                 this.save(user, usec);
                 log.info("Generating events for: " + userSecurityId);
@@ -1327,8 +1410,10 @@ public class FinanceSecurityService {
         result.setTotalAyi(totalAyi);
 
         // Get Events
-        List<FinanceInvestmentEvent> allEvents =
-            this.investmentEventRepository.findAllByUserGuidOrderByDate(user.getGuid().toString(), atDate);
+        List<FinanceInvestmentEvent> allEvents = this.investmentEventRepository.findAllByUserGuidOrderByDate(
+            user.getGuid().toString(),
+            atDate
+        );
         LocalDate now = LocalDate.now();
         double ayi = calcAYIFromEvents(allEvents, totalCapitalInvested.doubleValue(), now, includeClosed);
 
@@ -1379,21 +1464,21 @@ public class FinanceSecurityService {
         result.setTotalReturnPC(calcReturn(result.getTotalReturn().doubleValue(), result.getTotalCapitalInvested().doubleValue(), ayi));
         log.info(
             "PORTFOLIO: TR(CAGR): " +
-            result.getTotalReturnCAGR() +
-            ", TR(s): " +
-            result.getTotalReturnPC() +
-            ", TCap(CAGR): " +
-            result.getTotalCapitalGainCAGR() +
-            ", TCap(s): " +
-            result.getTotalCapitalGainPC() +
-            ", TIn(CAGR): " +
-            result.getTotalIncomeCAGR() +
-            ", TIn(s): " +
-            result.getTotalIncomePC() +
-            ", TCur(CAGR): " +
-            result.getTotalCurrencyGainCAGR() +
-            ", TCur(s): " +
-            result.getTotalCurrencyGainPC()
+                result.getTotalReturnCAGR() +
+                ", TR(s): " +
+                result.getTotalReturnPC() +
+                ", TCap(CAGR): " +
+                result.getTotalCapitalGainCAGR() +
+                ", TCap(s): " +
+                result.getTotalCapitalGainPC() +
+                ", TIn(CAGR): " +
+                result.getTotalIncomeCAGR() +
+                ", TIn(s): " +
+                result.getTotalIncomePC() +
+                ", TCur(CAGR): " +
+                result.getTotalCurrencyGainCAGR() +
+                ", TCur(s): " +
+                result.getTotalCurrencyGainPC()
         );
     }
 
@@ -1404,8 +1489,10 @@ public class FinanceSecurityService {
         LocalDate atDate
     ) {
         // Get Events
-        List<FinanceInvestmentEvent> events =
-            this.investmentEventRepository.findAllByUserSecurityIdOrderByDate(userSecurity.getId().toString(), atDate);
+        List<FinanceInvestmentEvent> events = this.investmentEventRepository.findAllByUserSecurityIdOrderByDate(
+            userSecurity.getId().toString(),
+            atDate
+        );
 
         // Set up sums
         double quantity = 0;
@@ -1589,22 +1676,22 @@ public class FinanceSecurityService {
 
         log.info(
             dto.getUserSecurityId() +
-            ", TR(CAGR): " +
-            dto.getTotalReturnCAGR() +
-            ", TR(s): " +
-            dto.getTotalReturnPC() +
-            ", TCap(CAGR): " +
-            dto.getTotalCapitalGainCAGR() +
-            ", TCap(s): " +
-            dto.getTotalCapitalGainPC() +
-            ", TIn(CAGR): " +
-            dto.getTotalIncomeCAGR() +
-            ", TIn(s): " +
-            dto.getTotalIncomePC() +
-            ", TCur(CAGR): " +
-            dto.getTotalCurrencyGainCAGR() +
-            ", TCur(s): " +
-            dto.getTotalCurrencyGainPC()
+                ", TR(CAGR): " +
+                dto.getTotalReturnCAGR() +
+                ", TR(s): " +
+                dto.getTotalReturnPC() +
+                ", TCap(CAGR): " +
+                dto.getTotalCapitalGainCAGR() +
+                ", TCap(s): " +
+                dto.getTotalCapitalGainPC() +
+                ", TIn(CAGR): " +
+                dto.getTotalIncomeCAGR() +
+                ", TIn(s): " +
+                dto.getTotalIncomePC() +
+                ", TCur(CAGR): " +
+                dto.getTotalCurrencyGainCAGR() +
+                ", TCur(s): " +
+                dto.getTotalCurrencyGainPC()
         );
 
         // double costBasis=dto.getTotalCapitalInvested().doubleValue()/quantity;
@@ -1641,7 +1728,8 @@ public class FinanceSecurityService {
         double ayi = 0;
         double quantity = 0;
         for (FinanceInvestmentEvent event : events) {
-            if (event.getCapitalDelta() != null && event.getCapitalDelta().doubleValue() > 0) { // Not sell events.
+            if (event.getCapitalDelta() != null && event.getCapitalDelta().doubleValue() > 0) {
+                // Not sell events.
                 long days = ChronoUnit.DAYS.between(event.getDate(), toDate);
                 double proporation = Math.abs(event.getCapitalDelta().doubleValue()) / totalCapital;
                 ayi = ayi + (days * proporation);
@@ -1670,6 +1758,51 @@ public class FinanceSecurityService {
 
     public List<FinanceUserSecurity> getUserSecurities(User user, String accountId) {
         List<FinanceUserSecurity> fus = userSecurityRepository.findByUserGuid(user.getGuid().toString());
+        log.warn("getUserSecurities initial lookup. userGuid={}, accountId={}, repositoryCount={}", user.getGuid(), accountId, fus.size());
+
+        if (fus.isEmpty()) {
+            List<FinanceSecurityInvestmentSummary> securityTransactions;
+            if (accountId != null) {
+                securityTransactions = this.financeTransactionService.getFinanceSecurityInvestmentTransactionsForAccount(
+                    user,
+                    accountId,
+                    true
+                );
+            } else {
+                securityTransactions = this.financeTransactionService.getFinanceSecurityInvestmentTransactions(user, true, null);
+            }
+
+            Map<String, String> securityIds = new HashMap<String, String>();
+            for (FinanceSecurityInvestmentSummary item : securityTransactions) {
+                if (item.getSecurityId() != null && !item.getSecurityId().isBlank()) {
+                    securityIds.put(item.getSecurityId(), item.getSecurityId());
+                }
+            }
+
+            List<UUID> ids = new ArrayList<UUID>();
+            for (String securityId : securityIds.keySet()) {
+                try {
+                    ids.add(UUID.fromString(securityId));
+                } catch (IllegalArgumentException e) {
+                    log.warn("Skipping non-UUID securityId from transaction summaries: {}", securityId);
+                }
+            }
+
+            if (!ids.isEmpty()) {
+                List<FinanceUserSecurity> resolved = new ArrayList<FinanceUserSecurity>();
+                for (UUID id : ids) {
+                    userSecurityRepository.findById(id).ifPresent(resolved::add);
+                }
+                fus = resolved;
+                log.warn(
+                    "getUserSecurities fallback lookup by transaction security ids. transactionSecurityCount={}, resolvedCount={}",
+                    ids.size(),
+                    fus.size()
+                );
+            } else {
+                log.warn("getUserSecurities fallback found no candidate security ids in transaction summaries.");
+            }
+        }
 
         if (accountId != null) {
             // Since user securities are linked to account via transactions, not directly,
@@ -1688,10 +1821,10 @@ public class FinanceSecurityService {
                     toRemove.add(usToInterogate);
                     log.info(
                         "Going to remove userSecurityID: " +
-                        usToInterogate.getId().toString() +
-                        "(" +
-                        usToInterogate.getName() +
-                        ") since not in the account"
+                            usToInterogate.getId().toString() +
+                            "(" +
+                            usToInterogate.getName() +
+                            ") since not in the account"
                     );
                 }
             }
@@ -1699,11 +1832,13 @@ public class FinanceSecurityService {
             fus.removeAll(toRemove);
         }
 
+        log.warn("getUserSecurities final result count={}", fus.size());
+
         return fus;
     }
 
     public FinanceUserSecurity save(User user, FinanceUserSecurity usec) {
-        if (usec.getUserGuid().equals(user.getGuid().toString())) {
+        if (user.getGuid().toString().equals(usec.getUserGuid())) {
             return userSecurityRepository.save(usec);
         } else {
             throw new RuntimeException("Not the owning user saving UserSecurity: " + user.getGuid().toString());
@@ -1890,15 +2025,15 @@ public class FinanceSecurityService {
 
         log.info(
             "Logged base captial of " +
-            formatCurrency(cgeBaseCaptialAmount) +
-            " for tranche: " +
-            tranche.txn.getDate() +
-            " - qty in tranche: " +
-            tranche.quantity +
-            ". Capital used: " +
-            formatCurrency(cge.capitalUsed) +
-            ", Currency Gain: " +
-            formatCurrency(cge.currencyGain)
+                formatCurrency(cgeBaseCaptialAmount) +
+                " for tranche: " +
+                tranche.txn.getDate() +
+                " - qty in tranche: " +
+                tranche.quantity +
+                ". Capital used: " +
+                formatCurrency(cge.capitalUsed) +
+                ", Currency Gain: " +
+                formatCurrency(cge.currencyGain)
         );
 
         if (quantity > 0) {
@@ -1958,15 +2093,15 @@ public class FinanceSecurityService {
         double[] cf = org.apache.commons.lang.ArrayUtils.toPrimitive(cashFlows.toArray(new Double[0]));
         log.info(
             "Calling MD with emv: " +
-            emv +
-            ", bmv:" +
-            bmv +
-            ", cf: " +
-            Arrays.toString(cf) +
-            ", numCD: " +
-            numCD +
-            ", numD: " +
-            Arrays.toString(numD)
+                emv +
+                ", bmv:" +
+                bmv +
+                ", cf: " +
+                Arrays.toString(cf) +
+                ", numCD: " +
+                numCD +
+                ", numD: " +
+                Arrays.toString(numD)
         );
         return modifiedDietz(emv, bmv.doubleValue(), cf, numCD, numD);
     }
@@ -1978,7 +2113,7 @@ public class FinanceSecurityService {
      * numCD: actual number of days in the period
      * numD[]: number of days between beginning of the period and date of cashFlow[]
      */
-    public static double modifiedDietz(double emv, double bmv, double cashFlow[], int numCD, int numD[]) {
+    public static double modifiedDietz(double emv, double bmv, double[] cashFlow, int numCD, int[] numD) {
         double md = -99999; // initialize modified dietz with a debugging number
 
         try {

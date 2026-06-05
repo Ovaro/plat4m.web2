@@ -1,7 +1,6 @@
 package ovaro.plat4m.security;
 
 import java.util.*;
-import org.hibernate.validator.internal.constraintvalidators.hv.EmailValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.GrantedAuthority;
@@ -14,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ovaro.plat4m.domain.Authority;
 import ovaro.plat4m.domain.User;
 import ovaro.plat4m.repository.UserRepository;
+import ovaro.plat4m.util.EmailValidationUtil;
 
 /**
  * Authenticate a user from the database.
@@ -34,7 +34,7 @@ public class DomainUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(final String login) {
         LOG.debug("Authenticating {}", login);
 
-        if (new EmailValidator().isValid(login, null)) {
+        if (EmailValidationUtil.isEmail(login)) {
             return userRepository
                 .findOneWithAuthoritiesByEmailIgnoreCase(login)
                 .map(user -> createSpringSecurityUser(login, user))
