@@ -1,15 +1,14 @@
-import { Injectable, inject } from '@angular/core';
 import { Location } from '@angular/common';
+import { Injectable, effect, inject } from '@angular/core';
 import { Event, NavigationEnd, Router } from '@angular/router';
-import { Observer, Subscription } from 'rxjs';
-import { filter, map } from 'rxjs/operators';
 
-import SockJS from 'sockjs-client';
 import { RxStomp } from '@stomp/rx-stomp';
+import { Observer, Subscription, filter, map } from 'rxjs';
+import SockJS from 'sockjs-client';
 
 import { AuthServerProvider } from 'app/core/auth/auth-jwt.service';
 import { AccountService } from '../auth/account.service';
-import { Account } from '../auth/account.model';
+
 import { TrackerActivity } from './tracker-activity.model';
 
 const DESTINATION_TRACKER = '/topic/tracker';
@@ -32,14 +31,12 @@ export class TrackerService {
       debug: (msg: string): void => console.log(new Date(), msg),
     });
 
-    this.accountService.getAuthenticationState().subscribe({
-      next: (account: Account | null) => {
-        if (account) {
-          this.connect();
-        } else {
-          this.disconnect();
-        }
-      },
+    effect(() => {
+      if (this.accountService.account()) {
+        this.connect();
+      } else {
+        this.disconnect();
+      }
     });
 
     this.rxStomp.connected$.subscribe(() => {

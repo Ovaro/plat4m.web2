@@ -1,6 +1,6 @@
-import { TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { TestBed } from '@angular/core/testing';
 
 import { IUser } from '../user.model';
 import { sampleWithFullData, sampleWithPartialData, sampleWithRequiredData } from '../user.test-samples';
@@ -18,7 +18,7 @@ describe('User Service', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClientTesting()],
     });
     expectedResult = null;
     service = TestBed.inject(UserService);
@@ -30,7 +30,7 @@ describe('User Service', () => {
       const returnedFromService = { ...requireRestSample };
       const expected = { ...sampleWithRequiredData };
 
-      service.find(123).subscribe(resp => (expectedResult = resp.body));
+      service.find(123).subscribe(resp => (expectedResult = resp));
 
       const req = httpMock.expectOne({ method: 'GET' });
       req.flush(returnedFromService);
@@ -54,8 +54,7 @@ describe('User Service', () => {
       it('should add a User to an empty array', () => {
         const user: IUser = sampleWithRequiredData;
         expectedResult = service.addUserToCollectionIfMissing([], user);
-        expect(expectedResult).toHaveLength(1);
-        expect(expectedResult).toContain(user);
+        expect(expectedResult).toEqual([user]);
       });
 
       it('should not add a User to an array that contains it', () => {
@@ -89,16 +88,13 @@ describe('User Service', () => {
         const user: IUser = sampleWithRequiredData;
         const user2: IUser = sampleWithPartialData;
         expectedResult = service.addUserToCollectionIfMissing([], user, user2);
-        expect(expectedResult).toHaveLength(2);
-        expect(expectedResult).toContain(user);
-        expect(expectedResult).toContain(user2);
+        expect(expectedResult).toEqual([user, user2]);
       });
 
       it('should accept null and undefined values', () => {
         const user: IUser = sampleWithRequiredData;
         expectedResult = service.addUserToCollectionIfMissing([], null, user, undefined);
-        expect(expectedResult).toHaveLength(1);
-        expect(expectedResult).toContain(user);
+        expect(expectedResult).toEqual([user]);
       });
 
       it('should return initial array if no User is added', () => {

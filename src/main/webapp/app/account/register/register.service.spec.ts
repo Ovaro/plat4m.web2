@@ -1,10 +1,11 @@
-import { TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { TestBed } from '@angular/core/testing';
 
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
-import { RegisterService } from './register.service';
+
 import { Registration } from './register.model';
+import { RegisterService } from './register.service';
 
 describe('RegisterService Service', () => {
   let service: RegisterService;
@@ -13,7 +14,7 @@ describe('RegisterService Service', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClientTesting()],
     });
 
     service = TestBed.inject(RegisterService);

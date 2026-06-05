@@ -14,7 +14,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
@@ -149,7 +149,7 @@ class UserResourceIT {
         userDTO.setActivated(true);
         userDTO.setImageUrl(DEFAULT_IMAGEURL);
         userDTO.setLangKey(DEFAULT_LANGKEY);
-        userDTO.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
+        userDTO.setAuthorities(Set.of(AuthoritiesConstants.USER));
 
         var returnedUserDTO = om.readValue(
             restUserMockMvc
@@ -185,7 +185,7 @@ class UserResourceIT {
         userDTO.setActivated(true);
         userDTO.setImageUrl(DEFAULT_IMAGEURL);
         userDTO.setLangKey(DEFAULT_LANGKEY);
-        userDTO.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
+        userDTO.setAuthorities(Set.of(AuthoritiesConstants.USER));
 
         // An entity with an existing ID cannot be created, so this API call must fail
         restUserMockMvc
@@ -211,7 +211,7 @@ class UserResourceIT {
         userDTO.setActivated(true);
         userDTO.setImageUrl(DEFAULT_IMAGEURL);
         userDTO.setLangKey(DEFAULT_LANGKEY);
-        userDTO.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
+        userDTO.setAuthorities(Set.of(AuthoritiesConstants.USER));
 
         // Create the User
         restUserMockMvc
@@ -237,7 +237,7 @@ class UserResourceIT {
         userDTO.setActivated(true);
         userDTO.setImageUrl(DEFAULT_IMAGEURL);
         userDTO.setLangKey(DEFAULT_LANGKEY);
-        userDTO.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
+        userDTO.setAuthorities(Set.of(AuthoritiesConstants.USER));
 
         // Create the User
         restUserMockMvc
@@ -319,7 +319,7 @@ class UserResourceIT {
         userDTO.setCreatedDate(updatedUser.getCreatedDate());
         userDTO.setLastModifiedBy(updatedUser.getLastModifiedBy());
         userDTO.setLastModifiedDate(updatedUser.getLastModifiedDate());
-        userDTO.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
+        userDTO.setAuthorities(Set.of(AuthoritiesConstants.USER));
 
         restUserMockMvc
             .perform(put("/api/admin/users").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(userDTO)))
@@ -328,7 +328,11 @@ class UserResourceIT {
         // Validate the User in the database
         assertPersistedUsers(users -> {
             assertThat(users).hasSize(databaseSizeBeforeUpdate);
-            User testUser = users.stream().filter(usr -> usr.getId().equals(updatedUser.getId())).findFirst().orElseThrow();
+            User testUser = users
+                .stream()
+                .filter(usr -> usr.getId().equals(updatedUser.getId()))
+                .findFirst()
+                .orElseThrow();
             assertThat(testUser.getFirstName()).isEqualTo(UPDATED_FIRSTNAME);
             assertThat(testUser.getLastName()).isEqualTo(UPDATED_LASTNAME);
             assertThat(testUser.getEmail()).isEqualTo(UPDATED_EMAIL);
@@ -360,7 +364,7 @@ class UserResourceIT {
         userDTO.setCreatedDate(updatedUser.getCreatedDate());
         userDTO.setLastModifiedBy(updatedUser.getLastModifiedBy());
         userDTO.setLastModifiedDate(updatedUser.getLastModifiedDate());
-        userDTO.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
+        userDTO.setAuthorities(Set.of(AuthoritiesConstants.USER));
 
         restUserMockMvc
             .perform(put("/api/admin/users").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(userDTO)))
@@ -369,7 +373,11 @@ class UserResourceIT {
         // Validate the User in the database
         assertPersistedUsers(users -> {
             assertThat(users).hasSize(databaseSizeBeforeUpdate);
-            User testUser = users.stream().filter(usr -> usr.getId().equals(updatedUser.getId())).findFirst().orElseThrow();
+            User testUser = users
+                .stream()
+                .filter(usr -> usr.getId().equals(updatedUser.getId()))
+                .findFirst()
+                .orElseThrow();
             assertThat(testUser.getLogin()).isEqualTo(UPDATED_LOGIN);
             assertThat(testUser.getFirstName()).isEqualTo(UPDATED_FIRSTNAME);
             assertThat(testUser.getLastName()).isEqualTo(UPDATED_LASTNAME);
@@ -412,7 +420,7 @@ class UserResourceIT {
         userDTO.setCreatedDate(updatedUser.getCreatedDate());
         userDTO.setLastModifiedBy(updatedUser.getLastModifiedBy());
         userDTO.setLastModifiedDate(updatedUser.getLastModifiedDate());
-        userDTO.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
+        userDTO.setAuthorities(Set.of(AuthoritiesConstants.USER));
 
         restUserMockMvc
             .perform(put("/api/admin/users").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(userDTO)))
@@ -452,7 +460,7 @@ class UserResourceIT {
         userDTO.setCreatedDate(updatedUser.getCreatedDate());
         userDTO.setLastModifiedBy(updatedUser.getLastModifiedBy());
         userDTO.setLastModifiedDate(updatedUser.getLastModifiedDate());
-        userDTO.setAuthorities(Collections.singleton(AuthoritiesConstants.USER));
+        userDTO.setAuthorities(Set.of(AuthoritiesConstants.USER));
 
         restUserMockMvc
             .perform(put("/api/admin/users").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(userDTO)))

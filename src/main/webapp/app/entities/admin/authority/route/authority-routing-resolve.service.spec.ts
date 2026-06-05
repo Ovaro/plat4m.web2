@@ -1,9 +1,10 @@
+import { beforeEach, describe, expect, it, vitest } from 'vitest';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { HttpResponse, provideHttpClient } from '@angular/common/http';
 import { ActivatedRoute, ActivatedRouteSnapshot, Router, convertToParamMap } from '@angular/router';
-import { of } from 'rxjs';
 
-import { IAuthority } from '../authority.model';
+import { lastValueFrom, of, throwError } from 'rxjs';
+
 import { AuthorityService } from '../service/authority.service';
 
 import authorityResolve from './authority-routing-resolve.service';
@@ -12,12 +13,10 @@ describe('Authority routing resolve service', () => {
   let mockRouter: Router;
   let mockActivatedRouteSnapshot: ActivatedRouteSnapshot;
   let service: AuthorityService;
-  let resultAuthority: IAuthority | null | undefined;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(),
         {
           provide: ActivatedRoute,
           useValue: {
@@ -29,69 +28,80 @@ describe('Authority routing resolve service', () => {
       ],
     });
     mockRouter = TestBed.inject(Router);
-    jest.spyOn(mockRouter, 'navigate').mockImplementation(() => Promise.resolve(true));
+    vitest.spyOn(mockRouter, 'navigate');
     mockActivatedRouteSnapshot = TestBed.inject(ActivatedRoute).snapshot;
     service = TestBed.inject(AuthorityService);
-    resultAuthority = undefined;
   });
 
   describe('resolve', () => {
-    it('should return IAuthority returned by find', () => {
+    it('should return IAuthority returned by find', async () => {
       // GIVEN
-      service.find = jest.fn(name => of(new HttpResponse({ body: { name } })));
+      service.find = vitest.fn(name => of({ name }));
       mockActivatedRouteSnapshot.params = { name: 'ABC' };
 
       // WHEN
-      TestBed.runInInjectionContext(() => {
-        authorityResolve(mockActivatedRouteSnapshot).subscribe({
-          next(result) {
-            resultAuthority = result;
-          },
+      await new Promise<void>(resolve => {
+        TestBed.runInInjectionContext(() => {
+          authorityResolve(mockActivatedRouteSnapshot).subscribe({
+            next(result) {
+              // THEN
+              expect(service.find).toHaveBeenCalledWith('ABC');
+              expect(result).toEqual({ name: 'ABC' });
+              resolve();
+            },
+          });
         });
       });
-
-      // THEN
-      expect(service.find).toHaveBeenCalledWith('ABC');
-      expect(resultAuthority).toEqual({ name: 'ABC' });
     });
 
-    it('should return null if id is not provided', () => {
+    it('should return null if id is not provided', async () => {
       // GIVEN
-      service.find = jest.fn();
+      service.find = vitest.fn();
       mockActivatedRouteSnapshot.params = {};
 
       // WHEN
-      TestBed.runInInjectionContext(() => {
-        authorityResolve(mockActivatedRouteSnapshot).subscribe({
-          next(result) {
-            resultAuthority = result;
-          },
+      await new Promise<void>(resolve => {
+        TestBed.runInInjectionContext(() => {
+          authorityResolve(mockActivatedRouteSnapshot).subscribe({
+            next(result) {
+              // THEN
+              expect(service.find).not.toHaveBeenCalled();
+              expect(result).toEqual(null);
+              resolve();
+            },
+          });
         });
       });
-
-      // THEN
-      expect(service.find).not.toHaveBeenCalled();
-      expect(resultAuthority).toEqual(null);
     });
 
-    it('should route to 404 page if data not found in server', () => {
+    it('should route to 404 page if data not found in server', async () => {
       // GIVEN
-      jest.spyOn(service, 'find').mockReturnValue(of(new HttpResponse<IAuthority>({ body: null })));
+      vitest.spyOn(service, 'find').mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404, statusText: 'Not Found' })));
       mockActivatedRouteSnapshot.params = { name: 'ABC' };
 
       // WHEN
-      TestBed.runInInjectionContext(() => {
-        authorityResolve(mockActivatedRouteSnapshot).subscribe({
-          next(result) {
-            resultAuthority = result;
-          },
-        });
+      await TestBed.runInInjectionContext(async () => {
+        await expect(lastValueFrom(authorityResolve(mockActivatedRouteSnapshot))).rejects.toThrow('no elements in sequence');
+        // THEN
+        expect(service.find).toHaveBeenCalledWith('ABC');
+        expect(mockRouter.navigate).toHaveBeenCalledWith(['404']);
       });
+    });
 
-      // THEN
-      expect(service.find).toHaveBeenCalledWith('ABC');
-      expect(resultAuthority).toEqual(undefined);
-      expect(mockRouter.navigate).toHaveBeenCalledWith(['404']);
+    it('should route to error page if server returns an error other than 404', async () => {
+      // GIVEN
+      vitest
+        .spyOn(service, 'find')
+        .mockReturnValue(throwError(() => new HttpErrorResponse({ status: 500, statusText: 'Internal Server Error' })));
+      mockActivatedRouteSnapshot.params = { name: 'ABC' };
+
+      // WHEN
+      await TestBed.runInInjectionContext(async () => {
+        await expect(lastValueFrom(authorityResolve(mockActivatedRouteSnapshot))).rejects.toThrow('no elements in sequence');
+        // THEN
+        expect(service.find).toHaveBeenCalledWith('ABC');
+        expect(mockRouter.navigate).toHaveBeenCalledWith(['error']);
+      });
     });
   });
 });

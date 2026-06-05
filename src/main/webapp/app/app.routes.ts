@@ -1,19 +1,19 @@
 import { Routes } from '@angular/router';
 
-import { Authority } from 'app/config/authority.constants';
-
 import { UserRouteAccessService } from 'app/core/auth/user-route-access.service';
+import { Authority } from 'app/shared/jhipster/constants';
+
 import { errorRoute } from './layouts/error/error.route';
 
 const routes: Routes = [
   {
     path: '',
-    loadComponent: () => import('./home/home.component'),
+    loadComponent: () => import('./home/home'),
     title: 'home.title',
   },
   {
     path: '',
-    loadComponent: () => import('./layouts/navbar/navbar.component'),
+    loadComponent: () => import('./layouts/navbar/navbar'),
     outlet: 'navbar',
   },
   {
@@ -30,12 +30,12 @@ const routes: Routes = [
   },
   {
     path: 'login',
-    loadComponent: () => import('./login/login.component'),
+    loadComponent: () => import('./login/login'),
     title: 'login.title',
   },
   {
     path: '',
-    loadChildren: () => import(`./entities/entity.routes`),
+    loadChildren: () => import('./entities/entity.routes'),
   },
   ...errorRoute,
 ];
