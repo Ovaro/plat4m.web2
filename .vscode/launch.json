@@ -11,9 +11,12 @@
       "mainClass": "ovaro.plat4m.Plat4MApp",
       "projectName": "plat4m.web2",
       "env": {
-        "JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET": "ZDNhY2M2Y2YyZjI3NDYwZTlhYjI0ZmE2ZGI0ZTJlYjEZDNhY2M2Y2YyZjI3NDYwZTlhYjI0ZmE2ZGI0ZTJlYjE="
+        "JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET": "ZDNhY2M2Y2YyZjI3NDYwZTlhYjI0ZmE2ZGI0ZTJlYjEZDNhY2M2Y2YyZjI3NDYwZTlhYjI0ZmE2ZGI0ZTJlYjE=",
+        "DB_URI":"jdbc:postgresql://localhost:5432/plat4m",
+        "DB_USERNAME":"ovaro",
+        "DB_PASSWORD":""
       },
-      "vmArgs": ["-Dspring.profiles.active=dev"]
+      "vmArgs": ["-Dspring.profiles.active=prod"]
       //"args": "--spring.profiles.active=prod"
       // , heroku
     }

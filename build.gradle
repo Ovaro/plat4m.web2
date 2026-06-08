@@ -50,6 +50,18 @@ eclipse {
     }
 }
 
+jib {
+  from {
+    image = 'eclipse-temurin:21-jdk'
+    platforms {
+            platform {
+                architecture = 'arm64'
+                os = 'linux'
+            }
+        }
+  }
+}
+
 dependencies {
     implementation libs.jhipster.framework
     implementation libs.mapstruct
