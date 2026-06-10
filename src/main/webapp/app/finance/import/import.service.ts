@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
 import { Source } from '../finance.model';
@@ -35,7 +35,7 @@ export class ImportService {
     return this.http.put(presignedUrl, f, httpOptions);
   }
 
-  uploadFile(f: File) {
+  uploadFile(f: File, password?: string) {
     // const httpOptions = {
     //   headers: new HttpHeaders({
     //     "Content-Type": "multipart/form-data" // 👈
@@ -43,10 +43,8 @@ export class ImportService {
     // };
     let formData: FormData = new FormData();
     formData.append('file', f);
-    //formData.append("id", "debug");
-
-    //return this.http.post('/api/importFile', formData, httpOptions);
-    return this.http.post('/api/importFile?password=password', formData); //?password=password
+    const params = password ? new HttpParams().set('password', password) : undefined;
+    return this.http.post('/api/importFile', formData, { params });
   }
 
   makePublic(id: string): Observable<any> {

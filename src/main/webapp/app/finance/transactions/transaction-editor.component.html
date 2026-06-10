@@ -1,0 +1,191 @@
+<section class="transaction-editor" *ngIf="transaction; else emptyState">
+  <div class="transaction-editor__header">
+    <p-selectbutton
+      [options]="transactionTypeOptions"
+      [formControl]="form.controls.transactionType"
+      optionLabel="label"
+      optionValue="value"
+      [allowEmpty]="false"
+      styleClass="transaction-editor__type-toggle"
+      size="small"
+    ></p-selectbutton>
+    <div class="transaction-editor__header-actions">
+      <button type="button" class="btn btn-outline-secondary transaction-editor__mode-button" (click)="newTransaction.emit()">New</button>
+      <button
+        type="button"
+        class="btn btn-outline-secondary transaction-editor__mode-button"
+        *ngIf="canEdit()"
+        (click)="editTransaction.emit()"
+      >
+        Edit
+      </button>
+      <span class="transaction-editor__status" *ngIf="transaction.cleared">Cleared</span>
+    </div>
+    <button type="button" class="transaction-editor__close" aria-label="Close editor" (click)="cancelEditor.emit()">
+      <span></span>
+      <span></span>
+    </button>
+  </div>
+
+  <div class="transaction-editor__readonly" *ngIf="getReadonlyBannerReason() as readonlyReason">
+    {{ readonlyReason }}
+  </div>
+
+  <form class="transaction-editor__form" [formGroup]="form" (ngSubmit)="onSubmit()">
+    <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--payee" *ngIf="!isTransferMode()">
+      <span class="transaction-editor__field-label">Saved payee</span>
+      <p-autocomplete
+        formControlName="payee"
+        [suggestions]="payeeSuggestions"
+        optionLabel="name"
+        placeholder="No saved payee"
+        [showClear]="true"
+        [forceSelection]="true"
+        [virtualScroll]="true"
+        [virtualScrollItemSize]="40"
+        appendTo="body"
+        styleClass="transaction-editor__select"
+        panelStyleClass="transaction-editor__select-panel"
+        (completeMethod)="searchPayees($event)"
+        (onClear)="clearPayee()"
+      ></p-autocomplete>
+    </label>
+
+    <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--payee" *ngIf="isTransferMode()">
+      <span class="transaction-editor__field-label">Transfer account</span>
+      <p-autocomplete
+        formControlName="transferAccount"
+        [suggestions]="transferAccountSuggestions"
+        optionLabel="name"
+        placeholder="Choose destination account"
+        [showClear]="true"
+        [forceSelection]="true"
+        [virtualScroll]="true"
+        [virtualScrollItemSize]="40"
+        appendTo="body"
+        styleClass="transaction-editor__select"
+        panelStyleClass="transaction-editor__select-panel"
+        (completeMethod)="searchTransferAccounts($event)"
+        (onClear)="clearTransferAccount()"
+      ></p-autocomplete>
+    </label>
+
+    <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--tags">
+      <span class="transaction-editor__field-label">Tags</span>
+      <div class="transaction-editor__tag-editor">
+        <div class="transaction-editor__tag-chip" *ngFor="let tag of form.controls.tags.value">
+          <span>{{ tag }}</span>
+          <button type="button" class="transaction-editor__tag-remove" aria-label="Remove tag" (click)="removeTag(tag)">&times;</button>
+        </div>
+        <input
+          type="text"
+          class="transaction-editor__tag-input"
+          [formControl]="tagInput"
+          list="transaction-tag-suggestions"
+          placeholder="Add tags"
+          (input)="searchTags(tagInput.value)"
+          (focus)="searchTags(tagInput.value)"
+          (keydown)="onTagInputKeydown($event)"
+          (blur)="onTagInputBlur()"
+        />
+        <datalist id="transaction-tag-suggestions">
+          <option *ngFor="let tag of tagSuggestions" [value]="tag"></option>
+        </datalist>
+      </div>
+    </label>
+
+    <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--date">
+      <span class="transaction-editor__field-label">Date</span>
+      <input type="date" class="form-control" formControlName="date" />
+    </label>
+
+    <label
+      class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--category"
+      *ngIf="!isTransferMode()"
+    >
+      <span class="transaction-editor__field-label">Category</span>
+      <p-autocomplete
+        formControlName="category"
+        [suggestions]="categorySuggestions"
+        optionLabel="name"
+        placeholder="No category"
+        [showClear]="true"
+        [forceSelection]="true"
+        [virtualScroll]="true"
+        [virtualScrollItemSize]="40"
+        appendTo="body"
+        styleClass="transaction-editor__select"
+        panelStyleClass="transaction-editor__select-panel"
+        (completeMethod)="searchCategories($event)"
+        (onClear)="clearCategory()"
+      ></p-autocomplete>
+    </label>
+
+    <div
+      class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--category transaction-editor__field--summary"
+      *ngIf="isTransferMode()"
+    >
+      <span class="transaction-editor__field-label">Transfer</span>
+      <div class="transaction-editor__summary">
+        {{ getTransferSummary() }}
+      </div>
+    </div>
+
+    <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--family" *ngIf="!isTransferMode()">
+      <span class="transaction-editor__field-label">Who</span>
+      <p-autocomplete
+        formControlName="who"
+        [suggestions]="whoSuggestions"
+        optionLabel="name"
+        placeholder="None"
+        [showClear]="true"
+        [forceSelection]="true"
+        [virtualScroll]="true"
+        [virtualScrollItemSize]="40"
+        appendTo="body"
+        styleClass="transaction-editor__select"
+        panelStyleClass="transaction-editor__select-panel"
+        (completeMethod)="searchWho($event)"
+        (onClear)="clearWho()"
+      ></p-autocomplete>
+    </label>
+
+    <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--amount">
+      <span class="transaction-editor__field-label">Amount</span>
+      <p-inputnumber
+        formControlName="amount"
+        mode="currency"
+        [currency]="currencyCode"
+        locale="en-AU"
+        [min]="0"
+        [minFractionDigits]="2"
+        [maxFractionDigits]="2"
+        inputStyleClass="transaction-editor__currency-input"
+      ></p-inputnumber>
+    </label>
+
+    <label class="transaction-editor__field transaction-editor__field--full">
+      <span class="transaction-editor__field-label">Memo</span>
+      <textarea class="form-control" rows="1" formControlName="memo" placeholder="Add a note"></textarea>
+    </label>
+
+    <label class="transaction-editor__toggle">
+      <input type="checkbox" formControlName="cleared" />
+      <span>Cleared</span>
+    </label>
+
+    <div class="transaction-editor__actions" *ngIf="form.dirty && !getEffectiveReadonlyReason()">
+      <button type="button" class="btn btn-outline-secondary" (click)="cancelEditor.emit()">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="form.invalid || saving">
+        {{ saving ? 'Saving...' : isAddMode() ? 'Add transaction' : 'Save changes' }}
+      </button>
+    </div>
+  </form>
+</section>
+
+<ng-template #emptyState>
+  <section class="transaction-editor transaction-editor--empty">
+    <h3>Transaction details</h3>
+    <p>Select a transaction row to review or edit it.</p>
+  </section>
+</ng-template>

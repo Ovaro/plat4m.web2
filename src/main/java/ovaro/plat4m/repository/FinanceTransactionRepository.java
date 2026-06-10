@@ -23,7 +23,7 @@ import ovaro.plat4m.domain.IFinanceTransactionWithRunningBalance;
  * Spring Data JPA repository for the {@link User} entity.
  */
 @Repository
-public interface FinanceTransactionRepository extends JpaRepository<FinanceTransaction, UUID> {
+public interface FinanceTransactionRepository extends JpaRepository<FinanceTransaction, UUID>, FinanceTransactionRepositoryCustom {
     //Page<Transaction> findTransactions(Pageable pageable);
     // @Query("SELECT e FROM SourceLink e WHERE e.sourceId IN (:ids) AND e.sourceEntity = :sourceEntity AND e.sourceTypeId = :sourceTypeId")
     // List<Transaction> findBySourceEntityAndSourceTypeIdInSourceIds(String accountId);
@@ -32,6 +32,7 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
     //sum(amount) over (order by date asc rows between unbounded preceding and current row)
 
     Optional<FinanceTransaction> findById(UUID id);
+    Optional<FinanceTransaction> findByIdAndUserGuid(UUID id, String userGuid);
 
     @Query(
         "SELECT sum(amount) as balance FROM FinanceTransaction f WHERE f.accountId = :accountId AND f.voided = FALSE AND  f.splitChild = FALSE AND f.recurring = FALSE"
@@ -67,7 +68,7 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
     );
 
     @Query(
-        value = "SELECT f.*, f.transfer_to as transferTo, f.split_parent as splitParent, f.split_child as splitChild, f.account_id as accountId, f.master_guid as masterGuid, f.category_id as categoryId, c.name as categoryName, c.parent_category_id as parentCategoryId, pc.name as parentCategoryName, f.payee_name as payeeName, f.transferred_account_id as transferredAccountId, f.statement_id as statementId, f.status_flag as statusFlag, f.security_id as securityId, f.payee_id as payeeId, f.investment_activity_type as investmentActivityTypeId, sum(amount) over (order by date asc rows between unbounded preceding and current row) as runningBalance from fin_transaction f LEFT JOIN fin_category c ON uuid(c.id) = uuid(f.category_id) LEFT JOIN fin_category pc ON uuid(pc.id) = uuid(c.parent_category_id) WHERE f.account_id = :account_id and f.user_guid = :user_guid and not voided and not split_child and not recurring ORDER BY f.date DESC, f.number DESC",
+        value = "SELECT f.*, f.transfer_to as transferTo, f.split_parent as splitParent, f.split_child as splitChild, f.account_id as accountId, f.master_guid as masterGuid, f.category_id as categoryId, c.name as categoryName, f.who_id as whoId, w.name as whoName, c.parent_category_id as parentCategoryId, pc.name as parentCategoryName, f.payee_name as payeeName, f.transferred_account_id as transferredAccountId, f.statement_id as statementId, f.status_flag as statusFlag, f.security_id as securityId, f.payee_id as payeeId, f.investment_activity_type as investmentActivityTypeId, sum(amount) over (order by date asc rows between unbounded preceding and current row) as runningBalance from fin_transaction f LEFT JOIN fin_category c ON uuid(c.id) = uuid(f.category_id) LEFT JOIN fin_category w ON uuid(w.id) = uuid(f.who_id) LEFT JOIN fin_category pc ON uuid(pc.id) = uuid(c.parent_category_id) WHERE f.account_id = :account_id and f.user_guid = :user_guid and not voided and not split_child and not recurring",
         nativeQuery = true
     )
     Page<IFinanceTransactionWithRunningBalance> findAllByAccountIdWithBalance(
@@ -78,11 +79,11 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
 
     @Query(
         value = "select a.id as accountId, a.name as accountName, f.security_id as securityId, u.name, u.type as securityType, u.known_symbol as symbol, u.symbol as userSymbol, s.currency_code as currencyCode, " +
-        "sum(quantity) FILTER (WHERE f.investment_activity_type in (1,9,12,16,32)) as addSec, " +
-        "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec " +
-        "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
-        "WHERE a.name = :account_name and f.user_guid = :user_guid " +
-        "GROUP BY f.security_id, u.name, u.type, a.id, a.name, u.symbol, u.known_symbol, s.currency_code",
+            "sum(quantity) FILTER (WHERE f.investment_activity_type in (1,9,12,16,32)) as addSec, " +
+            "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec " +
+            "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
+            "WHERE a.name = :account_name and f.user_guid = :user_guid " +
+            "GROUP BY f.security_id, u.name, u.type, a.id, a.name, u.symbol, u.known_symbol, s.currency_code",
         nativeQuery = true
     )
     List<FinanceSecurityInvestmentSummary> findSecurityInvestmentTransactions(
@@ -100,12 +101,12 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
 
     @Query(
         value = "select a.id as accountId, a.name as accountName, f.security_id as securityId, u.type as securityType, u.name as name, u.known_symbol as symbol, u.symbol as userSymbol, s.currency_code as currencyCode, " +
-        "sum(quantity) FILTER (WHERE f.investment_activity_type in (1,9,12,16,32)) as addSec, " +
-        "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
-        "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName " +
-        "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
-        "where f.account_id = :account_id and u.type in (1,2,7,10) and f.user_guid = :user_guid " +
-        "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name;",
+            "sum(quantity) FILTER (WHERE f.investment_activity_type in (1,9,12,16,32)) as addSec, " +
+            "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
+            "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName " +
+            "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
+            "where f.account_id = :account_id and u.type in (1,2,7,10) and f.user_guid = :user_guid " +
+            "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name;",
         nativeQuery = true
     )
     List<FinanceSecurityInvestmentSummary> findSecurityInvestmentTransactionsForAccountId(
@@ -115,24 +116,24 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
 
     @Query(
         value = "select a.id as accountId, a.name as accountName, f.security_id as securityId, u.type as securityType, u.name as name, u.known_symbol as symbol, u.symbol as userSymbol, s.currency_code as currencyCode, " +
-        "sum(quantity) FILTER (WHERE f.investment_activity_type in (1,9,12,16,32)) as addSec, " +
-        "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
-        "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName " +
-        "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
-        "where u.type in (1,2,7,10) and f.user_guid = :user_guid and a.closed = false " +
-        "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name;",
+            "sum(quantity) FILTER (WHERE f.investment_activity_type in (1,9,12,16,32)) as addSec, " +
+            "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
+            "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName " +
+            "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
+            "where u.type in (1,2,7,10) and f.user_guid = :user_guid and a.closed = false " +
+            "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name;",
         nativeQuery = true
     )
     List<FinanceSecurityInvestmentSummary> findSecurityInvestmentTransactionsForOpenAccounts(@Param("user_guid") String userGuid);
 
     @Query(
         value = "select a.id as accountId, a.name as accountName, f.security_id as securityId, u.type as securityType, u.name as name, u.known_symbol as symbol, u.symbol as userSymbol, s.currency_code as currencyCode, " +
-        "sum(quantity) FILTER (WHERE f.investment_activity_type in (1,9,12,16,32)) as addSec, " +
-        "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
-        "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName " +
-        "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
-        "where u.type in (1,2,7,10) and f.user_guid = :user_guid and a.closed = false AND f.date < :date " +
-        "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name;",
+            "sum(quantity) FILTER (WHERE f.investment_activity_type in (1,9,12,16,32)) as addSec, " +
+            "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
+            "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName " +
+            "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
+            "where u.type in (1,2,7,10) and f.user_guid = :user_guid and a.closed = false AND f.date < :date " +
+            "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name;",
         nativeQuery = true
     )
     List<FinanceSecurityInvestmentSummary> findSecurityInvestmentTransactionsForOpenAccountsUptoDate(
@@ -146,21 +147,21 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
 
     @Query(
         value = "with data as (" +
-        "SELECT f.account_id, EXTRACT(YEAR from f.date) as y, EXTRACT(MONTH from f.date) as m, sum(amount) as amt " +
-        "FROM fin_transaction f " +
-        "WHERE f.user_guid = :user_guid and (not voided and not split_child and not recurring) " +
-        "GROUP BY f.account_id, y, m " +
-        "ORDER BY y DESC, m DESC " +
-        ") " +
-        "select account_id as accountId, a.name as accountName, y, m, sum(amt) over (PARTITION BY account_id ORDER BY y ASC, m ASC rows between unbounded preceding and current row) as runningBalance,  " +
-        "(select rate " +
-        "    from fin_fx f " +
-        "    where f.date <= (make_date(y\\:\\:int,m\\:\\:int,1) + interval '1 month') and f.from_iso_code = a.currency_code and f.to_iso_code = :to_iso_code " +
-        "    order by f.date desc " +
-        "    LIMIT 1) as rate " +
-        "from data LEFT JOIN fin_account a ON uuid(account_id) = uuid(a.id) where a.type <> 5 " +
-        "GROUP BY accountId, a.id, y, m, amt " +
-        "ORDER BY y DESC, m DESC;",
+            "SELECT f.account_id, EXTRACT(YEAR from f.date) as y, EXTRACT(MONTH from f.date) as m, sum(amount) as amt " +
+            "FROM fin_transaction f " +
+            "WHERE f.user_guid = :user_guid and (not voided and not split_child and not recurring) " +
+            "GROUP BY f.account_id, y, m " +
+            "ORDER BY y DESC, m DESC " +
+            ") " +
+            "select account_id as accountId, a.name as accountName, y, m, sum(amt) over (PARTITION BY account_id ORDER BY y ASC, m ASC rows between unbounded preceding and current row) as runningBalance,  " +
+            "(select rate " +
+            "    from fin_fx f " +
+            "    where f.date <= (make_date(y\\:\\:int,m\\:\\:int,1) + interval '1 month') and f.from_iso_code = a.currency_code and f.to_iso_code = :to_iso_code " +
+            "    order by f.date desc " +
+            "    LIMIT 1) as rate " +
+            "from data LEFT JOIN fin_account a ON uuid(account_id) = uuid(a.id) where a.type <> 5 " +
+            "GROUP BY accountId, a.id, y, m, amt " +
+            "ORDER BY y DESC, m DESC;",
         nativeQuery = true
     )
     List<IFinanceMonthlySummary> findAllAccountsMonthlyRunningBalance(

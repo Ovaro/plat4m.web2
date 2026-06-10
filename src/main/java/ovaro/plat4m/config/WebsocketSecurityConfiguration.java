@@ -20,8 +20,10 @@ public class WebsocketSecurityConfiguration {
         return MessageMatcherDelegatingAuthorizationManager.builder()
             .nullDestMatcher()
             .authenticated()
-            .simpDestMatchers("/topic/tracker", "/topic/import", "/secured/**")
+            .simpDestMatchers("/topic/tracker", "/topic/import")
             .hasAuthority(AuthoritiesConstants.ADMIN)
+            .simpDestMatchers("/secured/**")
+            .authenticated()
             // matches any destination that starts with /topic/
             // (i.e. cannot send messages directly to /topic/)
             // (i.e. cannot subscribe to /topic/messages/* to get messages sent to

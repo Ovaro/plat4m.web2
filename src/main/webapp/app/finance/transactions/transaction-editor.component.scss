@@ -1,0 +1,444 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.transaction-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  height: 100%;
+  padding: 0.55rem 0.75rem 0.7rem;
+  background: var(--app-colours-background-high-light);
+  border-top: 1px solid var(--app-colours-border-low-light);
+}
+
+:host-context(.theme-dark) .transaction-editor {
+  background: var(--app-colours-background-high-dark);
+  border-top-color: var(--app-colours-border-low-dark);
+}
+
+.transaction-editor--empty {
+  justify-content: center;
+}
+
+.transaction-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.transaction-editor__header-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.transaction-editor__mode-button {
+  min-height: 1.85rem;
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.transaction-editor__status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.1rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: rgba(25, 135, 84, 0.12);
+  color: #156f47;
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+:host ::ng-deep .transaction-editor__type-toggle {
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+:host ::ng-deep .transaction-editor__type-toggle.p-togglebutton {
+  height: 35px;
+  padding: 0.2rem 0.8rem;
+  border-radius: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.transaction-editor__close {
+  position: relative;
+  flex: 0 0 auto;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.transaction-editor__close:hover {
+  background: color-mix(in srgb, var(--app-colours-background-med-light) 82%, white);
+}
+
+:host-context(.theme-dark) .transaction-editor__close:hover {
+  background: color-mix(in srgb, var(--app-colours-background-med-dark) 82%, black);
+}
+
+.transaction-editor__close span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.85rem;
+  height: 1.5px;
+  border-radius: 999px;
+  background: var(--ps-colors-text-icon-low-on-light);
+  transform-origin: center;
+}
+
+:host-context(.theme-dark) .transaction-editor__close span {
+  background: var(--ps-colors-text-icon-low-on-dark);
+}
+
+.transaction-editor__close span:first-child {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.transaction-editor__close span:last-child {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.transaction-editor__readonly {
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.85rem;
+  background: rgba(220, 53, 69, 0.08);
+  color: #a61e2d;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.transaction-editor__form {
+  display: grid;
+  grid-template-columns: minmax(13rem, 1.35fr) minmax(10rem, 1fr) minmax(9rem, 0.8fr);
+  gap: 0.45rem 0.6rem;
+  overflow: auto;
+  padding-right: 0;
+  align-content: start;
+}
+
+.transaction-editor__field--payee {
+  grid-column: 1;
+}
+
+.transaction-editor__field--tags {
+  grid-column: 2;
+}
+
+.transaction-editor__field--date {
+  grid-column: 3;
+}
+
+.transaction-editor__field--category {
+  grid-column: 1;
+}
+
+.transaction-editor__field--family {
+  grid-column: 2;
+}
+
+.transaction-editor__field--amount {
+  grid-column: 3;
+}
+
+.transaction-editor__field,
+.transaction-editor__toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.transaction-editor__field-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ps-colors-text-icon-low-on-light);
+}
+
+:host-context(.theme-dark) .transaction-editor__field-label {
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
+.transaction-editor__field .form-control {
+  min-height: 2rem;
+  padding: 0.28rem 0.6rem;
+  border: 1px solid var(--app-colours-border-low-light);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--app-colours-background-med-light) 72%, white);
+  box-shadow: none;
+  font-size: 0.72rem;
+}
+
+:host-context(.theme-dark) .transaction-editor__field .form-control {
+  border-color: var(--app-colours-border-low-dark);
+  background: color-mix(in srgb, var(--app-colours-background-med-dark) 82%, black);
+  color: var(--app-colours-primary-text-dark);
+}
+
+.transaction-editor__field .form-control:focus {
+  border-color: color-mix(in srgb, var(--app-colours-primary) 45%, white);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-colours-primary) 12%, transparent);
+}
+
+.transaction-editor__tag-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  min-height: 2rem;
+  padding: 0.26rem 0.35rem;
+  border: 1px solid var(--app-colours-border-low-light);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--app-colours-background-med-light) 72%, white);
+}
+
+:host-context(.theme-dark) .transaction-editor__tag-editor {
+  border-color: var(--app-colours-border-low-dark);
+  background: color-mix(in srgb, var(--app-colours-background-med-dark) 82%, black);
+}
+
+.transaction-editor__tag-editor:focus-within {
+  border-color: color-mix(in srgb, var(--app-colours-primary) 45%, white);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-colours-primary) 12%, transparent);
+}
+
+.transaction-editor__tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.25rem;
+  padding: 0.05rem 0.22rem 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-colours-primary) 14%, white);
+  color: var(--app-colours-primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+:host-context(.theme-dark) .transaction-editor__tag-chip {
+  background: color-mix(in srgb, var(--app-colours-primary) 20%, black);
+}
+
+.transaction-editor__tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  line-height: 1;
+}
+
+.transaction-editor__tag-input {
+  flex: 1 1 7rem;
+  min-width: 7rem;
+  min-height: 1.25rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0.08rem 0.2rem;
+  outline: none;
+  font-size: 0.72rem;
+}
+
+:host-context(.theme-dark) .transaction-editor__tag-input {
+  color: var(--app-colours-primary-text-dark);
+}
+
+.transaction-editor__field textarea.form-control {
+  min-height: 2rem;
+  resize: vertical;
+  line-height: 1.2;
+}
+
+.transaction-editor__summary {
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.28rem 0.6rem;
+  border: 1px solid var(--app-colours-border-low-light);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--app-colours-background-med-light) 72%, white);
+  color: var(--ps-colors-text-icon-low-on-light);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+:host-context(.theme-dark) .transaction-editor__summary {
+  border-color: var(--app-colours-border-low-dark);
+  background: color-mix(in srgb, var(--app-colours-background-med-dark) 82%, black);
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
+:host ::ng-deep .transaction-editor__field .p-inputnumber,
+:host ::ng-deep .transaction-editor__field .p-inputnumber-input {
+  width: 100%;
+}
+
+:host ::ng-deep .transaction-editor__currency-input {
+  min-height: 2rem;
+  padding: 0.28rem 0.6rem;
+  border: 1px solid var(--app-colours-border-low-light);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--app-colours-background-med-light) 72%, white);
+  box-shadow: none;
+  font-size: 0.72rem;
+}
+
+:host-context(.theme-dark) ::ng-deep .transaction-editor__currency-input {
+  border-color: var(--app-colours-border-low-dark);
+  background: color-mix(in srgb, var(--app-colours-background-med-dark) 82%, black);
+  color: var(--app-colours-primary-text-dark);
+}
+
+:host ::ng-deep .transaction-editor__currency-input:focus {
+  border-color: color-mix(in srgb, var(--app-colours-primary) 45%, white);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-colours-primary) 12%, transparent);
+}
+
+.transaction-editor__field--full {
+  grid-column: 1 / -1;
+}
+
+:host ::ng-deep .transaction-editor__select {
+  min-height: 2rem;
+  border: 1px solid var(--app-colours-border-low-light);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--app-colours-background-med-light) 72%, white);
+}
+
+:host-context(.theme-dark) ::ng-deep .transaction-editor__select {
+  border-color: var(--app-colours-border-low-dark);
+  background: color-mix(in srgb, var(--app-colours-background-med-dark) 82%, black);
+  color: var(--app-colours-primary-text-dark);
+}
+
+:host ::ng-deep .transaction-editor__select .p-select-label,
+:host ::ng-deep .transaction-editor__select input {
+  padding: 0.28rem 0.6rem;
+  font-size: 0.72rem;
+}
+
+:host ::ng-deep .transaction-editor__select .p-select-dropdown,
+:host ::ng-deep .transaction-editor__select .p-autocomplete-dropdown {
+  width: 2rem;
+  color: var(--ps-colors-text-icon-low-on-light);
+}
+
+:host-context(.theme-dark) ::ng-deep .transaction-editor__select .p-select-dropdown,
+:host-context(.theme-dark) ::ng-deep .transaction-editor__select .p-autocomplete-dropdown {
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
+:host ::ng-deep .transaction-editor__select .p-select-clear-icon,
+:host ::ng-deep .transaction-editor__select .p-autocomplete-clear-icon {
+  inset-inline-end: 2rem;
+}
+
+:host ::ng-deep .transaction-editor__select-panel {
+  border-radius: 0.9rem !important;
+}
+
+:host ::ng-deep .transaction-editor__select .p-autocomplete-input {
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.28rem 0.6rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.72rem;
+}
+
+:host-context(.theme-dark) ::ng-deep .transaction-editor__select .p-autocomplete-input {
+  color: var(--app-colours-primary-text-dark);
+}
+
+.transaction-editor__toggle {
+  grid-column: span 1;
+  flex-direction: row;
+  align-items: center;
+  align-self: end;
+  gap: 0.35rem;
+  padding-bottom: 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.transaction-editor__toggle input {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin: 0;
+}
+
+.transaction-editor__actions {
+  grid-column: 2 / 4;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.transaction-editor__actions .btn {
+  min-height: 1.95rem;
+  padding: 0.28rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+@media (max-width: 991px) {
+  .transaction-editor__header {
+    flex-wrap: wrap;
+  }
+
+  .transaction-editor__form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .transaction-editor__field--payee,
+  .transaction-editor__field--tags,
+  .transaction-editor__field--date,
+  .transaction-editor__field--category,
+  .transaction-editor__field--family,
+  .transaction-editor__field--amount {
+    grid-column: auto;
+  }
+
+  .transaction-editor__toggle,
+  .transaction-editor__actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 575px) {
+  .transaction-editor {
+    padding-inline: 0.75rem;
+  }
+
+  .transaction-editor__form {
+    grid-template-columns: 1fr;
+  }
+
+  .transaction-editor__toggle,
+  .transaction-editor__actions {
+    grid-column: 1;
+  }
+}

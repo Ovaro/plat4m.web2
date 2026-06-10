@@ -27,6 +27,7 @@ public class TransactionImplUtil {
     private static final String COL_AMOUNT = "amt";
     public static final String COL_ID = "htrn";
     private static final String COL_USER_CURRENCY_ID = "lHcrncUser";
+    public static final String COL_WHO_ID = "lHcls1";
 
     public static boolean addTransactionFromRow(
         Database db,
@@ -152,6 +153,9 @@ public class TransactionImplUtil {
 
         Integer userCurrencyId = (Integer) row.get(COL_USER_CURRENCY_ID);
         transaction.setUserCurrencyId(userCurrencyId);
+
+        Integer whoId = (Integer) row.get(COL_WHO_ID);
+        transaction.setWhoId(whoId);
 
         // act: Investment activity: Buy, Sell ..
         Integer act = (Integer) row.get("act");

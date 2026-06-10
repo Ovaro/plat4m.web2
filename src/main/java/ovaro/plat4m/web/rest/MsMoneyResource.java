@@ -75,7 +75,9 @@ public class MsMoneyResource {
         MsMoneyImportDTO monitor = new MsMoneyImportDTO("NOT SET");
         importFunction(monitor, u.get(), savedFile.toFile().getAbsolutePath(), password);
 
-        return ResponseEntity.ok().headers(HeaderUtil.createAlert(applicationName, "import.completed", file.getOriginalFilename())).build();
+        return ResponseEntity.ok()
+            .headers(HeaderUtil.createAlert(applicationName, "import.completed", file.getOriginalFilename()))
+            .build();
     }
 
     private Path store(MultipartFile file) {
@@ -119,7 +121,9 @@ public class MsMoneyResource {
         MsMoneyImportDTO monitor = new MsMoneyImportDTO("NOT SET");
         importFunction(monitor, u.get(), moneyFile, password);
 
-        return ResponseEntity.ok().headers(HeaderUtil.createAlert(applicationName, "import.completed", moneyFile)).build();
+        return ResponseEntity.ok()
+            .headers(HeaderUtil.createAlert(applicationName, "import.completed", moneyFile))
+            .build();
     }
 
     private CompletableFuture<MsMoneyImportDTO> importFunction(MsMoneyImportDTO monitor, User user, String moneyFile, String password)
@@ -127,7 +131,7 @@ public class MsMoneyResource {
         log.info("importMny: " + moneyFile + " password: " + (password != null ? "PROVIDED" : "NOT PROVIDED"));
 
         CompletableFuture<MsMoneyImportDTO> res = msMoneyService.startImport(user, moneyFile, password, monitor);
-        log.info("Import Finished: " + res.getNow(monitor).toString());
+        log.info("Import started asynchronously: {}", monitor);
         return res;
     }
 
@@ -189,17 +193,16 @@ public class MsMoneyResource {
 
     @PostConstruct
     public void init() {
-        Runtime.getRuntime()
-            .addShutdownHook(
-                new Thread(() -> {
-                    executor.shutdown();
-                    try {
-                        executor.awaitTermination(1, TimeUnit.SECONDS);
-                    } catch (InterruptedException e) {
-                        log.error(e.toString());
-                    }
-                })
-            );
+        Runtime.getRuntime().addShutdownHook(
+            new Thread(() -> {
+                executor.shutdown();
+                try {
+                    executor.awaitTermination(1, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    log.error(e.toString());
+                }
+            })
+        );
     }
 
     private void sleepMs(int ms, SseEmitter sseEmitter) {

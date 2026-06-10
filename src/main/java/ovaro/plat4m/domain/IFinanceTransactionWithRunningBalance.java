@@ -25,6 +25,11 @@ public interface IFinanceTransactionWithRunningBalance {
     String getCategoryName();
     void setCategoryName(String categoryName);
 
+    String getWhoId();
+    void setWhoId(String whoId);
+    String getWhoName();
+    void setWhoName(String whoName);
+
     String getParentCategoryId();
     void setParentCategoryId(String categoryId);
     String getParentCategoryName();

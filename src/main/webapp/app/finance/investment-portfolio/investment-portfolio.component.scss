@@ -17,6 +17,15 @@
   margin-right: 10px;
 }
 
+.pie-chart-column {
+  min-width: 300px;
+}
+
+.pie-chart-column apx-chart {
+  display: block;
+  width: 300px;
+}
+
 // .apexcharts-tooltip-marker {
 //     width: 12px;
 //     height: 12px;

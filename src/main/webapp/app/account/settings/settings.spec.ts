@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 
 import { Account } from 'app/core/auth/account.model';
 import { AccountService } from 'app/core/auth/account.service';
+import { AgGridThemeService } from 'app/shared/ag-grid/ag-grid-theme.service';
 
 import Settings from './settings';
 
@@ -34,6 +35,13 @@ describe('Settings', () => {
             authenticate: vitest.fn(),
           },
         },
+        {
+          provide: AgGridThemeService,
+          useValue: {
+            theme: vitest.fn(() => 'alpine'),
+            setTheme: vitest.fn(),
+          },
+        },
       ],
     });
   });
@@ -53,6 +61,7 @@ describe('Settings', () => {
       lastName: 'Doe',
       email: 'john.doe@mail.com',
       langKey: 'en',
+      agGridTheme: 'alpine',
     };
 
     // WHEN

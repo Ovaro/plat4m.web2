@@ -199,6 +199,10 @@ export class FinancialTransaction {
     public payment: number,
     public deposit: number,
     public displayCategory: string,
+    public tags?: string[] | null,
+    public tagsDisplay?: string | null,
+    public whoId?: string | null,
+    public whoName?: string | null,
   ) {}
 }
 

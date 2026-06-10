@@ -1,4 +1,4 @@
 id;guid;login;password_hash;first_name;last_name;email;image_url;activated;lang_key;local_currency;created_by;last_modified_by
-1;fe64b2da-f9c1-40d2-9182-4a50bd0f43bc;admin;$2a$10$gSAhZrxMllrbgj/kkK9UceBPpChGWJA7SYIb1Mqo.n5aNLq1/oRrC;Administrator;Administrator;admin@ovaro.io;;true;en;AUD;system;system
+1;fe64b2da-f9c1-40d2-9182-4a50bd0f43bc;admin@ovaro.io;$2a$10$gSAhZrxMllrbgj/kkK9UceBPpChGWJA7SYIb1Mqo.n5aNLq1/oRrC;Administrator;Administrator;admin@ovaro.io;;true;en;AUD;system;system
 2;98718d3a-20e6-4696-af1d-f42728e0ee0f;user;$2a$10$VEjxo0jq2YG9Rbk2HmX9S.k1uZBGYUHdUcid3g/vfiEl7lwWgOH/K;User;User;user@ovaro.io;;true;en;AUD;system;system
-3;715bbe5e-2628-4da5-8737-d0f7e10a8148;justin;$2a$10$OfhVLdH8I5R72GkkiYWNZeVsr.hxNVDIdCIsTVfU9GIPXE/UJIkNq;Justin;Kili;justin@ovaro.io;;true;en;AUD;system;system
+3;715bbe5e-2628-4da5-8737-d0f7e10a8148;justin@ovaro.io;$2a$10$OfhVLdH8I5R72GkkiYWNZeVsr.hxNVDIdCIsTVfU9GIPXE/UJIkNq;Justin;Kili;justin@ovaro.io;;true;en;AUD;system;system

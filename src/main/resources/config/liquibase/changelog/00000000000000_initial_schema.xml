@@ -274,6 +274,7 @@
                 <constraints nullable="false"/>
             </column>
             <column name="category_id" type="UUID"/>
+            <column name="who_id" type="UUID"/>
         </createTable>
     </changeSet>
     <changeSet author="justin (generated)" id="1709369667173-14">

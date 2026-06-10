@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormGroup, FormControl, Validators } from '@angular/forms';
 import { TranslateService } from '@ngx-translate/core';
 
@@ -30,6 +31,7 @@ export class ImportComponent implements OnInit {
   error = false;
   errorMessage = '';
   isDisabled = false;
+  importPassword = '';
 
   finalStatus?: ImportStatus;
   statuses: ImportStatus[] = [];
@@ -57,6 +59,7 @@ export class ImportComponent implements OnInit {
     private accountService: AccountService,
     private translateService: TranslateService,
     private importStatusService: ImportStatusService,
+    private changeDetectorRef: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
@@ -102,6 +105,15 @@ export class ImportComponent implements OnInit {
     console.log('Got new status(2): ' + JSON.stringify(newStatus));
     if (newStatus.importFinished) {
       this.finalStatus = newStatus;
+      this.isUploading = false;
+      this.success = !newStatus.error;
+      this.error = !!newStatus.error;
+      this.errorMessage = newStatus.error ?? '';
+      if (this.success) {
+        this.fileUploadControl.clear();
+        this.importPassword = '';
+      }
+      this.changeDetectorRef.detectChanges();
       return;
     }
 
@@ -117,12 +129,16 @@ export class ImportComponent implements OnInit {
     if (existingActivity == -1) {
       this.statuses.push(newStatus);
     }
+
+    this.changeDetectorRef.detectChanges();
   }
 
   upload(): void {
     // eslint-disable-next-line no-console
     console.log('Uploading...');
     this.success = false;
+    this.error = false;
+    this.errorMessage = '';
     this.statuses = [];
     this.finalStatus = undefined;
     const f = this.fileUploadControl.value[this.fileUploadControl.value.length - 1];
@@ -138,24 +154,45 @@ export class ImportComponent implements OnInit {
     console.log('Uploading to server...');
     this.isUploading = true;
     this.success = false;
-    this.importService.uploadFile(f).subscribe({
+    this.importService.uploadFile(f, this.importPassword.trim() || undefined).subscribe({
       complete: () => {
-        // const json = response.body;
-        // console.log('Success uploadToS3');
-        // put to json.presignedURL
-        // eslint-disable-next-line no-console
-        this.isUploading = false;
-        this.error = false;
-        this.success = true;
-        this.fileUploadControl.clear();
-        console.log('Uploaded.');
+        console.log('Uploaded. Waiting for import status...');
       },
       error: err => {
         this.error = true;
         this.success = false;
         this.isUploading = false;
-        this.errorMessage = err;
+        this.statuses = [];
+        this.finalStatus = undefined;
+        this.errorMessage = this.getUploadErrorMessage(err);
+        this.changeDetectorRef.detectChanges();
       },
     });
+  }
+
+  isImportBusy(): boolean {
+    return this.isUploading || (this.statuses.length > 0 && !this.finalStatus && !this.error);
+  }
+
+  private getUploadErrorMessage(err: unknown): string {
+    if (err instanceof HttpErrorResponse) {
+      if (err.status === 413) {
+        return 'The selected file is too large to upload.';
+      }
+
+      if (typeof err.error === 'string' && err.error.trim()) {
+        return err.error;
+      }
+
+      if (err.error?.title) {
+        return err.error.title as string;
+      }
+
+      if (err.message) {
+        return err.message;
+      }
+    }
+
+    return 'The file upload failed. Please try again.';
   }
 }

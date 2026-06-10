@@ -25,7 +25,9 @@
       class="sidenav-visible sidenav sidenav-fixed sidenav-side sidenav-animate"
       [class.expanded]="expanded"
       [ngClass]="'sidenav-' + [theme]"
+      [style.color]="theme === 'dark' ? 'var(--ps-colors-text-icon-high-on-dark)' : 'var(--ps-colors-text-icon-high-on-light)'"
     >
+      <!-- [style.backgroundColor]="theme === 'dark' ? 'var(--ps-colors-background-dark-2)' : 'var(--ps-colors-background-light-2)'" -->
       <div class="sidenav-inner-container">
         <div class="nav">
           <div>
@@ -42,7 +44,7 @@
     </div>
     <div
       [ngClass]="{ 'sidenav-content sidenav-content-animate': isAuthenticated() }"
-      [style.marginLeft.px]="isAuthenticated() && navType == 'side' ? (expanded ? 180 : 48) : 0"
+      [style.marginLeft.px]="isAuthenticated() && navType == 'side' ? (expanded ? 180 : 52) : 0"
     >
       <div [ngClass]="{ 'header-buffer': isAuthenticated() && navType == 'side', 'header-buffer-full': navType != 'side' }">
         <div *ngIf="isAuthenticated() && !isVerified()" class="alert unverified-warning" id="email-verification-banner" role="alert">

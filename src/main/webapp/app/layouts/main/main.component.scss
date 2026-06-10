@@ -27,7 +27,7 @@
 
 .sidenav-visible {
   bottom: 0px;
-  margin-top: 60px;
+  margin-top: 56px;
   top: 0px;
   transform: none;
   visibility: visible;
@@ -47,11 +47,12 @@
 
 .sidenav {
   height: 100%;
-  width: 48px;
+  width: 50px;
   display: block;
   outline: 0;
   box-sizing: border-box;
   overflow-y: auto;
+  will-change: background-color, color;
 }
 
 .sidenav-light {
@@ -63,7 +64,7 @@
 .sidenav-dark {
   border-left-color: rgb(102, 102, 102);
   color: var(--ps-colors-text-icon-high-on-dark);
-  background-color: var(--ps-colors-background-dark-2);
+  //background-color: var(--ps-colors-background-dark-2);
 }
 
 .sidenav-animate {
@@ -101,7 +102,7 @@
 }
 
 .compressed {
-  margin-left: 48px !important;
+  margin-left: 52px !important;
 }
 
 .nav {
@@ -131,7 +132,7 @@
 }
 
 .header-buffer {
-  padding-top: 62px;
+  padding-top: 56px;
   height: inherit;
 }
 

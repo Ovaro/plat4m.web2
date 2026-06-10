@@ -50,6 +50,11 @@ public class FinanceTransaction implements Serializable {
     @Fetch(FetchMode.JOIN)
     private FinanceCategory category;
 
+    @OneToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "who_id", referencedColumnName = "id")
+    @Fetch(FetchMode.JOIN)
+    private FinanceCategory who;
+
     private Integer sourcePayeeId;
     private String payeeId;
     private String transferredAccountId;
@@ -170,6 +175,14 @@ public class FinanceTransaction implements Serializable {
 
     public void setCategory(FinanceCategory category) {
         this.category = category;
+    }
+
+    public FinanceCategory getWho() {
+        return who;
+    }
+
+    public void setWho(FinanceCategory who) {
+        this.who = who;
     }
 
     public void setSourcePayeeId(Integer payeeId) {

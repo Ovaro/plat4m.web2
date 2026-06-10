@@ -1,4 +1,6 @@
 .transactions-container {
+  --transactions-editor-height: min(21rem, 42vh);
+  position: relative;
   height: 100%;
   width: 100%;
   box-sizing: border-box;
@@ -13,6 +15,32 @@ jhi-transactions {
   // height: inherit;
 }
 
+.transactions-workspace {
+  height: calc(100% - 44px);
+  min-height: 0;
+}
+
+.transactions-workspace--editor-open {
+  padding-bottom: calc(var(--transactions-editor-height) + 1rem);
+}
+
+.transactions-grid {
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.transactions-editor-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  height: var(--transactions-editor-height);
+  overflow: hidden;
+  //box-shadow: 0 -18px 36px rgba(15, 23, 42, 0.14);
+}
+
 .transactions-balance {
   font-size: var(--ps-type-font-size-100);
   font-weight: var(--ps-type-font-weight-strong);
@@ -23,14 +51,71 @@ jhi-transactions {
   width: 18rem;
   max-width: 100%;
   flex: 0 0 18rem;
+  margin-top: 6px;
+}
+
+.transactions-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 35px;
+  height: 35px;
+  margin-top: 6px;
+  border-radius: 8px;
+  border-color: var(--app-colours-border-low-light);
+  background-color: var(--app-colours-background-high-light);
+  color: var(--ps-colors-text-icon-low-on-light);
+  padding: 0;
+}
+
+.transactions-filter-toggle:hover,
+.transactions-filter-toggle:focus,
+.transactions-filter-toggle[aria-pressed='true'] {
+  border-color: var(--app-colours-primary);
+  color: var(--app-colours-primary);
+  background-color: var(--app-colours-background-med-light);
+}
+
+.transactions-filter-toggle fa-icon {
+  font-size: 0.85rem;
+}
+
+.transactions-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  height: 35px;
+  margin-top: 6px;
+  border-color: var(--app-colours-border-low-light);
+  background-color: var(--app-colours-background-high-light);
+  color: var(--ps-colors-text-icon-low-on-light);
+  padding: 0 0.8rem;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.transactions-add-button:hover,
+.transactions-add-button:focus {
+  border-color: var(--app-colours-primary);
+  color: var(--app-colours-primary);
+  background-color: var(--app-colours-background-med-light);
+}
+
+.transactions-add-button__icon {
+  font-size: 0.8rem;
+  line-height: 1;
 }
 
 :host ::ng-deep .transactions-account-select {
   width: 100%;
+  height: 35px;
   border: 1px solid var(--app-colours-border-low-light);
   border-radius: 8px;
   background-color: var(--app-colours-background-high-light);
   color: var(--app-colours-primary-text-light);
+  font-size: 0.72rem;
 }
 
 :host-context(.theme-dark) ::ng-deep .transactions-account-select {
@@ -39,13 +124,45 @@ jhi-transactions {
   color: var(--app-colours-primary-text-dark);
 }
 
+:host-context(.theme-dark) .transactions-filter-toggle {
+  border-color: var(--app-colours-border-low-dark);
+  background-color: var(--app-colours-background-high-dark);
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
+:host-context(.theme-dark) .transactions-filter-toggle:hover,
+:host-context(.theme-dark) .transactions-filter-toggle:focus,
+:host-context(.theme-dark) .transactions-filter-toggle[aria-pressed='true'] {
+  border-color: var(--app-colours-primary);
+  color: var(--app-colours-primary);
+  background-color: var(--app-colours-background-med-dark);
+}
+
+:host-context(.theme-dark) .transactions-add-button {
+  border-color: var(--app-colours-border-low-dark);
+  background-color: var(--app-colours-background-high-dark);
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
+:host-context(.theme-dark) .transactions-add-button:hover,
+:host-context(.theme-dark) .transactions-add-button:focus {
+  border-color: var(--app-colours-primary);
+  color: var(--app-colours-primary);
+  background-color: var(--app-colours-background-med-dark);
+}
+
 :host ::ng-deep .transactions-account-select .p-select-label {
   color: inherit;
+  min-height: 33px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.72rem;
+  line-height: 1.1;
 }
 
 :host ::ng-deep .transactions-account-select .p-select-dropdown {
   color: var(--ps-colors-text-icon-low-on-light);
-  width: 2.5rem;
+  width: 2.2rem;
+  font-size: 0.8rem;
 }
 
 :host-context(.theme-dark) ::ng-deep .transactions-account-select .p-select-dropdown {
@@ -54,7 +171,8 @@ jhi-transactions {
 
 :host ::ng-deep .transactions-account-select .p-select-clear-icon {
   color: var(--ps-colors-text-icon-low-on-light);
-  inset-inline-end: 2.5rem;
+  inset-inline-end: 2.2rem;
+  font-size: 0.72rem;
 }
 
 :host-context(.theme-dark) ::ng-deep .transactions-account-select .p-select-clear-icon {
@@ -77,11 +195,13 @@ jhi-transactions {
 :host ::ng-deep .transactions-account-select-panel .p-select-filter {
   color: var(--app-colours-primary-text-light) !important;
   background-color: var(--app-colours-background-med-light) !important;
+  font-size: 0.72rem !important;
 }
 
 :host ::ng-deep .transactions-account-select-panel .p-select-option {
   color: var(--app-colours-primary-text-light) !important;
   background-color: transparent !important;
+  font-size: 0.72rem !important;
 }
 
 :host ::ng-deep .transactions-account-select-panel .p-select-option:hover,
@@ -123,4 +243,10 @@ jhi-transactions {
 :host-context(.theme-dark) ::ng-deep .transactions-account-select-panel .p-select-option.p-select-option-selected {
   background-color: var(--app-colours-background-med-dark) !important;
   color: var(--app-colours-primary) !important;
+}
+
+@media (max-width: 991px) {
+  .transactions-container {
+    --transactions-editor-height: min(30rem, 55vh);
+  }
 }

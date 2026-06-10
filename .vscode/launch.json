@@ -6,19 +6,40 @@
   "configurations": [
     {
       "type": "java",
+      "name": "AccountViewer",
+      "request": "launch",
+      "mainClass": "com.le.sunriise.accountviewer.AccountViewer",
+      "projectName": "plat4m.web2"
+    },
+    {
+      "type": "java",
+      "name": "MynViewer",
+      "request": "launch",
+      "mainClass": "com.le.sunriise.viewer.MynViewer",
+      "projectName": "plat4m.web2"
+    },
+    {
+      "type": "java",
+      "name": "Launcher",
+      "request": "launch",
+      "mainClass": "com.le.sunriise.Launcher",
+      "projectName": "plat4m.web2"
+    },
+    {
+      "type": "java",
       "name": "Plat4m",
       "request": "launch",
       "mainClass": "ovaro.plat4m.Plat4MApp",
       "projectName": "plat4m.web2",
       "env": {
         "JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET": "ZDNhY2M2Y2YyZjI3NDYwZTlhYjI0ZmE2ZGI0ZTJlYjEZDNhY2M2Y2YyZjI3NDYwZTlhYjI0ZmE2ZGI0ZTJlYjE=",
-        "DB_URI":"jdbc:postgresql://localhost:5432/plat4m",
-        "DB_USERNAME":"ovaro",
-        "DB_PASSWORD":""
+        "DB_URI": "jdbc:postgresql://localhost:5432/plat4m",
+        "DB_USERNAME": "ovaro",
+        "DB_PASSWORD": ""
       },
-      "vmArgs": ["-Dspring.profiles.active=prod"]
-      //"args": "--spring.profiles.active=prod"
-      // , heroku
+      "vmArgs": [
+        "-Dspring.profiles.active=prod"
+      ]
     }
   ]
 }

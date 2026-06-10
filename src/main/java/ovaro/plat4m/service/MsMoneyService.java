@@ -89,6 +89,7 @@ public class MsMoneyService {
     private FinanceInstitutionRepository fiRepository;
 
     private FinanceSecurityService securityService;
+    private FinanceTransactionEditorLookupCacheService editorLookupCacheService;
 
     public static final String TABLE_TRN = "TRN";
     public static final String TABLE_ACCOUNT = "ACCT";
@@ -119,6 +120,7 @@ public class MsMoneyService {
         FinanceSecurityPriceRepository securityPriceRepository,
         FinanceInstitutionRepository fiRepository,
         FinanceSecurityService securityService,
+        FinanceTransactionEditorLookupCacheService editorLookupCacheService,
         SimpMessageSendingOperations messagingTemplate
     ) {
         this.accountRepository = accountRepository;
@@ -134,6 +136,7 @@ public class MsMoneyService {
         this.securityPriceRepository = securityPriceRepository;
         this.fiRepository = fiRepository;
         this.securityService = securityService;
+        this.editorLookupCacheService = editorLookupCacheService;
         this.messagingTemplate = messagingTemplate;
     }
 
@@ -250,6 +253,19 @@ public class MsMoneyService {
 
             // Clear Finance Investment Events so they are regenerated (i.e. if data changed this is brute force to catch)
             invalidateCachedFinancialEvents(user);
+        } catch (Exception e) {
+            log.error("Import failed while processing file {}", moneyFile, e);
+            monitor.setCurrentTask("Failed");
+
+            fis = new FinanceImportStatus();
+            fis.setTaskName(monitor.getCurrentTask());
+            fis.setTaskFinished(true);
+            fis.setImportFinished(true);
+            fis.setDuration(sw.getTotalTimeMillis());
+            fis.setError(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+            processImportStatusEvent(user, fis);
+
+            return CompletableFuture.failedFuture(e);
         } finally {
             if (oDB != null) {
                 oDB.close();
@@ -264,6 +280,7 @@ public class MsMoneyService {
         //
         fis = new FinanceImportStatus();
         fis.setImportFinished(true);
+        fis.setTaskName(monitor.getCurrentTask());
         fis.setDuration(sw.getTotalTimeMillis());
         processImportStatusEvent(user, fis);
 
@@ -271,7 +288,15 @@ public class MsMoneyService {
     }
 
     private void processImportStatusEvent(User user, FinanceImportStatus fis) {
-        messagingTemplate.convertAndSendToUser(user.getLogin(), "/secured/user/queue/import", fis);
+        log.info(
+            "Sending import status to user {}: taskName='{}', importFinished={}, taskFinished={}, error='{}'",
+            user.getLogin(),
+            fis.getTaskName(),
+            fis.isImportFinished(),
+            fis.isTaskFinished(),
+            fis.getError()
+        );
+        messagingTemplate.convertAndSendToUser(user.getLogin(), "/queue/import", fis);
     }
 
     private Source getSource(User user, String name, boolean useTypeOnly) {
@@ -385,6 +410,9 @@ public class MsMoneyService {
 
         fiStatus.setDuration(sw.getLastTaskTimeMillis());
         fiStatus.setTaskFinished(true);
+        if (fiStatus.getNumCreated() > 0 || fiStatus.getNumUpdated() > 0) {
+            this.editorLookupCacheService.invalidateCategoryOptions(user.getGuid().toString());
+        }
         return fiStatus;
     }
 
@@ -401,13 +429,13 @@ public class MsMoneyService {
         for (com.le.sunriise.mnyobject.Security o : securities.values()) {
             log.debug(
                 "Processing Security: " +
-                o.getName() +
-                ". Last Sync: " +
-                source.getLastSyncDateTime() +
-                ", Serial Date: " +
-                o.getSerialDate() +
-                ", Converted Serial: " +
-                ZonedDateTime.ofInstant(o.getSerialDate().toInstant(), ZoneId.systemDefault())
+                    o.getName() +
+                    ". Last Sync: " +
+                    source.getLastSyncDateTime() +
+                    ", Serial Date: " +
+                    o.getSerialDate() +
+                    ", Converted Serial: " +
+                    ZonedDateTime.ofInstant(o.getSerialDate().toInstant(), ZoneId.systemDefault())
             );
             FinanceUserSecurity nObj = null;
             fiStatus.setNumInput(fiStatus.getNumInput() + 1);
@@ -429,8 +457,8 @@ public class MsMoneyService {
                     if (!sl.get().getSourceGuid().equals(trimSguid(o.getGuid()))) {
                         throw new RuntimeException(
                             "ID: " +
-                            o.getId().toString() +
-                            " returned an account with a different GUID. This is probably a different Money File. More than one money file import is not supported."
+                                o.getId().toString() +
+                                " returned an account with a different GUID. This is probably a different Money File. More than one money file import is not supported."
                         );
                     }
 
@@ -465,9 +493,9 @@ public class MsMoneyService {
                     // log.info("Error message:" + die.getMessage());
                     log.info(
                         "Looks like row might alredy exist. Trying to update. Messages: " +
-                        die.getMessage() +
-                        ", nObj masterGuid: " +
-                        nObj.getMasterGuid()
+                            die.getMessage() +
+                            ", nObj masterGuid: " +
+                            nObj.getMasterGuid()
                     );
                     Optional<FinanceUserSecurity> osec = userSecurityRepository.findByMasterGuid(nObj.getMasterGuid());
                     if (osec.isPresent()) {
@@ -630,13 +658,13 @@ public class MsMoneyService {
         for (FinancialInstitution oldFI : fis.values()) {
             log.debug(
                 "Processing Institutions: " +
-                oldFI.getName() +
-                ". Last Sync: " +
-                source.getLastSyncDateTime() +
-                ", Serial Date: " +
-                oldFI.getSerialDate() +
-                ", Converted Serial: " +
-                ZonedDateTime.ofInstant(oldFI.getSerialDate().toInstant(), ZoneId.systemDefault())
+                    oldFI.getName() +
+                    ". Last Sync: " +
+                    source.getLastSyncDateTime() +
+                    ", Serial Date: " +
+                    oldFI.getSerialDate() +
+                    ", Converted Serial: " +
+                    ZonedDateTime.ofInstant(oldFI.getSerialDate().toInstant(), ZoneId.systemDefault())
             );
             fiStatus.setNumInput(fiStatus.getNumInput() + 1);
             FinanceInstitution fi = null;
@@ -688,6 +716,9 @@ public class MsMoneyService {
         sw.stop();
         fiStatus.setDuration(sw.getLastTaskTimeMillis());
         fiStatus.setTaskFinished(true);
+        if (fiStatus.getNumCreated() > 0 || fiStatus.getNumUpdated() > 0) {
+            this.editorLookupCacheService.invalidatePayeeOptions(user.getGuid().toString());
+        }
         return fiStatus;
     }
 
@@ -710,13 +741,13 @@ public class MsMoneyService {
         for (com.le.sunriise.mnyobject.Account oldAccount : accounts) {
             log.debug(
                 "Processing Account: " +
-                oldAccount.getName() +
-                ". Last Sync: " +
-                source.getLastSyncDateTime() +
-                ", Serial Date: " +
-                oldAccount.getSerialDate() +
-                ", Converted Serial: " +
-                ZonedDateTime.ofInstant(oldAccount.getSerialDate().toInstant(), ZoneId.systemDefault())
+                    oldAccount.getName() +
+                    ". Last Sync: " +
+                    source.getLastSyncDateTime() +
+                    ", Serial Date: " +
+                    oldAccount.getSerialDate() +
+                    ", Converted Serial: " +
+                    ZonedDateTime.ofInstant(oldAccount.getSerialDate().toInstant(), ZoneId.systemDefault())
             );
             FinanceAccount account = null;
             if (
@@ -740,8 +771,8 @@ public class MsMoneyService {
                     if (!sl.get().getSourceGuid().equals(trimSguid(oldAccount.getGuid()))) {
                         throw new RuntimeException(
                             "ID: " +
-                            oldAccount.getId().toString() +
-                            " returned an account with a different GUID. This is probably a different Money File. More than one money file import is not supported."
+                                oldAccount.getId().toString() +
+                                " returned an account with a different GUID. This is probably a different Money File. More than one money file import is not supported."
                         );
                     }
 
@@ -812,13 +843,13 @@ public class MsMoneyService {
         for (Currency origCurrency : currencies.values()) {
             log.debug(
                 "Processing currency: " +
-                origCurrency.getName() +
-                ". Last Sync: " +
-                source.getLastSyncDateTime() +
-                ", Serial Date: " +
-                origCurrency.getSerialDate() +
-                ", Converted Serial: " +
-                ZonedDateTime.ofInstant(origCurrency.getSerialDate().toInstant(), ZoneId.systemDefault())
+                    origCurrency.getName() +
+                    ". Last Sync: " +
+                    source.getLastSyncDateTime() +
+                    ", Serial Date: " +
+                    origCurrency.getSerialDate() +
+                    ", Converted Serial: " +
+                    ZonedDateTime.ofInstant(origCurrency.getSerialDate().toInstant(), ZoneId.systemDefault())
             );
             fiStatus.setNumInput(fiStatus.getNumInput() + 1);
             FinanceCurrency currency = null;
@@ -1011,13 +1042,13 @@ public class MsMoneyService {
         for (com.le.sunriise.mnyobject.Category original : categories.values()) {
             log.debug(
                 "Processing Category : " +
-                original.getName() +
-                ". Last Sync: " +
-                source.getLastSyncDateTime() +
-                ", Serial Date: " +
-                original.getSerialDate() +
-                ", Converted Serial: " +
-                ZonedDateTime.ofInstant(original.getSerialDate().toInstant(), ZoneId.systemDefault())
+                    original.getName() +
+                    ". Last Sync: " +
+                    source.getLastSyncDateTime() +
+                    ", Serial Date: " +
+                    original.getSerialDate() +
+                    ", Converted Serial: " +
+                    ZonedDateTime.ofInstant(original.getSerialDate().toInstant(), ZoneId.systemDefault())
             );
             fiStatus.setNumInput(fiStatus.getNumInput() + 1);
             FinanceCategory category = null;
@@ -1139,13 +1170,13 @@ public class MsMoneyService {
         for (com.le.sunriise.mnyobject.Payee originalPayee : payees.values()) {
             log.debug(
                 "Processing Payee : " +
-                originalPayee.getName() +
-                ". Last Sync: " +
-                source.getLastSyncDateTime() +
-                ", Serial Date: " +
-                originalPayee.getSerialDate() +
-                ", Converted Serial: " +
-                ZonedDateTime.ofInstant(originalPayee.getSerialDate().toInstant(), ZoneId.systemDefault())
+                    originalPayee.getName() +
+                    ". Last Sync: " +
+                    source.getLastSyncDateTime() +
+                    ", Serial Date: " +
+                    originalPayee.getSerialDate() +
+                    ", Converted Serial: " +
+                    ZonedDateTime.ofInstant(originalPayee.getSerialDate().toInstant(), ZoneId.systemDefault())
             );
             FinancePayee payee = null;
             fiStatus.setNumInput(fiStatus.getNumInput() + 1);
@@ -1647,22 +1678,22 @@ public class MsMoneyService {
             // Has to exist if data model is consistent
             log.debug(
                 "Found SourceLink for transaction: " +
-                originalTxn.getId() +
-                ", suid: " +
-                originalTxn.getGuid() +
-                ", LocalID: " +
-                sl.getLocalId()
+                    originalTxn.getId() +
+                    ", suid: " +
+                    originalTxn.getGuid() +
+                    ", LocalID: " +
+                    sl.getLocalId()
             );
             Optional<FinanceTransaction> a = transactionRepository.findById(UUID.fromString(sl.getLocalId()));
             if (a.isPresent()) {
                 txn = a.get();
                 log.debug(
                     "Existing transaction: " +
-                    originalTxn.getId() +
-                    " found with local ID: " +
-                    txn.getId().toString() +
-                    ", and suid: " +
-                    txn.getMasterGuid()
+                        originalTxn.getId() +
+                        " found with local ID: " +
+                        txn.getId().toString() +
+                        ", and suid: " +
+                        txn.getMasterGuid()
                 );
 
                 updateTransaction(
@@ -1738,6 +1769,12 @@ public class MsMoneyService {
             SourceLink categoryLink = categoriesSourceLinks.get(originalTransaction.getCategoryId().toString());
             txn.setCategory(new FinanceCategory(categoryLink.getLocalId()));
         }
+
+        if (originalTransaction.getWhoId() != null && !"-1".equals(originalTransaction.getWhoId().toString())) {
+            SourceLink categoryLink = categoriesSourceLinks.get(originalTransaction.getWhoId().toString());
+            txn.setWho(new FinanceCategory(categoryLink.getLocalId()));
+        }
+
         txn.setSourcePayeeId(originalTransaction.getPayeeId());
         SourceLink payeeLink = payeeSourceLinks.get(originalTransaction.getPayeeId().toString());
         if (payeeLink != null) {

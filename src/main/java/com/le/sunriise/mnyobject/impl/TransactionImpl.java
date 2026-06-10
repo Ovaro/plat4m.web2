@@ -85,6 +85,8 @@ public class TransactionImpl extends MnyObject implements Comparable<Transaction
 
     private Integer userCurrencyId;
 
+    private Integer whoId;
+
     private BigDecimal amountBase;
 
     private Double rateToBase;
@@ -203,21 +205,22 @@ public class TransactionImpl extends MnyObject implements Comparable<Transaction
         if (transactionInfo.isBit14()) {
             log.info(
                 "Found Bit 14 on transation: " +
-                guid +
-                ", statusFlag: " +
-                statusFlag +
-                ", Memo:" +
-                memo +
-                ", Date: " +
-                date +
-                ", Amount: " +
-                amount +
-                ", Bits: " +
-                Integer.toBinaryString(statusFlag)
+                    guid +
+                    ", statusFlag: " +
+                    statusFlag +
+                    ", Memo:" +
+                    memo +
+                    ", Date: " +
+                    date +
+                    ", Amount: " +
+                    amount +
+                    ", Bits: " +
+                    Integer.toBinaryString(statusFlag)
             );
         }
 
-        if (statusFlag == 16518) { // NOT SURE BUT CANNOT FIND ANOTHER EXPLAINATION FOR THIS CODE // JMK
+        if (statusFlag == 16518) {
+            // NOT SURE BUT CANNOT FIND ANOTHER EXPLAINATION FOR THIS CODE // JMK
             // if(transactionInfo.isBit14()) {
             //     log.info("Found Bit 14 on transation: " + guid + ", statusFlag: " + statusFlag + ", Memo:" + memo + ", Date: " + date + ", Amount: " + amount + ", isVoid: " + isVoid());
             // }
@@ -226,17 +229,17 @@ public class TransactionImpl extends MnyObject implements Comparable<Transaction
             // }
             log.info(
                 "Found 16518 on transation: " +
-                guid +
-                ", statusFlag: " +
-                statusFlag +
-                ", Memo:" +
-                memo +
-                ", Date: " +
-                date +
-                ", Amount: " +
-                amount +
-                ", Bits: " +
-                Integer.toBinaryString(statusFlag)
+                    guid +
+                    ", statusFlag: " +
+                    statusFlag +
+                    ", Memo:" +
+                    memo +
+                    ", Date: " +
+                    date +
+                    ", Amount: " +
+                    amount +
+                    ", Bits: " +
+                    Integer.toBinaryString(statusFlag)
             );
             return true;
         }
@@ -775,5 +778,13 @@ public class TransactionImpl extends MnyObject implements Comparable<Transaction
             transferredAccountId +
             "]"
         );
+    }
+
+    public Integer getWhoId() {
+        return whoId;
+    }
+
+    public void setWhoId(Integer whoId) {
+        this.whoId = whoId;
     }
 }

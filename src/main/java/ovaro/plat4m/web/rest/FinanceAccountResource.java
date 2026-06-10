@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,21 +17,29 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import ovaro.plat4m.domain.FinanceAccountType;
 import ovaro.plat4m.domain.FinanceTransaction;
-import ovaro.plat4m.domain.IFinanceTransactionWithRunningBalance;
 import ovaro.plat4m.domain.User;
 import ovaro.plat4m.security.SecurityUtils;
 import ovaro.plat4m.service.FinanceAccountService;
+import ovaro.plat4m.service.FinanceTransactionService;
 import ovaro.plat4m.service.UserService;
 import ovaro.plat4m.service.dto.FinanceAccountDTO;
 import ovaro.plat4m.service.dto.FinanceIndicatorDTO;
 import ovaro.plat4m.service.dto.FinanceIndicatorsDTO;
+import ovaro.plat4m.service.dto.FinanceResourceDTO;
 import ovaro.plat4m.service.dto.FinanceSnapshotsPerResourceDTO;
+import ovaro.plat4m.service.dto.FinanceTransactionEditorOptionsDTO;
+import ovaro.plat4m.service.dto.FinanceTransactionRowDTO;
+import ovaro.plat4m.service.dto.FinanceTransactionUpdateDTO;
 import tech.jhipster.web.util.PaginationUtil;
 
 @RestController
@@ -42,10 +51,16 @@ public class FinanceAccountResource {
 
     private final Logger log = LoggerFactory.getLogger(FinanceAccountResource.class);
     private FinanceAccountService financeAccountService;
+    private FinanceTransactionService financeTransactionService;
     private final UserService userService;
 
-    public FinanceAccountResource(FinanceAccountService financeAccountService, UserService userService) {
+    public FinanceAccountResource(
+        FinanceAccountService financeAccountService,
+        FinanceTransactionService financeTransactionService,
+        UserService userService
+    ) {
         this.financeAccountService = financeAccountService;
+        this.financeTransactionService = financeTransactionService;
         this.userService = userService;
     }
 
@@ -91,15 +106,15 @@ public class FinanceAccountResource {
         final Page<FinanceTransaction> page = financeAccountService.getTransactions(accountId, pageable);
         log.info(
             "getAccountTransactions result: " +
-            accountId +
-            " - #" +
-            page.getNumberOfElements() +
-            ". Page: " +
-            page.getNumber() +
-            ", Size: " +
-            page.getSize() +
-            ", Total Pages:  " +
-            page.getTotalPages()
+                accountId +
+                " - #" +
+                page.getNumberOfElements() +
+                ". Page: " +
+                page.getNumber() +
+                ", Size: " +
+                page.getSize() +
+                ", Total Pages:  " +
+                page.getTotalPages()
         );
 
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
@@ -122,30 +137,128 @@ public class FinanceAccountResource {
     }
 
     @GetMapping("/account/{accountId}/transactions-paging")
-    public ResponseEntity<List<IFinanceTransactionWithRunningBalance>> getAccountTransactionsPaging(
+    public ResponseEntity<List<FinanceTransactionRowDTO>> getAccountTransactionsPaging(
         @PathVariable(name = "accountId") String accountId,
+        @RequestParam(name = "filters", required = false) String filters,
         Pageable pageable
     ) throws IOException {
         log.info("getAccountTransactionsPaging: " + accountId);
         String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
 
         Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
-        final Page<IFinanceTransactionWithRunningBalance> page = financeAccountService.getTransactionsPaging(u.get(), accountId, pageable);
+        final Page<FinanceTransactionRowDTO> dtoPage = financeAccountService.getTransactionsPaging(u.get(), accountId, pageable, filters);
         log.info(
             "getAccountTransactionsPaging result: " +
-            accountId +
-            " - #" +
-            page.getNumberOfElements() +
-            ". Page: " +
-            page.getNumber() +
-            ", Size: " +
-            page.getSize() +
-            ", Total Pages:  " +
-            page.getTotalPages()
+                accountId +
+                " - #" +
+                dtoPage.getNumberOfElements() +
+                ". Page: " +
+                dtoPage.getNumber() +
+                ", Size: " +
+                dtoPage.getSize() +
+                ", Total Pages:  " +
+                dtoPage.getTotalPages()
         );
 
+        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), dtoPage);
+        return new ResponseEntity<>(dtoPage.getContent(), headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/transactions/editor-options")
+    public ResponseEntity<FinanceTransactionEditorOptionsDTO> getTransactionEditorOptions() throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        return new ResponseEntity<>(financeTransactionService.getEditorOptions(u.get()), HttpStatus.OK);
+    }
+
+    @GetMapping("/transactions/editor-options/categories")
+    public ResponseEntity<List<FinanceResourceDTO>> getTransactionCategoryOptions(
+        @RequestParam(name = "query", required = false) String query,
+        Pageable pageable
+    ) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        final Page<FinanceResourceDTO> page = financeTransactionService.getCategoryOptions(u.get(), query, pageable);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/transactions/editor-options/who")
+    public ResponseEntity<List<FinanceResourceDTO>> getTransactionWhoOptions(
+        @RequestParam(name = "query", required = false) String query,
+        Pageable pageable
+    ) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        final Page<FinanceResourceDTO> page = financeTransactionService.getWhoOptions(u.get(), query, pageable);
+        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+        return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/transactions/editor-options/payees")
+    public ResponseEntity<List<FinanceResourceDTO>> getTransactionPayeeOptions(
+        @RequestParam(name = "query", required = false) String query,
+        Pageable pageable
+    ) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        final Page<FinanceResourceDTO> page = financeTransactionService.getPayeeOptions(u.get(), query, pageable);
+        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+        return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/transactions/editor-options/tags")
+    public ResponseEntity<List<FinanceResourceDTO>> getTransactionTagOptions(
+        @RequestParam(name = "query", required = false) String query,
+        Pageable pageable
+    ) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        final Page<FinanceResourceDTO> page = financeTransactionService.getTagOptions(u.get(), query, pageable);
+        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+        return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
+    }
+
+    @PutMapping("/account/{accountId}/transactions/{transactionId}")
+    public ResponseEntity<FinanceTransactionRowDTO> updateTransaction(
+        @PathVariable(name = "accountId") String accountId,
+        @PathVariable(name = "transactionId") UUID transactionId,
+        @RequestBody FinanceTransactionUpdateDTO update
+    ) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        try {
+            FinanceTransactionRowDTO saved = financeTransactionService.updateTransaction(u.get(), accountId, transactionId, update);
+            return new ResponseEntity<>(saved, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
+    }
+
+    @PostMapping("/account/{accountId}/transactions")
+    public ResponseEntity<FinanceTransactionRowDTO> createTransaction(
+        @PathVariable(name = "accountId") String accountId,
+        @RequestBody FinanceTransactionUpdateDTO update
+    ) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        try {
+            FinanceTransactionRowDTO saved = financeTransactionService.createTransaction(u.get(), accountId, update);
+            return new ResponseEntity<>(saved, HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -263,8 +376,11 @@ public class FinanceAccountResource {
             d = WebUIUtils.getDateFromPeriod(periodAgo);
         }
 
-        Collection<FinanceSnapshotsPerResourceDTO> summaries =
-            this.financeAccountService.getAllAccountsMonthlyRunningBalance(u.get(), d, LocalDate.now());
+        Collection<FinanceSnapshotsPerResourceDTO> summaries = this.financeAccountService.getAllAccountsMonthlyRunningBalance(
+            u.get(),
+            d,
+            LocalDate.now()
+        );
 
         return summaries;
     }

@@ -47,10 +47,14 @@ export default class NavbarComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.theme = this.themeService.theme();
     this.entitiesNavbarItems = EntityNavbarItems;
     this.profileService.getProfileInfo().subscribe(profileInfo => {
       this.inProduction = profileInfo.inProduction;
       this.openAPIEnabled = profileInfo.openAPIEnabled;
+    });
+    this.themeService.onChange.subscribe(event => {
+      this.theme = event.theme;
     });
   }
 
@@ -95,6 +99,5 @@ export default class NavbarComponent implements OnInit {
 
   switchTheme(): void {
     this.themeService.toggleTheme();
-    this.theme = this.themeService.theme();
   }
 }

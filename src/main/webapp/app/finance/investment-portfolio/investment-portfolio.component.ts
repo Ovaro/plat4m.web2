@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Inject, LOCALE_ID, NgZone, ViewChild, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, Inject, LOCALE_ID, NgZone, ViewChild, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { InvestmentPortfolio } from './investment-portfolio.service';
@@ -47,6 +47,11 @@ interface Group {
   groups: GroupData | null;
 }
 
+interface PieChartData {
+  series: number[];
+  labels: string[];
+}
+
 export type ChartOptions = {
   series: number[];
   labels: string[];
@@ -80,6 +85,7 @@ export type TreeMapChartOptions = {
   plotOptions: ApexPlotOptions;
   dataLabels: ApexDataLabels;
   tooltip: ApexTooltip;
+  theme?: ApexTheme;
 };
 
 @Component({
@@ -88,8 +94,7 @@ export type TreeMapChartOptions = {
   styleUrls: ['./investment-portfolio.component.scss'],
   imports: [SharedModule, RouterModule, NgApexchartsModule, SkeletonModule],
 })
-export class InvestmentPortfolioComponent {
-  // implements OnInit
+export class InvestmentPortfolioComponent implements AfterViewInit {
   static COOKIE_SHOW_CLOSED = 'show-closed-state';
   static PERIOD_DEFAULT_COOKIE_ID = 'period-default';
 
@@ -115,6 +120,7 @@ export class InvestmentPortfolioComponent {
   private readonly _isLoadingHistory = signal(false);
   private readonly _isHistoryLoaded = signal(false);
   private readonly _showHistoryChart = signal(false);
+  private readonly _showPieChart = signal(true);
 
   private readonly _accountId = signal<string | null>(null);
   private readonly _account = signal<FinancialAccount | null>(null);
@@ -219,6 +225,14 @@ export class InvestmentPortfolioComponent {
 
   set showHistoryChart(value: boolean) {
     this._showHistoryChart.set(value);
+  }
+
+  get showPieChart(): boolean {
+    return this._showPieChart();
+  }
+
+  set showPieChart(value: boolean) {
+    this._showPieChart.set(value);
   }
 
   get accountId(): string | null {
@@ -374,6 +388,7 @@ export class InvestmentPortfolioComponent {
       series: [], //44, 55, 13, 33
       chart: {
         height: 180,
+        width: 300,
         type: 'donut',
       },
       labels: [],
@@ -422,10 +437,7 @@ export class InvestmentPortfolioComponent {
 
     this.themeService.onChange.subscribe((event: ThemeChangeEvent) => {
       this.theme = event.theme;
-
-      if (this.historyChart) {
-        this.historyChart.updateOptions({ tooltip: { theme: this.theme } });
-      }
+      this.applyThemeToCharts();
     });
 
     //this.title = this.commonControllerServices.getPageTitle(this.router.routerState.snapshot.root);
@@ -491,6 +503,7 @@ export class InvestmentPortfolioComponent {
 
     this.pieChartOptions.chart = {
       height: 200,
+      width: 300,
       type: 'donut',
       events: {
         // eslint-disable-next-line object-shorthand
@@ -656,9 +669,12 @@ export class InvestmentPortfolioComponent {
     }
 
     this.load();
+    this.applyThemeToCharts();
+  }
 
-    //this.historyChart.updateOptions({chart:{theme:this.theme}});
-    //this.historyChart.updateOptions({theme:this.theme});
+  ngAfterViewInit(): void {
+    this.applyThemeToCharts();
+    this.syncPieChart();
   }
 
   navigateToInvestmentFromSeriesIndex(series: number, index: number): void {
@@ -921,12 +937,7 @@ export class InvestmentPortfolioComponent {
     let value = 0;
 
     allHoldings.forEach(element => {
-      // eslint-disable-next-line  @typescript-eslint/no-unnecessary-condition
-      if (element.fxRateToLocal != null && element.fxRateToLocal !== 0) {
-        value += element.value * element.fxRateToLocal;
-      } else {
-        value += element.value;
-      }
+      value += this.getHoldingLocalValue(element);
     });
 
     return value;
@@ -976,21 +987,19 @@ export class InvestmentPortfolioComponent {
   }
 
   processPieChartData(): void {
-    // console.log("processingPieChartData: " + this.selectedGroup.value);
-
-    this.pieChartOptions.series = [];
-    if (this.pieChartOptions.labels) {
-      this.pieChartOptions.labels.length = 0;
-    }
-
     if (!this.holdings || this.holdings.length === 0) {
+      this.setPieChartData([], []);
       return;
     }
 
     if (this.selectedGroup.value === 'holdings') {
-      this.pieDataByHolding(this.holdings);
+      const pieChartData = this.pieDataByHolding(this.holdings);
+      this.setPieChartData(pieChartData.series, pieChartData.labels);
     } else if (this.selectedGroup.groups) {
-      this.pieDataByGroup(this.selectedGroup.groups);
+      const pieChartData = this.pieDataByGroup(this.selectedGroup.groups);
+      this.setPieChartData(pieChartData.series, pieChartData.labels);
+    } else {
+      this.setPieChartData([], []);
     }
   }
 
@@ -1174,8 +1183,22 @@ export class InvestmentPortfolioComponent {
     });
   }
 
-  private pieDataByHolding(allHoldings: FinanceSecurityHolding[]): ApexAxisChartSeries | null {
-    return this.dataByHolding(allHoldings, 'pie');
+  private pieDataByHolding(allHoldings: FinanceSecurityHolding[]): PieChartData {
+    const series: number[] = [];
+    const labels: string[] = [];
+
+    allHoldings.forEach(element => {
+      const value = this.getHoldingLocalValue(element);
+
+      if (!Number.isFinite(value)) {
+        return;
+      }
+
+      series.push(value);
+      labels.push(element.name || 'Unknown');
+    });
+
+    return { series, labels };
   }
 
   private treemapDataByHolding(allHoldings: FinanceSecurityHolding[]): ApexAxisChartSeries {
@@ -1194,28 +1217,11 @@ export class InvestmentPortfolioComponent {
 
     allHoldings.forEach(element => {
       const xy = { x: '', y: 0 };
+      const value = this.getHoldingLocalValue(element);
 
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (element.fxRateToLocal === null || element.fxRateToLocal === 0) {
-        if (type === 'pie') {
-          this.pieChartOptions.series?.push(element.value);
-        } else if (type === 'xy') {
-          xy.y = element.value;
-        }
-      } else {
-        if (type === 'pie') {
-          this.pieChartOptions.series?.push(element.value * element.fxRateToLocal);
-          xy.y = element.value * element.fxRateToLocal;
-        }
-        if (type === 'xy') {
-          xy.y = element.value * element.fxRateToLocal;
-        }
-      }
-
-      if (type === 'pie') {
-        this.pieChartOptions.labels?.push(element.name);
-      } else {
-        xy.x = element.name;
+      if (type === 'xy') {
+        xy.x = element.name || 'Unknown';
+        xy.y = value;
         xydataArr.push(xy);
       }
     });
@@ -1229,17 +1235,20 @@ export class InvestmentPortfolioComponent {
     return null;
   }
 
-  private pieDataByGroup(groupData: GroupData): void {
+  private pieDataByGroup(groupData: GroupData): PieChartData {
+    const series: number[] = [];
+    const labels: string[] = [];
     const keys = Object.keys(groupData);
     keys.forEach(key => {
       const holding = groupData[key];
       if (holding !== null) {
         const val = this.sumHoldings(holding);
-
-        this.pieChartOptions.series?.push(val);
-        this.pieChartOptions.labels?.push(key);
+        series.push(val);
+        labels.push(key);
       }
     });
+
+    return { series, labels };
   }
 
   private treemapDataByGroup(groupData: GroupData): ApexAxisChartSeries {
@@ -1270,14 +1279,17 @@ export class InvestmentPortfolioComponent {
   private sumHoldings(holdings: FinanceSecurityHolding[]): number {
     let val = 0;
     holdings.forEach(holding => {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (holding.fxRateToLocal === null || holding.fxRateToLocal === 0) {
-        val = val + holding.value;
-      } else {
-        val = val + holding.value * holding.fxRateToLocal;
-      }
+      val += this.getHoldingLocalValue(holding);
     });
     return val;
+  }
+
+  private getHoldingLocalValue(holding: FinanceSecurityHolding): number {
+    const baseValue = Number(holding.value ?? 0);
+    const fxRate = Number(holding.fxRateToLocal ?? 0);
+    const localValue = fxRate !== 0 ? baseValue * fxRate : baseValue;
+
+    return Number.isFinite(localValue) ? localValue : 0;
   }
 
   // History / Over-time
@@ -1556,6 +1568,15 @@ export class InvestmentPortfolioComponent {
     };
   }
 
+  private setPieChartData(series: number[], labels: string[]): void {
+    this.pieChartOptions = {
+      ...this.pieChartOptions,
+      series: [...series],
+      labels: [...labels],
+    };
+    this.refreshPieChart();
+  }
+
   private normalizeAxisSeries(series: ApexAxisChartSeries | null | undefined, defaultName: string): ApexAxisChartSeries {
     if (!Array.isArray(series) || series.length === 0) {
       return [{ name: defaultName, data: [] }];
@@ -1588,5 +1609,171 @@ export class InvestmentPortfolioComponent {
     this.showHistoryChart = false;
     this.cdr.detectChanges();
     this.showHistoryChart = true;
+    this.cdr.detectChanges();
+    setTimeout(() => this.applyThemeToCharts(), 0);
+  }
+
+  private refreshPieChart(): void {
+    this.showPieChart = false;
+    this.cdr.detectChanges();
+    this.showPieChart = true;
+    this.cdr.detectChanges();
+    setTimeout(() => this.syncPieChart(), 0);
+  }
+
+  private syncPieChart(): void {
+    if (!this.pieChart) {
+      return;
+    }
+
+    const series = Array.isArray(this.pieChartOptions.series) ? [...this.pieChartOptions.series] : [];
+    const labels = Array.isArray(this.pieChartOptions.labels) ? [...this.pieChartOptions.labels] : [];
+
+    void this.pieChart.updateOptions({ labels }, false, true, true);
+    void this.pieChart.updateSeries(series, true);
+  }
+
+  private applyThemeToCharts(): void {
+    const chartTheme = this.getChartThemeOptions();
+
+    this.pieChartOptions = {
+      ...this.pieChartOptions,
+      chart: this.withChartSurface(this.pieChartOptions.chart, chartTheme),
+      theme: {
+        ...(this.pieChartOptions.theme ?? {}),
+        mode: this.theme as 'light' | 'dark',
+      },
+      tooltip: {
+        ...this.pieChartOptions.tooltip,
+        theme: this.theme,
+      },
+    };
+
+    this.treemapChartOptions = {
+      ...this.treemapChartOptions,
+      chart: this.withChartSurface(this.treemapChartOptions.chart, chartTheme),
+      tooltip: {
+        ...this.treemapChartOptions.tooltip,
+        theme: this.theme,
+      },
+      theme: {
+        mode: this.theme as 'light' | 'dark',
+      },
+    };
+
+    this.historyChartOptions = {
+      ...this.historyChartOptions,
+      chart: this.withChartSurface(this.historyChartOptions.chart, chartTheme),
+      options: {
+        ...this.historyChartOptions.options,
+        grid: {
+          borderColor: chartTheme.gridBorderColor,
+        },
+        theme: {
+          mode: this.theme as 'light' | 'dark',
+        },
+        tooltip: {
+          ...this.historyChartOptions.options?.tooltip,
+          theme: this.theme,
+        },
+      },
+      xaxis: {
+        ...this.historyChartOptions.xaxis,
+        labels: {
+          ...this.historyChartOptions.xaxis?.labels,
+          style: {
+            ...(this.historyChartOptions.xaxis?.labels as any)?.style,
+            colors: chartTheme.axisLabelColor,
+          },
+        },
+      },
+      yaxis: {
+        ...this.historyChartOptions.yaxis,
+        labels: {
+          ...this.historyChartOptions.yaxis?.labels,
+          style: {
+            ...(this.historyChartOptions.yaxis?.labels as any)?.style,
+            colors: chartTheme.axisLabelColor,
+          },
+        },
+      },
+    };
+
+    if (this.pieChart) {
+      void this.pieChart.updateOptions(
+        {
+          chart: this.pieChartOptions.chart,
+          theme: this.pieChartOptions.theme,
+          tooltip: this.pieChartOptions.tooltip,
+        },
+        false,
+        true,
+        true,
+      );
+    }
+
+    if (this.treemapChart) {
+      void this.treemapChart.updateOptions(
+        {
+          chart: this.treemapChartOptions.chart,
+          theme: this.treemapChartOptions.theme,
+          tooltip: this.treemapChartOptions.tooltip,
+        },
+        false,
+        true,
+        true,
+      );
+    }
+
+    if (this.historyChart) {
+      void this.historyChart.updateOptions(
+        {
+          chart: this.historyChartOptions.chart,
+          grid: this.historyChartOptions.options?.grid,
+          theme: this.historyChartOptions.options?.theme,
+          tooltip: this.historyChartOptions.options?.tooltip,
+          xaxis: this.historyChartOptions.xaxis,
+          yaxis: this.historyChartOptions.yaxis,
+        },
+        false,
+        true,
+        true,
+      );
+    }
+  }
+
+  private getChartThemeOptions(): {
+    axisLabelColor: string[];
+    background: string;
+    foreColor: string;
+    gridBorderColor: string;
+  } {
+    if (this.theme === 'dark') {
+      return {
+        axisLabelColor: ['var(--app-colours-secondary-text-dark)'],
+        background: 'var(--app-colours-background-high-dark)',
+        foreColor: 'var(--app-colours-primary-text-dark)',
+        gridBorderColor: 'var(--app-colours-border-low-dark)',
+      };
+    }
+
+    return {
+      axisLabelColor: ['var(--app-colours-secondary-text-light)'],
+      background: 'var(--app-colours-background-high-light)',
+      foreColor: 'var(--app-colours-primary-text-light)',
+      gridBorderColor: 'var(--app-colours-border-low-light)',
+    };
+  }
+
+  private withChartSurface(chart: ApexChart | undefined, chartTheme: { background: string; foreColor: string }): ApexChart | undefined {
+    if (!chart) {
+      return chart;
+    }
+
+    return {
+      ...chart,
+      background: chartTheme.background,
+      foreColor: chartTheme.foreColor,
+    };
   }
 }

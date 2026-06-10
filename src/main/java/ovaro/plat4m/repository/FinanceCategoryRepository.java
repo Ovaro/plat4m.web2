@@ -15,4 +15,5 @@ public interface FinanceCategoryRepository extends JpaRepository<FinanceCategory
     public Optional<FinanceCategory> findById(UUID id);
 
     public List<FinanceCategory> findAllByClassificationId(Integer classificationId);
+    public List<FinanceCategory> findAllByClassificationIdAndUserGuid(Integer classificationId, String userGuid);
 }

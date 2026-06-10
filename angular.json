@@ -95,7 +95,8 @@
           "builder": "@angular-builders/custom-webpack:dev-server",
           "options": {
             "buildTarget": "plat-4-m:build:development",
-            "port": 4200
+            "port": 4200,
+            "proxyConfig": "webpack/proxy.conf.js"
           },
           "configurations": {
             "production": {

@@ -1,7 +1,5 @@
 @use 'bootstrap-variables';
 @use 'root';
-@use 'ag-grid-community/styles/ag-grid.css';
-@use 'ag-grid-community/styles/ag-theme-alpine.css';
 /* In styles.css or styles.scss */
 // @import 'ag-grid-community/styles/ag-grid.css';
 // @import 'ag-grid-community/styles/ag-theme-alpine.css'; /* Choose a theme, e.g., 'alpine', 'material', 'balham', 'quartz' */
@@ -60,6 +58,10 @@
   --text-color: var(--app-colours-primary-text-light);
   --text-secondary-color: var(--app-colours-secondary-text-light);
 }
+
+// html {
+//   font-size: 11px;
+// }
 
 .app-table-master-header {
   background-color: var(--app-colours-background-low-light);
@@ -758,22 +760,114 @@ angular-cli removes postcss-rtl processed inline css, processed rules must be ad
   background-color: var(--app-colours-background-high-dark);
 }
 
+.theme-light .transaction-editor__type-toggle.p-togglebutton {
+  color: var(--app-colours-primary-text-light) !important;
+  border-color: var(--app-colours-border-low-light) !important;
+  background-color: var(--app-colours-background-med-light) !important;
+}
+
+.theme-light .transaction-editor__type-toggle.p-togglebutton:not(.p-togglebutton-checked):not(.p-disabled):hover,
+.theme-light .transaction-editor__type-toggle.p-togglebutton:not(.p-togglebutton-checked).p-focus {
+  color: var(--app-colours-primary-text-light) !important;
+  background-color: var(--app-colours-background-high-light) !important;
+  border-color: var(--app-colours-border-high-light) !important;
+}
+
+.theme-light .transaction-editor__type-toggle.p-togglebutton.p-togglebutton-checked {
+  color: var(--app-colours-primary-text-light) !important;
+  border-color: color-mix(in srgb, var(--app-colours-primary) 35%, white) !important;
+  background-color: color-mix(in srgb, var(--app-colours-primary) 14%, white) !important;
+}
+
+.theme-light .transaction-editor__type-toggle.p-togglebutton .p-togglebutton-content,
+.theme-light .transaction-editor__type-toggle.p-togglebutton .p-togglebutton-label {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.theme-light .transaction-editor__type-toggle.p-togglebutton.p-togglebutton-checked:not(.p-disabled):hover,
+.theme-light .transaction-editor__type-toggle.p-togglebutton.p-togglebutton-checked.p-focus {
+  color: var(--app-colours-primary-text-light) !important;
+  border-color: color-mix(in srgb, var(--app-colours-primary) 42%, white) !important;
+  background-color: color-mix(in srgb, var(--app-colours-primary) 18%, white) !important;
+}
+
+.theme-dark .transaction-editor__type-toggle.p-togglebutton {
+  color: var(--app-colours-primary-text-dark) !important;
+  border-color: var(--app-colours-border-low-dark) !important;
+  background-color: var(--app-colours-background-med-dark) !important;
+}
+
+.theme-dark .transaction-editor__type-toggle.p-togglebutton:not(.p-togglebutton-checked):not(.p-disabled):hover,
+.theme-dark .transaction-editor__type-toggle.p-togglebutton:not(.p-togglebutton-checked).p-focus {
+  color: var(--app-colours-primary-text-dark) !important;
+  background-color: var(--app-colours-background-high-dark) !important;
+  border-color: var(--app-colours-border-high-dark) !important;
+}
+
+.theme-dark .transaction-editor__type-toggle.p-togglebutton.p-togglebutton-checked {
+  color: var(--app-colours-primary-text-dark) !important;
+  border-color: color-mix(in srgb, var(--app-colours-primary) 45%, black) !important;
+  background-color: color-mix(in srgb, var(--app-colours-primary) 22%, black) !important;
+}
+
+.theme-dark .transaction-editor__type-toggle.p-togglebutton .p-togglebutton-content,
+.theme-dark .transaction-editor__type-toggle.p-togglebutton .p-togglebutton-label {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.theme-dark .transaction-editor__type-toggle.p-togglebutton.p-togglebutton-checked:not(.p-disabled):hover,
+.theme-dark .transaction-editor__type-toggle.p-togglebutton.p-togglebutton-checked.p-focus {
+  color: var(--app-colours-primary-text-dark) !important;
+  border-color: color-mix(in srgb, var(--app-colours-primary) 52%, black) !important;
+  background-color: color-mix(in srgb, var(--app-colours-primary) 27%, black) !important;
+}
+
 .theme-dark .p-inputtext {
   color: var(--ps-colors-text-dark);
 }
 
+.theme-light .transaction-editor__select,
+.theme-light .transaction-editor__select .p-autocomplete-input,
+.theme-light .transaction-editor__select .p-select-label {
+  color: var(--app-colours-primary-text-light);
+  background-color: var(--app-colours-background-med-light);
+}
+
+.theme-dark .transaction-editor__select,
+.theme-dark .transaction-editor__select .p-autocomplete-input,
+.theme-dark .transaction-editor__select .p-select-label {
+  color: var(--app-colours-primary-text-dark);
+  background-color: var(--app-colours-background-med-dark);
+}
+
 .theme-dark .p-dropdown-panel,
-.theme-dark .p-select-overlay {
+.theme-dark .p-select-overlay,
+.theme-dark .p-autocomplete-overlay {
   background-color: var(--app-colours-background-high-dark) !important;
   border: 1px solid var(--app-colours-border-low-dark) !important;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
   color: var(--app-colours-primary-text-dark) !important;
 }
 
+.theme-light .p-autocomplete-overlay {
+  background-color: var(--app-colours-background-high-light) !important;
+  border: 1px solid var(--app-colours-border-low-light) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  color: var(--app-colours-primary-text-light) !important;
+}
+
 .theme-dark .p-dropdown-item,
-.theme-dark .p-select-option {
+.theme-dark .p-select-option,
+.theme-dark .p-autocomplete-option {
   background-color: transparent !important;
   color: var(--app-colours-text-dark) !important;
+}
+
+.theme-light .p-autocomplete-option {
+  background-color: transparent !important;
+  color: var(--app-colours-primary-text-light) !important;
 }
 
 .theme-dark .p-dropdown-header,
@@ -782,10 +876,22 @@ angular-cli removes postcss-rtl processed inline css, processed rules must be ad
   color: var(--app-colours-primary-action-background-dark) !important;
 }
 
+.theme-light .p-autocomplete-option.p-focus,
+.theme-light .p-autocomplete-option:hover {
+  background-color: var(--app-colours-background-med-light) !important;
+  color: var(--app-colours-primary-text-light) !important;
+}
+
 .theme-dark .p-dropdown-item.p-highlight,
 .theme-dark .p-select-option.p-select-option-selected {
   background-color: var(--app-colours-background-med-dark) !important;
   color: var(--app-colours-primary-action-background-dark) !important;
+}
+
+.theme-dark .p-autocomplete-option.p-focus,
+.theme-dark .p-autocomplete-option:hover {
+  background-color: var(--app-colours-background-med-dark) !important;
+  color: var(--app-colours-primary-text-dark) !important;
 }
 
 .theme-dark .p-dropdown-item.p-highlight:hover,
@@ -1337,6 +1443,13 @@ angular-cli removes postcss-rtl processed inline css, processed rules must be ad
 
 .period-selector div.p-button {
   border-radius: 10px;
+}
+
+.period-selector.p-togglebutton,
+.period-selector.p-togglebutton .p-togglebutton-label,
+.period-selector.p-togglebutton .p-button-label,
+.period-selector.p-togglebutton .p-button {
+  font-size: 0.72rem;
 }
 
 // Account Cards

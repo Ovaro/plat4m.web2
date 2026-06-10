@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { Location } from '@angular/common';
 import { Router, NavigationEnd, Event } from '@angular/router';
 import { Subscription, ReplaySubject, Subject } from 'rxjs';
@@ -17,22 +17,20 @@ export class ImportStatusService {
   private connectionSubscription: Subscription | null = null;
   private stompSubscription: StompSubscription | null = null;
   private listenerSubject: Subject<ImportStatus> = new Subject();
-  private suffix?: string;
-
-  private sessionId = '';
 
   constructor(
     private router: Router,
     private authServerProvider: AuthServerProvider,
     private location: Location,
+    private ngZone: NgZone,
   ) {}
 
   connect(): void {
     if (this.stompClient?.connected) {
+      console.log('STOMP import already connected');
       return;
     }
 
-    let that = this;
     // building absolute path so that websocket doesn't fail when deploying with a context path
     let url = '/websocket/import';
     url = this.location.prepareExternalUrl(url);
@@ -40,54 +38,43 @@ export class ImportStatusService {
     if (authToken) {
       url += '?access_token=' + authToken;
     }
+    console.log('STOMP import connecting to: ' + url);
     const socket: WebSocket = new SockJS(url);
+    socket.onopen = () => console.log('SockJS import open');
+    socket.onclose = event => console.log('SockJS import close: ' + JSON.stringify(event));
     this.stompClient = Stomp.over(socket, { protocols: ['v12.stomp'] });
+    this.stompClient.debug = (message: string) => console.log('STOMP import debug: ' + message);
     const headers: ConnectionHeaders = {};
-    this.stompClient.connect(headers, frame => {
-      this.suffix = frame?.headers['user-name'];
-      // eslint-disable-next-line no-console
-      console.log('STOMP Connected: ' + this.suffix + ': ' + JSON.stringify(frame));
+    this.stompClient.connect(
+      headers,
+      frame => {
+        // eslint-disable-next-line no-console
+        console.log('STOMP Connected: ' + JSON.stringify(frame));
 
-      this.connectionSubject.next();
+        this.connectionSubject.next();
 
-      //url + "-user" + that.sessionId
+        console.log('STOMP subscribing to /secured/user/queue/import');
+        this.stompSubscription = this.stompClient!.subscribe('/secured/user/queue/import', (data: Message) => {
+          console.log('STOMP import message received: ' + data.body);
+          this.ngZone.run(() => {
+            this.listenerSubject.next(JSON.parse(data.body));
+          });
+        });
 
-      this.sessionId = this.extractSessionId(this.stompClient);
+        //this.sendActivity();
 
-      this.stompSubscription = this.stompClient!.subscribe('/secured/user/queue/import' + '-user' + that.sessionId, (data: Message) => {
-        this.listenerSubject.next(JSON.parse(data.body));
-      });
-
-      //this.sendActivity();
-
-      // this.routerSubscription = this.router.events
-      //   .pipe(filter((event: Event) => event instanceof NavigationEnd))
-      //   .subscribe(() => this.sendActivity());
-    });
+        // this.routerSubscription = this.router.events
+        //   .pipe(filter((event: Event) => event instanceof NavigationEnd))
+        //   .subscribe(() => this.sendActivity());
+      },
+      error => {
+        console.log('STOMP import connection error: ' + JSON.stringify(error));
+      },
+    );
 
     //this.stompClient.ws._transport.url
     // eslint-disable-next-line no-console
     // console.log('STOMP wsString: ' + JSON.stringify(this.stompClient.ws));
-  }
-
-  extractSessionId(stompClient: Client | null): string {
-    if (stompClient) {
-      var url = stompClient.ws._transport.url;
-      console.log(stompClient.ws._transport.url);
-      //ws://localhost:8080/websocket/import/817/4qj2pnbd/websocket?access_token=eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJqdXN0aW4iLCJhdXRoIjoiUk9MRV9BRE1JTixST0xFX1VTRVIiLCJleHAiOjE2NzU2NjIxMTJ9.GBCCLdDzWU6jgpBBl4VnP2gsGPS3o-tVBbkcq3RO-bc1wK15euQ9fhBqBVAaStOt6oLqPYN3yYczocqm9U4Rxg
-      let i = url.indexOf('/', 38);
-      i++;
-      let j = url.indexOf('/', i);
-      let res = url.substring(i, j);
-      // url = url.replace("ws://localhost:8080/spring-security-mvc-socket/secured/room/",  "");
-      // url = url.replace("/websocket", "");
-      // url = url.replace(/^[0-9]+\//, "");
-
-      console.log('Your current session is: ' + res);
-      return res;
-    } else {
-      return '';
-    }
   }
 
   disconnect(): void {
@@ -102,6 +89,7 @@ export class ImportStatusService {
 
     if (this.stompClient) {
       if (this.stompClient.connected) {
+        console.log('STOMP import disconnecting active client');
         this.stompClient.disconnect();
       }
       this.stompClient = null;
@@ -135,6 +123,7 @@ export class ImportStatusService {
 
   unsubscribe(): void {
     if (this.stompSubscription) {
+      console.log('STOMP unsubscribing from import queue');
       this.stompSubscription.unsubscribe();
       this.stompSubscription = null;
     }

@@ -29,7 +29,6 @@ import ovaro.plat4m.domain.FinanceSecurityPrice;
 import ovaro.plat4m.domain.FinanceTransaction;
 import ovaro.plat4m.domain.IFinanceCategorisedIncomeExpenses;
 import ovaro.plat4m.domain.IFinanceMonthlySummary;
-import ovaro.plat4m.domain.IFinanceTransactionWithRunningBalance;
 import ovaro.plat4m.domain.User;
 import ovaro.plat4m.repository.FinanceAccountRepository;
 import ovaro.plat4m.service.dto.FinanceAccountDTO;
@@ -39,6 +38,7 @@ import ovaro.plat4m.service.dto.FinanceSnapshot;
 import ovaro.plat4m.service.dto.FinanceSnapshotWithComparison;
 import ovaro.plat4m.service.dto.FinanceSnapshotsDTO;
 import ovaro.plat4m.service.dto.FinanceSnapshotsPerResourceDTO;
+import ovaro.plat4m.service.dto.FinanceTransactionRowDTO;
 import ovaro.plat4m.service.mapper.FinanceAccountMapper;
 
 @Service
@@ -398,10 +398,10 @@ public class FinanceAccountService {
         return res;
     }
 
-    public Page<IFinanceTransactionWithRunningBalance> getTransactionsPaging(User user, String accountId, Pageable pageable) {
+    public Page<FinanceTransactionRowDTO> getTransactionsPaging(User user, String accountId, Pageable pageable, String filterModel) {
         StopWatch sw = new StopWatch();
         sw.start("getTransactionsPaging");
-        Page<IFinanceTransactionWithRunningBalance> res = this.transactionService.getTransactionsPaging(user, accountId, pageable);
+        Page<FinanceTransactionRowDTO> res = this.transactionService.getTransactionsPaging(user, accountId, pageable, filterModel);
         sw.stop();
         log.info(sw.prettyPrint());
         return res;
@@ -553,7 +553,7 @@ public class FinanceAccountService {
                         } else {
                             log.debug(
                                 "Not adjusting with starting balance for months before the opening of the account: " +
-                                account.getId().toString()
+                                    account.getId().toString()
                             );
                         }
 
@@ -576,10 +576,10 @@ public class FinanceAccountService {
             for (FinanceAccount account : accountsWithNoTransactions.values()) {
                 log.info(
                     "  : " +
-                    account.getId().toString() +
-                    ". Starting: " +
-                    account.getStartingBalance() +
-                    " needs to be added into the summaries to have its balance handled properly."
+                        account.getId().toString() +
+                        ". Starting: " +
+                        account.getStartingBalance() +
+                        " needs to be added into the summaries to have its balance handled properly."
                 );
                 LocalDate endOfMonthAfterOpen = LocalDate.of(account.getDateOpened().getYear(), account.getDateOpened().getMonth(), 1).with(
                     TemporalAdjusters.lastDayOfMonth()
@@ -642,10 +642,10 @@ public class FinanceAccountService {
                 ) {
                     // If currency code is not the local one (or not set which implies local)
                     this.fxService.addFXDetailsToMonthlySnapshots(
-                            user,
-                            resourceSnapshotDTO.getCurrencyCode(),
-                            resourceSnapshotDTO.getSnapshots()
-                        );
+                        user,
+                        resourceSnapshotDTO.getCurrencyCode(),
+                        resourceSnapshotDTO.getSnapshots()
+                    );
                 }
             }
         }
@@ -861,18 +861,18 @@ public class FinanceAccountService {
                     if (!prevSnap.getValue().equals(snap.getValue())) {
                         log.warn(
                             "Removing what looks to be a duplicate snapshot but different balance: " +
-                            s.getId() +
-                            "[" +
-                            s.getName() +
-                            "], Snapshot date: " +
-                            snap.getDate() +
-                            "=$" +
-                            snap.getValue() +
-                            ", whereas the previous snap " +
-                            prevSnap.getDate() +
-                            "=$" +
-                            prevSnap.getValue() +
-                            "."
+                                s.getId() +
+                                "[" +
+                                s.getName() +
+                                "], Snapshot date: " +
+                                snap.getDate() +
+                                "=$" +
+                                snap.getValue() +
+                                ", whereas the previous snap " +
+                                prevSnap.getDate() +
+                                "=$" +
+                                prevSnap.getValue() +
+                                "."
                         );
                     }
                 }
@@ -920,15 +920,15 @@ public class FinanceAccountService {
                             if (s != null) {
                                 log.info(
                                     "Adding account: " +
-                                    account.getName() +
-                                    "[" +
-                                    account.getId().toString() +
-                                    "] to sumAccountType-" +
-                                    account.getType() +
-                                    ": " +
-                                    s.getValue() +
-                                    " > " +
-                                    s.getFxToLocal()
+                                        account.getName() +
+                                        "[" +
+                                        account.getId().toString() +
+                                        "] to sumAccountType-" +
+                                        account.getType() +
+                                        ": " +
+                                        s.getValue() +
+                                        " > " +
+                                        s.getFxToLocal()
                                 );
                             }
                             //}

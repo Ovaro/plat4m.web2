@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet author="codex" id="20260610000100-1">
+        <createTable tableName="fin_tag">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_tagPK"/>
+            </column>
+            <column name="user_guid" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="normalized_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="metadata_json" type="jsonb"/>
+            <column name="serial_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+        </createTable>
+
+        <addUniqueConstraint
+            tableName="fin_tag"
+            columnNames="user_guid, normalized_name"
+            constraintName="UK_fin_tag_user_guid_normalized_name"/>
+
+        <createIndex indexName="IDX_fin_tag_user_guid_name" tableName="fin_tag">
+            <column name="user_guid"/>
+            <column name="name"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet author="codex" id="20260610000100-2">
+        <createTable tableName="fin_transaction_tag">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_transaction_tagPK"/>
+            </column>
+            <column name="transaction_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tag_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="INTEGER"/>
+            <column name="metadata_json" type="jsonb"/>
+        </createTable>
+
+        <addUniqueConstraint
+            tableName="fin_transaction_tag"
+            columnNames="transaction_id, tag_id"
+            constraintName="UK_fin_transaction_tag_transaction_id_tag_id"/>
+
+        <addForeignKeyConstraint
+            baseTableName="fin_transaction_tag"
+            baseColumnNames="transaction_id"
+            constraintName="FK_fin_transaction_tag_transaction_id"
+            referencedTableName="fin_transaction"
+            referencedColumnNames="id"
+            onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+            baseTableName="fin_transaction_tag"
+            baseColumnNames="tag_id"
+            constraintName="FK_fin_transaction_tag_tag_id"
+            referencedTableName="fin_tag"
+            referencedColumnNames="id"
+            onDelete="CASCADE"/>
+
+        <createIndex indexName="IDX_fin_transaction_tag_transaction_id" tableName="fin_transaction_tag">
+            <column name="transaction_id"/>
+        </createIndex>
+
+        <createIndex indexName="IDX_fin_transaction_tag_tag_id" tableName="fin_transaction_tag">
+            <column name="tag_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

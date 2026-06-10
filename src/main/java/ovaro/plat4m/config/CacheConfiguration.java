@@ -13,6 +13,10 @@ import tech.jhipster.config.JHipsterProperties;
 @EnableCaching
 public class CacheConfiguration {
 
+    public static final String FINANCE_TRANSACTION_EDITOR_CATEGORY_OPTIONS = "financeTransactionEditorCategoryOptions";
+    public static final String FINANCE_TRANSACTION_EDITOR_WHO_OPTIONS = "financeTransactionEditorWhoOptions";
+    public static final String FINANCE_TRANSACTION_EDITOR_PAYEE_OPTIONS = "financeTransactionEditorPayeeOptions";
+
     private final javax.cache.configuration.Configuration<Object, Object> jcacheConfiguration;
 
     public CacheConfiguration(JHipsterProperties jHipsterProperties) {
@@ -35,6 +39,9 @@ public class CacheConfiguration {
             createCache(cm, ovaro.plat4m.repository.UserRepository.USERS_BY_LOGIN_CACHE);
             createCache(cm, ovaro.plat4m.repository.UserRepository.USERS_BY_EMAIL_CACHE);
             createCache(cm, ovaro.plat4m.domain.Authority.class.getName());
+            createCache(cm, FINANCE_TRANSACTION_EDITOR_CATEGORY_OPTIONS);
+            createCache(cm, FINANCE_TRANSACTION_EDITOR_WHO_OPTIONS);
+            createCache(cm, FINANCE_TRANSACTION_EDITOR_PAYEE_OPTIONS);
             // jhipster-needle-ehcache-add-entry
         };
     }

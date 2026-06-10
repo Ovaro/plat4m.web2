@@ -33,8 +33,7 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        //config.enableSimpleBroker("/topic");
-        config.enableSimpleBroker("/topic", "/secured/user/queue/import");
+        config.enableSimpleBroker("/topic", "/queue");
         config.setUserDestinationPrefix("/secured/user");
     }
 
@@ -72,8 +71,13 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
                 if (request instanceof ServletServerHttpRequest) {
                     ServletServerHttpRequest servletRequest = (ServletServerHttpRequest) request;
                     attributes.put(IP_ADDRESS, servletRequest.getRemoteAddress());
+                    LOG.info(
+                        "WS beforeHandshake uri={}, principal={}, remoteAddress={}",
+                        servletRequest.getURI(),
+                        servletRequest.getPrincipal() != null ? servletRequest.getPrincipal().getName() : "null",
+                        servletRequest.getRemoteAddress()
+                    );
                 }
-                // LOG.info("WS Before Handshake");
                 return true;
             }
 
@@ -83,7 +87,13 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
                 ServerHttpResponse response,
                 WebSocketHandler wsHandler,
                 Exception exception
-            ) { //LOG.info("WS After Handshake");
+            ) {
+                LOG.info(
+                    "WS afterHandshake uri={}, principal={}, exception={}",
+                    request.getURI(),
+                    request.getPrincipal() != null ? request.getPrincipal().getName() : "null",
+                    exception != null ? exception.getMessage() : "none"
+                );
             }
         };
     }
@@ -98,7 +108,7 @@ public class WebsocketConfiguration implements WebSocketMessageBrokerConfigurer 
                     authorities.add(new SimpleGrantedAuthority(AuthoritiesConstants.ANONYMOUS));
                     principal = new AnonymousAuthenticationToken("WebsocketConfiguration", "anonymous", authorities);
                 }
-                //LOG.info("WS determineUser");
+                LOG.info("WS determineUser uri={}, principal={}", request.getURI(), principal.getName());
                 return principal;
             }
         };

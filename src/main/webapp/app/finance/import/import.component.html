@@ -29,24 +29,29 @@
     <div class="alert alert-success" *ngIf="success && finalStatus && finalStatus.importFinished">
       <strong>File Imported!</strong>
     </div>
+    <div class="alert alert-danger" *ngIf="error && errorMessage">
+      {{ errorMessage }}
+    </div>
 
     <jhi-alert-error></jhi-alert-error>
 
-    <file-upload
-      [control]="fileUploadControl"
-      [multiple]="false"
-      *ngIf="!isUploading && !(statuses.length > 0 && !finalStatus)"
-      class="m-t file-upload"
-    ></file-upload>
+    <file-upload [control]="fileUploadControl" [multiple]="false" *ngIf="!isImportBusy()" class="m-t file-upload"></file-upload>
 
-    <button class="p-button m-t" (click)="upload()" [disabled]="isUploading || (statuses.length > 0 && !finalStatus)">
+    <div class="m-t" *ngIf="selectedSourceId === 1">
+      <label class="form-label" for="import-password">Password (optional)</label>
+      <input
+        id="import-password"
+        class="form-control"
+        type="password"
+        [(ngModel)]="importPassword"
+        [disabled]="isImportBusy()"
+        autocomplete="current-password"
+      />
+    </div>
+
+    <button class="p-button m-t" (click)="upload()" [disabled]="isImportBusy()">
       Upload
-      <fa-icon
-        [icon]="'spinner'"
-        [fixedWidth]="true"
-        *ngIf="isUploading || (statuses.length > 0 && !finalStatus)"
-        [animation]="isUploading ? 'spin' : undefined"
-      ></fa-icon>
+      <fa-icon [icon]="'spinner'" [fixedWidth]="true" *ngIf="isImportBusy()" [animation]="isUploading ? 'spin' : undefined"></fa-icon>
     </button>
     <div class="m-t"></div>
     <h3 *ngIf="statuses.length > 0 && !finalStatus">Live Import Details</h3>

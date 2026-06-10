@@ -27,8 +27,9 @@
   </div>
 
   <div class="row m-t">
-    <div class="col col-md-auto">
+    <div class="col col-md-auto pie-chart-column">
       <apx-chart
+        *ngIf="showPieChart && holdings && holdings.length > 0"
         #pieChart
         [series]="pieChartOptions.series!"
         [chart]="pieChartOptions.chart!"
@@ -39,7 +40,9 @@
         [plotOptions]="pieChartOptions.plotOptions!"
         [stroke]="pieChartOptions.options!.stroke!"
         [tooltip]="pieChartOptions.tooltip!"
+        [theme]="pieChartOptions.theme!"
       ></apx-chart>
+      <p-skeleton *ngIf="!holdings || holdings.length === 0" width="300px" height="220px"></p-skeleton>
     </div>
     <div class="col-sm">
       <div class="row">
@@ -614,6 +617,7 @@
               [title]="treemapChartOptions.title!"
               [plotOptions]="treemapChartOptions.plotOptions!"
               [tooltip]="treemapChartOptions.tooltip!"
+              [theme]="treemapChartOptions.theme!"
             ></apx-chart>
           </div>
         </div>

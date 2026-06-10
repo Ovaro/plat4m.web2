@@ -7,12 +7,12 @@ Navbar
 ========================================================================== */
 
 .navbar-container {
-  box-shadow: 0 0rem 1rem rgb(0 0 0 / 15%) !important;
+  //box-shadow: 0 0rem 1rem rgb(0 0 0 / 15%) !important;
 }
 
 .navbar-dark {
   //background-color: var(--app-colours-background-med-dark);
-  background-color: var(--ps-colors-background-dark-3);
+  //background-color: var(--ps-colors-background-dark-3);
 }
 
 .navbar-light {
@@ -118,7 +118,7 @@ Logo styles
 ========================================================================== */
 .logo-img {
   height: 45px;
-  width: 45px;
+  width: 52px;
   display: inline-block;
   vertical-align: middle;
   background: url('../../../content/images/plat4m.png') no-repeat center center;

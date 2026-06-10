@@ -146,4 +146,8 @@ public interface Transaction {
     public abstract Double getRateToBase();
 
     public abstract void setRateToBase(Double rateToBase);
+
+    public abstract void setWhoId(Integer whoId);
+
+    public abstract Integer getWhoId();
 }
