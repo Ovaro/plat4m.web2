@@ -1,0 +1,48 @@
+.settings-general {
+  max-width: 840px;
+}
+
+.settings-general__header {
+  margin-bottom: 1.5rem;
+}
+
+.settings-general__title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.settings-general__subtitle {
+  color: var(--text-secondary-color);
+  margin: 0.5rem 0 0;
+}
+
+.settings-general__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.settings-general__section {
+  border-top: 1px solid rgba(127, 127, 127, 0.16);
+  padding: 1.5rem 0 0;
+}
+
+.settings-general__section-heading {
+  margin-bottom: 1.25rem;
+}
+
+.settings-general__section-heading h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.settings-general__section-heading p {
+  color: var(--text-secondary-color);
+  margin: 0.35rem 0 0;
+}
+
+.settings-general__submit {
+  align-self: flex-start;
+}

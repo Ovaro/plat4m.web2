@@ -1,5 +1,5 @@
 .transactions-container {
-  --transactions-editor-height: min(21rem, 42vh);
+  --transactions-editor-height: 270px; // min(17rem, 34vh)
   position: relative;
   height: 100%;
   width: 100%;
@@ -39,6 +39,25 @@ jhi-transactions {
   height: var(--transactions-editor-height);
   overflow: hidden;
   //box-shadow: 0 -18px 36px rgba(15, 23, 42, 0.14);
+}
+
+.transactions-editor-error {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  z-index: 35;
+  max-width: min(28rem, calc(100% - 1.5rem));
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.65rem;
+  background: rgba(220, 53, 69, 0.12);
+  color: #a61e2d;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+:host-context(.theme-dark) .transactions-editor-error {
+  background: rgba(255, 107, 107, 0.16);
+  color: #ffb3b3;
 }
 
 .transactions-balance {
@@ -96,6 +115,67 @@ jhi-transactions {
   font-weight: 600;
 }
 
+.transactions-columns-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 45px;
+  height: 35px;
+  margin-top: 6px;
+  border-color: var(--app-colours-border-low-light);
+  background-color: var(--app-colours-background-high-light);
+  color: var(--ps-colors-text-icon-low-on-light);
+  padding: 0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.transactions-columns-toggle:hover,
+.transactions-columns-toggle:focus,
+.transactions-columns-toggle.show {
+  border-color: var(--app-colours-primary);
+  color: var(--app-colours-primary);
+  background-color: var(--app-colours-background-med-light);
+}
+
+.transactions-columns-menu {
+  gap: 0.1rem;
+  min-width: 10rem;
+  margin-top: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid var(--app-colours-border-low-light);
+  border-radius: 8px;
+  background-color: var(--app-colours-background-high-light);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+
+.transactions-columns-menu.show {
+  display: grid;
+}
+
+.transactions-columns-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.35rem 0.4rem;
+  border-radius: 6px;
+  color: var(--app-colours-primary-text-light);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.transactions-columns-menu__item:hover {
+  background-color: var(--app-colours-background-med-light);
+}
+
+.transactions-columns-menu__item input {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin: 0;
+}
+
 .transactions-add-button:hover,
 .transactions-add-button:focus {
   border-color: var(--app-colours-primary);
@@ -144,10 +224,33 @@ jhi-transactions {
   color: var(--ps-colors-text-icon-low-on-dark);
 }
 
+:host-context(.theme-dark) .transactions-columns-toggle {
+  border-color: var(--app-colours-border-low-dark);
+  background-color: var(--app-colours-background-high-dark);
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
 :host-context(.theme-dark) .transactions-add-button:hover,
-:host-context(.theme-dark) .transactions-add-button:focus {
+:host-context(.theme-dark) .transactions-add-button:focus,
+:host-context(.theme-dark) .transactions-columns-toggle:hover,
+:host-context(.theme-dark) .transactions-columns-toggle:focus,
+:host-context(.theme-dark) .transactions-columns-toggle.show {
   border-color: var(--app-colours-primary);
   color: var(--app-colours-primary);
+  background-color: var(--app-colours-background-med-dark);
+}
+
+:host-context(.theme-dark) .transactions-columns-menu {
+  border-color: var(--app-colours-border-low-dark);
+  background-color: var(--app-colours-background-high-dark);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+}
+
+:host-context(.theme-dark) .transactions-columns-menu__item {
+  color: var(--app-colours-primary-text-dark);
+}
+
+:host-context(.theme-dark) .transactions-columns-menu__item:hover {
   background-color: var(--app-colours-background-med-dark);
 }
 
@@ -247,6 +350,6 @@ jhi-transactions {
 
 @media (max-width: 991px) {
   .transactions-container {
-    --transactions-editor-height: min(30rem, 55vh);
+    --transactions-editor-height: 330px; // min(30rem, 55vh)
   }
 }

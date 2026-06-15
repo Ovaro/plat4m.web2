@@ -1,0 +1,74 @@
+<div class="api-keys-settings">
+  <div class="api-keys-settings__header">
+    <div>
+      <h1 class="api-keys-settings__title">API Keys</h1>
+      <p class="api-keys-settings__subtitle">Create bearer tokens for API access. New keys default to a 3 month expiry.</p>
+    </div>
+  </div>
+
+  <section class="api-keys-settings__section">
+    <div class="api-keys-settings__section-heading">
+      <h2>Create API key</h2>
+      <p>Use these tokens as `Authorization: Bearer &lt;token&gt;` when calling the app APIs.</p>
+    </div>
+
+    <jhi-alert-error />
+
+    <form class="api-keys-settings__form" [formGroup]="createForm" (ngSubmit)="createApiKey()">
+      <div class="mb-3">
+        <label class="form-label" for="api-key-name">Name</label>
+        <input id="api-key-name" class="form-control" type="text" formControlName="name" placeholder="CLI integration" />
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="api-key-expiry">Expiry date</label>
+        <input id="api-key-expiry" class="form-control" type="date" formControlName="expiresAt" />
+      </div>
+
+      <button class="btn btn-primary" type="submit" [disabled]="isSaving() || createForm.invalid">
+        {{ isSaving() ? 'Creating...' : 'Create API key' }}
+      </button>
+    </form>
+
+    @if (createdToken(); as createdTokenValue) {
+      <div class="api-keys-settings__token-panel">
+        <h3>Copy this token now</h3>
+        <p>This is the only time the full API key will be shown.</p>
+        <textarea class="form-control api-keys-settings__token-textarea" readonly [value]="createdTokenValue.token"></textarea>
+      </div>
+    }
+  </section>
+
+  <section class="api-keys-settings__section">
+    <div class="api-keys-settings__section-heading">
+      <h2>Active keys</h2>
+      <p>Remove any key you no longer trust or need.</p>
+    </div>
+
+    @if (isLoading()) {
+      <p class="api-keys-settings__muted">Loading API keys...</p>
+    } @else if (apiKeys().length === 0) {
+      <p class="api-keys-settings__muted">No API keys have been created yet.</p>
+    } @else {
+      <div class="api-keys-settings__list">
+        @for (apiKey of apiKeys(); track apiKey.id) {
+          <div class="api-keys-settings__list-row">
+            <div class="api-keys-settings__list-main">
+              <h3>{{ apiKey.name }}</h3>
+              <p>Created {{ apiKey.createdDate | date: 'mediumDate' }}. Expires {{ apiKey.expiresAt | date: 'mediumDate' }}.</p>
+            </div>
+
+            <button
+              class="btn btn-outline-danger btn-sm"
+              type="button"
+              [disabled]="removingKeyId() === apiKey.id"
+              (click)="removeApiKey(apiKey.id)"
+            >
+              {{ removingKeyId() === apiKey.id ? 'Removing...' : 'Remove' }}
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </section>
+</div>

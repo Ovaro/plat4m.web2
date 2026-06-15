@@ -203,6 +203,7 @@ export class FinancialTransaction {
     public tagsDisplay?: string | null,
     public whoId?: string | null,
     public whoName?: string | null,
+    public accountId?: string | null,
   ) {}
 }
 

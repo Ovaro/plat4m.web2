@@ -1,0 +1,211 @@
+<div class="standard-page-container manage-page">
+  <div class="manage-page__header">
+    <div>
+      <div class="breadcrumbs">
+        <div class="primary-breadcrumb">FX Rates</div>
+      </div>
+      <div class="manage-page__subtitle">Maintain exchange rates used for foreign-currency account values.</div>
+    </div>
+    <button type="button" class="manage-button manage-button--primary" (click)="openAddDialog()">
+      <fa-icon icon="plus"></fa-icon>
+      <span>Add</span>
+    </button>
+  </div>
+
+  <form class="manage-import-card" [formGroup]="importForm" (ngSubmit)="updateFromFrankfurter()">
+    <div>
+      <div class="manage-table__primary">Update from Frankfurter</div>
+      <div class="manage-page__subtitle">Public no-key exchange-rate API. Leave date blank for latest available rates.</div>
+    </div>
+    <label>
+      <span>Base</span>
+      <input type="text" maxlength="3" formControlName="baseCurrency" />
+    </label>
+    <label class="manage-import-card__quotes">
+      <span>Quotes</span>
+      <input type="text" formControlName="quoteCurrencies" />
+    </label>
+    <label>
+      <span>Date</span>
+      <input type="date" formControlName="date" />
+    </label>
+    <button type="submit" class="manage-button manage-button--primary" [disabled]="isImporting">
+      <fa-icon icon="sync"></fa-icon>
+      <span>{{ isImporting ? 'Updating...' : 'Update Rates' }}</span>
+    </button>
+  </form>
+
+  <div class="manage-toolbar">
+    <label class="manage-search">
+      <fa-icon icon="search"></fa-icon>
+      <input type="search" placeholder="Search FX pairs" [(ngModel)]="searchText" />
+    </label>
+    <button type="button" class="manage-button" (click)="load()" [disabled]="isLoading">
+      <fa-icon icon="sync"></fa-icon>
+      <span>Refresh</span>
+    </button>
+  </div>
+
+  <div *ngIf="errorMessage" class="manage-alert">{{ errorMessage }}</div>
+  <div *ngIf="importMessage" class="manage-alert manage-alert--success">{{ importMessage }}</div>
+
+  <div class="manage-card">
+    <div class="manage-table manage-table--fx">
+      <div class="manage-table__row manage-table__row--header">
+        <div>Pair</div>
+        <div>Latest date</div>
+        <div>Latest rate</div>
+        <div class="manage-table__actions">Actions</div>
+      </div>
+      <div *ngIf="isLoading" class="manage-empty">Loading FX rates...</div>
+      <div *ngIf="!isLoading && filteredRates.length === 0" class="manage-empty">No FX rates found.</div>
+      <div *ngFor="let rate of filteredRates" class="manage-table__row manage-table__row--clickable" (click)="openHistoryDialog(rate)">
+        <div>
+          <div class="manage-table__primary">{{ rate.fromIsoCode }} / {{ rate.toIsoCode }}</div>
+          <div class="manage-table__secondary">Click for history</div>
+        </div>
+        <div>{{ getDateInputValue(rate.date) }}</div>
+        <div class="manage-rate">{{ formatRate(rate.rate) }}</div>
+        <div class="manage-table__actions">
+          <button type="button" class="manage-icon-button" title="Edit" (click)="openEditDialog(rate); $event.stopPropagation()">
+            <fa-icon icon="pencil-alt"></fa-icon>
+          </button>
+          <button
+            type="button"
+            class="manage-icon-button manage-icon-button--danger"
+            title="Delete"
+            (click)="confirmDelete(rate); $event.stopPropagation()"
+          >
+            <fa-icon icon="trash-alt"></fa-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p-dialog
+  [header]="editingRate ? 'Edit FX rate' : 'Add FX rate'"
+  [(visible)]="editorVisible"
+  [modal]="true"
+  [style]="{ width: '32rem' }"
+  [draggable]="false"
+  (onHide)="resetEditorState()"
+>
+  <form class="manage-form" [formGroup]="form" (ngSubmit)="save()">
+    <label>
+      <span>Date</span>
+      <input type="date" formControlName="date" autofocus />
+    </label>
+    <label>
+      <span>From currency</span>
+      <input type="text" maxlength="3" formControlName="fromIsoCode" />
+    </label>
+    <label>
+      <span>To currency</span>
+      <input type="text" maxlength="3" formControlName="toIsoCode" />
+    </label>
+    <label>
+      <span>Rate</span>
+      <input type="number" min="0" step="0.000001" formControlName="rate" />
+    </label>
+    <div class="manage-dialog-actions">
+      <button type="button" class="manage-button" (click)="editorVisible = false; resetEditorState()" [disabled]="isSaving">Cancel</button>
+      <button type="submit" class="manage-button manage-button--primary" [disabled]="isSaving">Save</button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog header="Delete FX rate?" [(visible)]="deleteDialogVisible" [modal]="true" [style]="{ width: '28rem' }" [draggable]="false">
+  <p>
+    Delete {{ deleteCandidate?.fromIsoCode }}/{{ deleteCandidate?.toIsoCode }} for
+    {{ deleteCandidate ? getDateInputValue(deleteCandidate.date) : '' }}?
+  </p>
+  <div class="manage-dialog-actions">
+    <button type="button" class="manage-button" (click)="deleteCandidate = null" [disabled]="isSaving">Cancel</button>
+    <button type="button" class="manage-button manage-button--danger" (click)="deleteRate()" [disabled]="isSaving">Delete</button>
+  </div>
+</p-dialog>
+
+<p-dialog
+  [header]="historyDialogTitle"
+  [(visible)]="historyDialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(70rem, 96vw)' }"
+  styleClass="fx-rates-history-dialog"
+  (onHide)="closeHistoryDialog()"
+>
+  <div class="manage-toolbar manage-toolbar--dialog">
+    <div class="fx-rates-history-dialog__summary" *ngIf="selectedHistoryRate">
+      <div class="manage-table__primary">{{ historyFromIsoCode }} / {{ historyToIsoCode }}</div>
+      <div class="manage-page__subtitle">
+        Latest: {{ visibleHistoryRates.length > 0 ? formatRate(visibleHistoryRates[0].rate) : 'N/A' }}
+      </div>
+    </div>
+    <div class="fx-rates-history-dialog__actions">
+      <button type="button" class="manage-button manage-button--primary" (click)="openHistoryAddDialog()" [disabled]="!selectedHistoryRate">
+        <fa-icon icon="plus"></fa-icon>
+        <span>Add rate</span>
+      </button>
+      <button
+        type="button"
+        class="manage-button"
+        (click)="toggleHistoryDirection()"
+        [disabled]="isHistoryLoading || historyRates.length === 0"
+      >
+        <fa-icon icon="exchange-alt"></fa-icon>
+        <span>Switch direction</span>
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="historyErrorMessage" class="manage-alert">{{ historyErrorMessage }}</div>
+
+  <div class="fx-rates-history-dialog__content" *ngIf="!historyErrorMessage">
+    <div class="manage-card fx-rates-history-dialog__chart-card">
+      <div *ngIf="isHistoryLoading" class="manage-empty">Loading FX history...</div>
+      <div *ngIf="!isHistoryLoading && historyRates.length === 0" class="manage-empty">No historical rates found for this pair.</div>
+      <apx-chart
+        *ngIf="!isHistoryLoading && historyRates.length > 0"
+        class="fx-rates-history-dialog__chart"
+        [series]="historyChartOptions.series!"
+        [chart]="historyChartOptions.chart!"
+        [stroke]="historyChartOptions.stroke!"
+        [dataLabels]="historyChartOptions.dataLabels!"
+        [markers]="historyChartOptions.markers!"
+        [tooltip]="historyChartOptions.tooltip!"
+        [xaxis]="historyChartOptions.xaxis!"
+        [yaxis]="historyChartOptions.yaxis!"
+        [grid]="historyChartOptions.grid!"
+        [colors]="historyChartOptions.colors!"
+      ></apx-chart>
+    </div>
+
+    <div class="manage-card manage-card--dialog">
+      <div class="manage-table manage-table--fx-history">
+        <div class="manage-table__row manage-table__row--header">
+          <div>Date</div>
+          <div>Pair</div>
+          <div>Rate</div>
+          <div class="manage-table__actions">Actions</div>
+        </div>
+        <div *ngIf="isHistoryLoading" class="manage-empty">Loading FX history...</div>
+        <div *ngIf="!isHistoryLoading && visibleHistoryRates.length === 0" class="manage-empty">No historical rates found.</div>
+        <div *ngFor="let rate of historyRates" class="manage-table__row">
+          <div>{{ getDateInputValue(rate.date) }}</div>
+          <div>{{ historyFromIsoCode }} / {{ historyToIsoCode }}</div>
+          <div class="manage-rate">{{ formatRate(transformRate(rate.rate)) }}</div>
+          <div class="manage-table__actions">
+            <button type="button" class="manage-icon-button" title="Edit" (click)="openHistoryEditDialog(rate)">
+              <fa-icon icon="pencil-alt"></fa-icon>
+            </button>
+            <button type="button" class="manage-icon-button manage-icon-button--danger" title="Delete" (click)="confirmDelete(rate)">
+              <fa-icon icon="trash-alt"></fa-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</p-dialog>

@@ -1,0 +1,79 @@
+<div class="ai-assistant">
+  <header class="ai-assistant__header">
+    <p class="ai-assistant__eyebrow">AI Assistant</p>
+    <h1>Finance copilot</h1>
+    <p class="ai-assistant__subtitle">Ask for analysis, patterns, summaries, or next steps across your finance workspace.</p>
+  </header>
+
+  <jhi-alert-error />
+
+  <main class="ai-assistant__chat" aria-label="AI assistant conversation">
+    <div class="ai-assistant__messages">
+      <section class="ai-assistant__hero">
+        <div class="ai-assistant__status">
+          @if (model()) {
+            <span>{{ model() }}</span>
+          }
+        </div>
+
+        <div class="ai-assistant__prompt-list" aria-label="Suggested prompts">
+          @for (prompt of quickPrompts(); track prompt) {
+            <button type="button" class="ai-assistant__prompt-chip" (click)="sendSuggestedQuestion(prompt)">
+              {{ prompt }}
+            </button>
+          }
+        </div>
+      </section>
+
+      @for (message of messages(); track trackMessage($index)) {
+        <article
+          class="ai-assistant__message"
+          [class.ai-assistant__message--user]="message.role === 'user'"
+          [class.ai-assistant__message--error]="message.tone === 'error'"
+        >
+          <div class="ai-assistant__message-avatar" aria-hidden="true">{{ message.role === 'user' ? 'Y' : 'AI' }}</div>
+          <div class="ai-assistant__bubble">
+            <div class="ai-assistant__message-role">{{ message.role === 'user' ? 'You' : 'Assistant' }}</div>
+            <div class="ai-assistant__message-content" [innerHTML]="renderMessageContent(message)"></div>
+
+            @if (message.navigationSuggestions?.length) {
+              <div class="ai-assistant__suggestions">
+                @for (suggestion of message.navigationSuggestions!; track trackSuggestion($index)) {
+                  <a class="ai-assistant__suggestion-card" [routerLink]="suggestion.route">
+                    <span class="ai-assistant__suggestion-label">{{ suggestion.label }}</span>
+                    <span class="ai-assistant__suggestion-copy">{{ suggestion.description }}</span>
+                  </a>
+                }
+              </div>
+            }
+          </div>
+        </article>
+      }
+
+      @if (isSending()) {
+        <article class="ai-assistant__message">
+          <div class="ai-assistant__message-avatar" aria-hidden="true">AI</div>
+          <div class="ai-assistant__bubble">
+            <div class="ai-assistant__message-role">Assistant</div>
+            <p>Reviewing the latest finance context...</p>
+          </div>
+        </article>
+      }
+    </div>
+
+    <form class="ai-assistant__composer" (ngSubmit)="sendMessage()">
+      <textarea
+        #messageInput
+        name="message"
+        [(ngModel)]="draft"
+        rows="3"
+        maxlength="2000"
+        placeholder="Message Finance copilot"
+        (keydown)="handleComposerKeydown($event)"
+      ></textarea>
+      <button type="submit" class="btn btn-primary" [disabled]="!draft.trim() || isSending()">
+        {{ isSending() ? 'Thinking...' : 'Send' }}
+      </button>
+    </form>
+  </main>
+</div>

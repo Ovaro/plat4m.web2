@@ -7,10 +7,15 @@ import { transactionsBaseRoute, transactionsRoute } from './transactions/transac
 import { investmentPortfolioBaseRoute, investmentPortfolioRoute } from './investment-portfolio/investment-portfolio.route';
 import { investmentBaseRoute, investmentRoute } from './investment/investment.route';
 import { importRoute } from './import/import.route';
+import { categoriesRoute } from './categories/categories.route';
+import { payeesRoute } from './payees/payees.route';
+import { fxRatesRoute } from './fx-rates/fx-rates.route';
+import { aiAssistantRoute } from './ai-assistant/ai-assistant.route';
 
 const routes: Routes = [
   accountListRoute,
   plannerRoute,
+  aiAssistantRoute,
   dashboardRoute,
   transactionsBaseRoute,
   transactionsRoute,
@@ -18,6 +23,9 @@ const routes: Routes = [
   investmentPortfolioRoute,
   investmentBaseRoute,
   investmentRoute,
+  categoriesRoute,
+  payeesRoute,
+  fxRatesRoute,
   importRoute,
 ];
 

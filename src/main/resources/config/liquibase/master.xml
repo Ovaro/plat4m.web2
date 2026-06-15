@@ -13,6 +13,9 @@
 
     <include file="config/liquibase/changelog/00000000000000_initial_schema.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260610000100_add_transaction_tags.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260612000100_add_user_api_keys.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260613000100_add_user_ai_settings.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260615000100_add_fin_xfer.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-changelog - JHipster will add liquibase changelogs here -->
     <!-- jhipster-needle-liquibase-add-constraints-changelog - JHipster will add liquibase constraints changelogs here -->
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->

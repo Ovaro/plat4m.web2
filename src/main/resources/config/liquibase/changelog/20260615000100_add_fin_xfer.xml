@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet author="codex" id="20260615000100-1">
+        <createTable tableName="fin_xfer">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_xferPK"/>
+            </column>
+            <column name="user_guid" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="from_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="link_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint
+            tableName="fin_xfer"
+            columnNames="from_id"
+            constraintName="UK_fin_xfer_from_id"/>
+
+        <addUniqueConstraint
+            tableName="fin_xfer"
+            columnNames="link_id"
+            constraintName="UK_fin_xfer_link_id"/>
+
+        <addForeignKeyConstraint
+            baseTableName="fin_xfer"
+            baseColumnNames="from_id"
+            constraintName="FK_fin_xfer_from_id"
+            referencedTableName="fin_transaction"
+            referencedColumnNames="id"
+            onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+            baseTableName="fin_xfer"
+            baseColumnNames="link_id"
+            constraintName="FK_fin_xfer_link_id"
+            referencedTableName="fin_transaction"
+            referencedColumnNames="id"
+            onDelete="CASCADE"/>
+
+        <createIndex indexName="IDX_fin_xfer_user_guid" tableName="fin_xfer">
+            <column name="user_guid"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

@@ -11,13 +11,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import ovaro.plat4m.management.SecurityMetersService;
+import ovaro.plat4m.security.ApiKeyJwtValidator;
 
 @Configuration
 public class SecurityJwtConfiguration {
@@ -28,8 +31,9 @@ public class SecurityJwtConfiguration {
     private String jwtKey;
 
     @Bean
-    public JwtDecoder jwtDecoder(SecurityMetersService metersService) {
+    public JwtDecoder jwtDecoder(SecurityMetersService metersService, ApiKeyJwtValidator apiKeyJwtValidator) {
         NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withSecretKey(getSecretKey()).macAlgorithm(JWT_ALGORITHM).build();
+        jwtDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefault(), apiKeyJwtValidator));
         return token -> {
             try {
                 return jwtDecoder.decode(token);

@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 
 import { Account } from 'app/core/auth/account.model';
 import { AccountService } from 'app/core/auth/account.service';
+import { ThemeService } from 'app/layouts/main/theme.service';
 import { AgGridThemeService } from 'app/shared/ag-grid/ag-grid-theme.service';
 
 import Settings from './settings';
@@ -40,6 +41,13 @@ describe('Settings', () => {
           useValue: {
             theme: vitest.fn(() => 'alpine'),
             setTheme: vitest.fn(),
+          },
+        },
+        {
+          provide: ThemeService,
+          useValue: {
+            preference: vitest.fn(() => 'auto'),
+            setThemePreference: vitest.fn(),
           },
         },
       ],

@@ -3,6 +3,7 @@ package ovaro.plat4m.service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import ovaro.plat4m.domain.FinancePayee;
 import ovaro.plat4m.repository.FinanceCategoryRepository;
 import ovaro.plat4m.repository.FinancePayeeRepository;
 import ovaro.plat4m.service.dto.FinanceResourceDTO;
+import ovaro.plat4m.service.dto.FinanceTreeNodeDTO;
 
 @Service
 public class FinanceTransactionEditorLookupCacheService {
@@ -35,9 +37,21 @@ public class FinanceTransactionEditorLookupCacheService {
         return getCategoryOptionsByClassification(userGuid, EDITOR_CATEGORY_CLASSIFICATION_ID);
     }
 
+    @Cacheable(cacheNames = CacheConfiguration.FINANCE_TRANSACTION_EDITOR_CATEGORY_TREE_OPTIONS, key = "#userGuid")
+    public List<FinanceTreeNodeDTO> getCategoryTreeOptions(String userGuid) {
+        List<FinanceTreeNodeDTO> nodes = getCategoryTreeOptionsByClassification(userGuid, EDITOR_CATEGORY_CLASSIFICATION_ID);
+        nodes.forEach(node -> node.setSelectable(false));
+        return nodes;
+    }
+
     @Cacheable(cacheNames = CacheConfiguration.FINANCE_TRANSACTION_EDITOR_WHO_OPTIONS, key = "#userGuid")
     public List<FinanceResourceDTO> getWhoOptions(String userGuid) {
         return getCategoryOptionsByClassification(userGuid, EDITOR_WHO_CLASSIFICATION_ID);
+    }
+
+    @Cacheable(cacheNames = CacheConfiguration.FINANCE_TRANSACTION_EDITOR_WHO_TREE_OPTIONS, key = "#userGuid")
+    public List<FinanceTreeNodeDTO> getWhoTreeOptions(String userGuid) {
+        return getCategoryTreeOptionsByClassification(userGuid, EDITOR_WHO_CLASSIFICATION_ID);
     }
 
     @Cacheable(cacheNames = CacheConfiguration.FINANCE_TRANSACTION_EDITOR_PAYEE_OPTIONS, key = "#userGuid")
@@ -57,8 +71,18 @@ public class FinanceTransactionEditorLookupCacheService {
         // Cache eviction handled by annotation.
     }
 
+    @CacheEvict(cacheNames = CacheConfiguration.FINANCE_TRANSACTION_EDITOR_CATEGORY_TREE_OPTIONS, key = "#userGuid")
+    public void invalidateCategoryTreeOptions(String userGuid) {
+        // Cache eviction handled by annotation.
+    }
+
     @CacheEvict(cacheNames = CacheConfiguration.FINANCE_TRANSACTION_EDITOR_WHO_OPTIONS, key = "#userGuid")
     public void invalidateWhoOptions(String userGuid) {
+        // Cache eviction handled by annotation.
+    }
+
+    @CacheEvict(cacheNames = CacheConfiguration.FINANCE_TRANSACTION_EDITOR_WHO_TREE_OPTIONS, key = "#userGuid")
+    public void invalidateWhoTreeOptions(String userGuid) {
         // Cache eviction handled by annotation.
     }
 
@@ -97,5 +121,30 @@ public class FinanceTransactionEditorLookupCacheService {
         }
 
         return flattenedCategories;
+    }
+
+    private List<FinanceTreeNodeDTO> getCategoryTreeOptionsByClassification(String userGuid, Integer classificationId) {
+        List<FinanceCategory> categories = this.categoryRepository.findAllByClassificationIdAndUserGuid(classificationId, userGuid);
+        categories.sort(Comparator.comparing(FinanceCategory::getName, String.CASE_INSENSITIVE_ORDER));
+
+        return categories
+            .stream()
+            .filter(category -> category.getParent() == null)
+            .map(category -> buildTreeNode(category, categories))
+            .collect(Collectors.toList());
+    }
+
+    private FinanceTreeNodeDTO buildTreeNode(FinanceCategory category, List<FinanceCategory> allCategories) {
+        FinanceTreeNodeDTO node = new FinanceTreeNodeDTO(category.getId().toString(), category.getName());
+        List<FinanceTreeNodeDTO> children = allCategories
+            .stream()
+            .filter(candidate -> candidate.getParent() != null && candidate.getParent().getId().equals(category.getId()))
+            .sorted(Comparator.comparing(FinanceCategory::getName, String.CASE_INSENSITIVE_ORDER))
+            .map(candidate -> buildTreeNode(candidate, allCategories))
+            .collect(Collectors.toList());
+
+        node.setChildren(children);
+        node.setLeaf(children.isEmpty());
+        return node;
     }
 }

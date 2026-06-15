@@ -13,6 +13,12 @@
   border-top: 1px solid var(--app-colours-border-low-light);
 }
 
+.transaction-editor--dialog {
+  height: auto;
+  min-height: 0;
+  border-top: 0;
+}
+
 :host-context(.theme-dark) .transaction-editor {
   background: var(--app-colours-background-high-dark);
   border-top-color: var(--app-colours-border-low-dark);
@@ -63,11 +69,11 @@
 }
 
 :host ::ng-deep .transaction-editor__type-toggle.p-togglebutton {
-  height: 35px;
-  padding: 0.2rem 0.8rem;
+  height: 25px;
+  padding: 0.1rem 0.5rem;
   border-radius: 0;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.6rem;
+  font-weight: 400;
 }
 
 .transaction-editor__close {
@@ -152,6 +158,37 @@
 
 .transaction-editor__field--amount {
   grid-column: 3;
+}
+
+.transaction-editor__field-row--details {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(13rem, 1.35fr) minmax(10rem, 1fr) minmax(9rem, 0.8fr);
+  gap: 0.45rem 0.6rem;
+  align-items: end;
+}
+
+.transaction-editor__field-row--details .transaction-editor__field {
+  min-width: 0;
+}
+
+.transaction-editor__field-row--details .transaction-editor__field--details-amount {
+  grid-column: 3;
+}
+
+.transaction-editor__field-cluster {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.transaction-editor__field-cluster--tags {
+  grid-template-columns: minmax(4.5rem, 0.42fr) minmax(7rem, 1fr);
+  align-items: end;
+}
+
+.transaction-editor__field-cluster--who-only {
+  grid-template-columns: 1fr;
 }
 
 .transaction-editor__field,
@@ -281,6 +318,46 @@
   font-weight: 500;
 }
 
+.transaction-editor__split-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 2rem;
+  padding: 0.28rem 0.6rem;
+  border-radius: 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.transaction-editor__split-button--compact {
+  justify-content: center;
+  padding-inline: 0.7rem;
+}
+
+.transaction-editor__category-picker,
+.transaction-editor__split-category {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.transaction-editor__category-picker p-treeselect,
+.transaction-editor__split-category p-treeselect {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.transaction-editor__field-action,
+.transaction-editor__split-category-add {
+  min-height: 2rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 :host-context(.theme-dark) .transaction-editor__summary {
   border-color: var(--app-colours-border-low-dark);
   background: color-mix(in srgb, var(--app-colours-background-med-dark) 82%, black);
@@ -317,6 +394,26 @@
   grid-column: 1 / -1;
 }
 
+.transaction-editor__field-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+
+.transaction-editor__field-row--details {
+  display: grid;
+  width: 100%;
+}
+
+.transaction-editor__field-row--full {
+  grid-column: 1 / -1;
+}
+
+.transaction-editor__field-row--full .transaction-editor__field--full {
+  flex: 1 1 auto;
+  grid-column: auto;
+}
+
 :host ::ng-deep .transaction-editor__select {
   min-height: 2rem;
   border: 1px solid var(--app-colours-border-low-light);
@@ -331,24 +428,25 @@
 }
 
 :host ::ng-deep .transaction-editor__select .p-select-label,
+:host ::ng-deep .transaction-editor__select .p-treeselect-label,
 :host ::ng-deep .transaction-editor__select input {
   padding: 0.28rem 0.6rem;
   font-size: 0.72rem;
 }
 
 :host ::ng-deep .transaction-editor__select .p-select-dropdown,
-:host ::ng-deep .transaction-editor__select .p-autocomplete-dropdown {
+:host ::ng-deep .transaction-editor__select .p-treeselect-dropdown {
   width: 2rem;
   color: var(--ps-colors-text-icon-low-on-light);
 }
 
 :host-context(.theme-dark) ::ng-deep .transaction-editor__select .p-select-dropdown,
-:host-context(.theme-dark) ::ng-deep .transaction-editor__select .p-autocomplete-dropdown {
+:host-context(.theme-dark) ::ng-deep .transaction-editor__select .p-treeselect-dropdown {
   color: var(--ps-colors-text-icon-low-on-dark);
 }
 
 :host ::ng-deep .transaction-editor__select .p-select-clear-icon,
-:host ::ng-deep .transaction-editor__select .p-autocomplete-clear-icon {
+:host ::ng-deep .transaction-editor__select .p-treeselect-clear-icon {
   inset-inline-end: 2rem;
 }
 
@@ -367,7 +465,31 @@
   font-size: 0.72rem;
 }
 
+:host ::ng-deep .transaction-editor__select .p-treeselect-label {
+  min-height: 2rem;
+  line-height: 1.2;
+}
+
+.transaction-editor__category-value {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-editor__category-value--placeholder {
+  color: var(--ps-colors-text-icon-low-on-light);
+}
+
+:host-context(.theme-dark) .transaction-editor__category-value--placeholder {
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
 :host-context(.theme-dark) ::ng-deep .transaction-editor__select .p-autocomplete-input {
+  color: var(--app-colours-primary-text-dark);
+}
+
+:host-context(.theme-dark) ::ng-deep .transaction-editor__select .p-treeselect-label {
   color: var(--app-colours-primary-text-dark);
 }
 
@@ -376,10 +498,12 @@
   flex-direction: row;
   align-items: center;
   align-self: end;
+  flex: 0 0 auto;
   gap: 0.35rem;
   padding-bottom: 0.15rem;
   font-size: 0.72rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .transaction-editor__toggle input {
@@ -404,6 +528,197 @@
   font-weight: 600;
 }
 
+.transaction-editor__dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.transaction-editor__dialog {
+  width: min(68rem, 100%);
+  max-height: min(42rem, calc(100vh - 3rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 1.1rem;
+  background: var(--app-colours-background-high-light);
+  box-shadow: 0 1.5rem 4rem rgba(15, 23, 42, 0.28);
+}
+
+.transaction-editor__dialog--category {
+  width: min(34rem, 100%);
+}
+
+:host-context(.theme-dark) .transaction-editor__dialog {
+  background: var(--app-colours-background-high-dark);
+}
+
+.transaction-editor__dialog-header,
+.transaction-editor__dialog-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.transaction-editor__dialog-header h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.transaction-editor__dialog-header p {
+  margin: 0;
+  color: var(--ps-colors-text-icon-low-on-light);
+  font-size: 0.78rem;
+}
+
+:host-context(.theme-dark) .transaction-editor__dialog-header p {
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
+.transaction-editor__split-table {
+  display: grid;
+  gap: 0.35rem;
+  overflow: auto;
+}
+
+.transaction-editor__category-confirm {
+  display: grid;
+  gap: 0.65rem;
+  font-size: 0.78rem;
+}
+
+.transaction-editor__category-confirm p {
+  margin: 0;
+  color: var(--ps-colors-text-icon-low-on-light);
+  line-height: 1.35;
+}
+
+:host-context(.theme-dark) .transaction-editor__category-confirm p {
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
+.transaction-editor__category-path {
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--app-colours-primary) 10%, white);
+  color: var(--app-colours-primary);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+:host-context(.theme-dark) .transaction-editor__category-path {
+  background: color-mix(in srgb, var(--app-colours-primary) 18%, black);
+}
+
+.transaction-editor__category-type {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.transaction-editor__category-type--inferred {
+  gap: 0.45rem;
+  color: var(--ps-colors-text-icon-low-on-light);
+  font-size: 0.72rem;
+}
+
+:host-context(.theme-dark) .transaction-editor__category-type--inferred {
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
+.transaction-editor__category-type label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.transaction-editor__split-head,
+.transaction-editor__split-row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.2fr) minmax(10rem, 1fr) minmax(12rem, 1.2fr) minmax(8rem, 0.8fr) auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.transaction-editor__split-head {
+  color: var(--ps-colors-text-icon-low-on-light);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+:host-context(.theme-dark) .transaction-editor__split-head {
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
+.transaction-editor__split-memo {
+  min-height: 2rem;
+  padding: 0.28rem 0.6rem;
+  border-radius: 0.75rem;
+  font-size: 0.72rem;
+}
+
+:host ::ng-deep .transaction-editor__split-control {
+  width: 100%;
+}
+
+.transaction-editor__split-delete,
+.transaction-editor__split-add,
+.transaction-editor__dialog-actions .btn {
+  min-height: 2rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.transaction-editor__split-add {
+  align-self: flex-start;
+}
+
+.transaction-editor__split-total {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--app-colours-background-med-light) 72%, white);
+  font-size: 0.72rem;
+}
+
+:host-context(.theme-dark) .transaction-editor__split-total {
+  background: color-mix(in srgb, var(--app-colours-background-med-dark) 82%, black);
+}
+
+.transaction-editor__split-total strong {
+  font-size: 0.95rem;
+}
+
+.transaction-editor__split-total small {
+  color: inherit;
+}
+
+.transaction-editor__split-total--different {
+  background: rgba(255, 193, 7, 0.18);
+  color: #8a5a00;
+}
+
+.transaction-editor__dialog-actions {
+  display: inline-flex;
+  gap: 0.45rem;
+}
+
 @media (max-width: 991px) {
   .transaction-editor__header {
     flex-wrap: wrap;
@@ -422,9 +737,37 @@
     grid-column: auto;
   }
 
+  .transaction-editor__field-row--details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .transaction-editor__field-row--details .transaction-editor__field--details-amount {
+    grid-column: auto;
+  }
+
   .transaction-editor__toggle,
   .transaction-editor__actions {
     grid-column: 1 / -1;
+  }
+
+  .transaction-editor__field-row {
+    flex-wrap: wrap;
+  }
+
+  .transaction-editor__dialog-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .transaction-editor__split-head {
+    display: none;
+  }
+
+  .transaction-editor__split-row {
+    grid-template-columns: 1fr;
+    padding: 0.65rem;
+    border: 1px solid var(--app-colours-border-low-light);
+    border-radius: 0.9rem;
   }
 }
 
@@ -440,5 +783,14 @@
   .transaction-editor__toggle,
   .transaction-editor__actions {
     grid-column: 1;
+  }
+
+  .transaction-editor__field-row {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .transaction-editor__field-row--details {
+    grid-template-columns: 1fr;
   }
 }

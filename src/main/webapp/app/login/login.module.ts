@@ -1,14 +1,12 @@
 import { NgModule } from '@angular/core';
 import { RouterModule } from '@angular/router';
 
-import { SharedModule } from 'app/shared/shared.module';
-import { LOGIN_ROUTE } from './login.route';
-import { LoginComponent } from './login.component';
+import SharedModule from 'app/shared/shared.module';
+import LoginComponent from './login';
 
 import { SelectButtonModule } from 'primeng/selectbutton';
 
 @NgModule({
-  imports: [SharedModule, SelectButtonModule, RouterModule.forChild([LOGIN_ROUTE])],
-  declarations: [LoginComponent],
+  imports: [SharedModule, SelectButtonModule, LoginComponent, RouterModule.forChild([{ path: '', component: LoginComponent }])],
 })
 export class LoginModule {}

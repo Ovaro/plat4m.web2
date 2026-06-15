@@ -3,10 +3,35 @@ export interface TransactionOption {
   name: string;
 }
 
+export interface TransactionTreeOption {
+  key: string;
+  label: string;
+  selectable?: boolean;
+  leaf?: boolean;
+  children?: TransactionTreeOption[];
+}
+
 export interface TransactionLookupQuery {
   page: number;
   size: number;
   query?: string;
+}
+
+export type TransactionCategoryType = 'income' | 'expense';
+
+export interface TransactionCategoryCreateRequest {
+  name: string;
+  type: TransactionCategoryType;
+  parentCategoryId?: string | null;
+}
+
+export interface TransactionSplitUpdate {
+  categoryId: string | null;
+  categoryName?: string | null;
+  whoId: string | null;
+  whoName?: string | null;
+  memo: string | null;
+  amount: number;
 }
 
 export interface TransactionUpdate {
@@ -20,6 +45,7 @@ export interface TransactionUpdate {
   transferredAccountId: string | null;
   memo: string | null;
   cleared: boolean;
+  splits?: TransactionSplitUpdate[] | null;
 }
 
 export interface TransactionGridQuery {

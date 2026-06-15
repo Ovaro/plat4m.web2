@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet author="codex" id="20260612000100-1">
+        <createTable tableName="user_api_key">
+            <column name="id" type="uuid">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="user_api_key_pk"/>
+            </column>
+            <column name="name" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="${datetimeType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revoked_at" type="${datetimeType}"/>
+            <column name="user_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="varchar(50)"/>
+            <column name="created_date" type="${datetimeType}"/>
+            <column name="last_modified_by" type="varchar(50)"/>
+            <column name="last_modified_date" type="${datetimeType}"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="user_api_key"
+            baseColumnNames="user_id"
+            referencedTableName="jhi_user"
+            referencedColumnNames="id"
+            constraintName="fk_user_api_key_user_id"/>
+
+        <createIndex indexName="idx_user_api_key_user_id" tableName="user_api_key">
+            <column name="user_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_user_api_key_active" tableName="user_api_key">
+            <column name="user_id"/>
+            <column name="revoked_at"/>
+            <column name="expires_at"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

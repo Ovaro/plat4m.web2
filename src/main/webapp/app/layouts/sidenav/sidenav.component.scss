@@ -1,3 +1,20 @@
+.sidenav-menu {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: calc(100vh - 96px);
+}
+
+.sidenav-menu__primary,
+.sidenav-menu__footer {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidenav-menu__footer {
+  padding-bottom: 0.75rem;
+}
+
 .nav-pane-button {
   flex: 0 0 auto;
   outline: none;
@@ -11,11 +28,13 @@
   align-items: center;
   background: transparent;
   border: 1px solid transparent;
+  border-radius: 12px;
   display: flex;
   height: 40px;
   padding: 0;
   color: inherit !important;
   outline: none;
+  width: 100%;
 }
 
 .nav-pane-button:hover {

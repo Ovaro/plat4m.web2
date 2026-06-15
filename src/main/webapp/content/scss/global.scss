@@ -434,7 +434,7 @@ Generic styles
 
 .breadcrumbs {
   height: 32px;
-  padding: 6px 12px;
+  //padding: 6px 12px;
 
   line-height: 0;
   padding-bottom: var(--ps-layout-spacing-medium);
@@ -442,7 +442,7 @@ Generic styles
 }
 
 .primary-breadcrumb {
-  padding-top: 4px;
+  //padding-top: 4px;
   letter-spacing: var(--ps-type-letter-spacing-looser);
   //font-weight: var(--ps-type-font-weight-400);
   //font-size: var(--ps-type-font-size-300);
@@ -844,18 +844,44 @@ angular-cli removes postcss-rtl processed inline css, processed rules must be ad
 
 .theme-dark .p-dropdown-panel,
 .theme-dark .p-select-overlay,
-.theme-dark .p-autocomplete-overlay {
+.theme-dark .p-autocomplete-overlay,
+.theme-dark .p-treeselect-overlay {
   background-color: var(--app-colours-background-high-dark) !important;
   border: 1px solid var(--app-colours-border-low-dark) !important;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
   color: var(--app-colours-primary-text-dark) !important;
 }
 
-.theme-light .p-autocomplete-overlay {
+.theme-light .p-autocomplete-overlay,
+.theme-light .p-treeselect-overlay {
   background-color: var(--app-colours-background-high-light) !important;
   border: 1px solid var(--app-colours-border-low-light) !important;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
   color: var(--app-colours-primary-text-light) !important;
+}
+
+.transaction-editor__tree-panel.p-treeselect-overlay {
+  min-width: 22rem;
+}
+
+.transaction-editor__tree-panel.p-treeselect-overlay .p-treeselect-tree-container {
+  height: 24rem !important;
+  max-height: min(24rem, calc(100vh - 4rem)) !important;
+  overflow: auto;
+}
+
+.transaction-editor__tree-panel.p-treeselect-overlay .p-tree,
+.transaction-editor__tree-panel.p-treeselect-overlay .p-tree-root,
+.transaction-editor__tree-panel.p-treeselect-overlay .p-scroller {
+  min-height: 100%;
+}
+
+.transaction-editor__tree-panel.p-treeselect-overlay,
+.transaction-editor__tree-panel.p-treeselect-overlay .p-tree,
+.transaction-editor__tree-panel.p-treeselect-overlay .p-tree-node-label,
+.transaction-editor__tree-panel.p-treeselect-overlay .p-treeselect-empty-message,
+.transaction-editor__tree-panel.p-treeselect-overlay input {
+  font-size: 0.72rem;
 }
 
 .theme-dark .p-dropdown-item,

@@ -38,4 +38,6 @@ public interface FinancePayeeRepository extends JpaRepository<FinancePayee, Stri
         @Param("name") String name,
         Pageable pageable
     );
+
+    Optional<FinancePayee> findByUserGuidAndNameIgnoreCase(String userGuid, String name);
 }

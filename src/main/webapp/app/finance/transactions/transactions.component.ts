@@ -1,4 +1,4 @@
-import { HttpHeaders, HttpResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpHeaders, HttpResponse } from '@angular/common/http';
 import { Component, OnInit, ViewChild, inject } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot, Router } from '@angular/router';
 import { AgGridAngular } from 'ag-grid-angular';
@@ -26,6 +26,12 @@ import { NgApexchartsModule } from 'ng-apexcharts';
 import { TransactionEditorComponent } from './transaction-editor.component';
 import { TransactionEditorMode, TransactionGridQuery, TransactionOption, TransactionUpdate } from './transactions.types';
 
+interface TransactionColumnOption {
+  id: string;
+  label: string;
+  defaultVisible: boolean;
+}
+
 @Component({
   selector: 'jhi-transactions',
   templateUrl: './transactions.component.html',
@@ -35,6 +41,7 @@ import { TransactionEditorMode, TransactionGridQuery, TransactionOption, Transac
 export class TransactionsComponent implements OnInit {
   static PREV_TXN_ACCOUNT_ID = 'previous-txn-account-id';
   static SHOW_FILTER_ROW = 'transactions-show-filter-row';
+  static COLUMN_VISIBILITY = 'transactions-column-visibility';
   static readonly DEFAULT_SORT = ['date,desc', 'number,desc'];
   title = '';
   theme = 'light';
@@ -53,10 +60,24 @@ export class TransactionsComponent implements OnInit {
   balance = -1;
   isEditorOpen = false;
   isSavingTransaction = false;
+  saveTransactionError: string | null = null;
   showFilterRow = false;
   editorMode: TransactionEditorMode = 'view';
   selectedTransactionId: string | null = null;
   selectedTransaction: FinancialTransaction | null = null;
+  readonly columnToggleOptions: TransactionColumnOption[] = [
+    { id: 'date', label: 'Date', defaultVisible: true },
+    { id: 'payee', label: 'Payee', defaultVisible: true },
+    { id: 'memo', label: 'Memo', defaultVisible: false },
+    { id: 'who', label: 'Who', defaultVisible: false },
+    { id: 'amount', label: 'Amount', defaultVisible: false },
+    { id: 'category', label: 'Category', defaultVisible: false },
+    { id: 'tags', label: 'Tags', defaultVisible: true },
+    { id: 'payment', label: 'Payment', defaultVisible: true },
+    { id: 'deposit', label: 'Deposit', defaultVisible: true },
+    { id: 'runningBalance', label: 'Balance', defaultVisible: true },
+  ];
+  private visibleColumnIds = new Set(this.columnToggleOptions.filter(option => option.defaultVisible).map(option => option.id));
   public columnDefs: (ColDef | ColGroupDef)[] = this.buildColumnDefs();
 
   public defaultColDef: ColDef = {
@@ -88,18 +109,6 @@ export class TransactionsComponent implements OnInit {
     rowModelType: this.rowModelType,
     cacheBlockSize: this.itemsPerPage,
     paginationPageSize: this.itemsPerPage,
-    sideBar: {
-      toolPanels: [
-        {
-          id: 'filters',
-          labelDefault: 'Filters',
-          labelKey: 'filters',
-          iconKey: 'filter',
-          toolPanel: 'agFiltersToolPanel',
-        },
-      ],
-      defaultToolPanel: 'filters',
-    },
   };
 
   dataSource: IDatasource = {
@@ -141,6 +150,7 @@ export class TransactionsComponent implements OnInit {
     this.agGridTheme = this.agGridThemeService.theme();
     this.agGridThemeDefinition = this.agGridThemeService.getThemeDefinition(this.agGridTheme, this.theme);
     this.showFilterRow = this.getCookie(TransactionsComponent.SHOW_FILTER_ROW) === 'true';
+    this.loadColumnVisibility();
     this.defaultColDef = { ...this.defaultColDef, floatingFilter: this.showFilterRow };
     this.columnDefs = this.buildColumnDefs();
     this.themeService.onChange.subscribe((event: ThemeChangeEvent) => {
@@ -195,10 +205,24 @@ export class TransactionsComponent implements OnInit {
   toggleFilterRow(): void {
     this.showFilterRow = !this.showFilterRow;
     this.defaultColDef = { ...this.defaultColDef, floatingFilter: this.showFilterRow };
-    this.columnDefs = this.buildColumnDefs();
     this.agGrid?.api.setGridOption('defaultColDef', this.defaultColDef);
-    this.agGrid?.api.setGridOption('columnDefs', this.columnDefs);
+    this.refreshColumnDefs();
     this.saveCookie(TransactionsComponent.SHOW_FILTER_ROW, String(this.showFilterRow));
+  }
+
+  isColumnVisible(columnId: string): boolean {
+    return this.visibleColumnIds.has(columnId);
+  }
+
+  toggleColumnVisibility(columnId: string, visible: boolean): void {
+    if (visible) {
+      this.visibleColumnIds.add(columnId);
+    } else {
+      this.visibleColumnIds.delete(columnId);
+    }
+
+    this.persistColumnVisibility();
+    this.refreshColumnDefs();
   }
 
   getAccountName(id: string): string {
@@ -238,6 +262,7 @@ export class TransactionsComponent implements OnInit {
       return;
     }
 
+    this.saveTransactionError = null;
     this.selectedTransactionId = e.data.id;
     this.selectedTransaction = this.processTransaction({ ...e.data });
     this.editorMode = 'view';
@@ -251,6 +276,7 @@ export class TransactionsComponent implements OnInit {
       return;
     }
 
+    this.saveTransactionError = null;
     this.isEditorOpen = true;
     this.editorMode = 'add';
     this.selectedTransactionId = null;
@@ -269,6 +295,7 @@ export class TransactionsComponent implements OnInit {
   closeEditor(): void {
     this.isEditorOpen = false;
     this.editorMode = 'view';
+    this.saveTransactionError = null;
     this.selectedTransactionId = null;
     this.selectedTransaction = null;
     this.agGrid?.api.deselectAll();
@@ -279,6 +306,9 @@ export class TransactionsComponent implements OnInit {
       return;
     }
 
+    const previousAmount = this.editorMode === 'add' ? 0 : (this.selectedTransaction?.amount ?? 0);
+
+    this.saveTransactionError = null;
     this.isSavingTransaction = true;
     const request =
       this.editorMode === 'add' || !this.selectedTransactionId
@@ -292,10 +322,20 @@ export class TransactionsComponent implements OnInit {
         this.selectedTransactionId = transaction.id;
         this.selectedTransaction = this.processTransaction({ ...transaction });
         this.refreshSelectedRow(this.selectedTransaction);
+        if (this.balance !== -1) {
+          this.balance += transaction.amount - previousAmount;
+        }
         this.agGrid?.api.refreshInfiniteCache();
       },
-      error: () => {
+      error: (error: HttpErrorResponse) => {
         this.isSavingTransaction = false;
+        this.saveTransactionError = this.getSaveTransactionErrorMessage(error);
+        console.error('Transaction save failed', {
+          accountId: this.accountId,
+          selectedTransactionId: this.selectedTransactionId,
+          update,
+          error,
+        });
       },
     });
   }
@@ -308,8 +348,8 @@ export class TransactionsComponent implements OnInit {
     if (this.selectedTransaction.voided) {
       return 'Voided transactions are read-only for now.';
     }
-    if (this.selectedTransaction.splitParent || this.selectedTransaction.splitChild) {
-      return 'Split transactions are not editable in this panel yet.';
+    if (this.selectedTransaction.splitChild) {
+      return 'Split child transactions are edited from their parent transaction.';
     }
 
     return null;
@@ -331,7 +371,15 @@ export class TransactionsComponent implements OnInit {
     const floatingFilter = this.showFilterRow;
 
     return [
-      { field: 'date', headerName: 'Date', sort: 'desc', filter: 'agDateColumnFilter', floatingFilter },
+      {
+        colId: 'date',
+        field: 'date',
+        headerName: 'Date',
+        sort: 'desc',
+        filter: 'agDateColumnFilter',
+        floatingFilter,
+        hide: !this.isColumnVisible('date'),
+      },
       {
         colId: 'payee',
         field: 'payeeName',
@@ -339,17 +387,57 @@ export class TransactionsComponent implements OnInit {
         colSpan: params => (params.data?.payeeName?.startsWith('Transfer ') ? 2 : 1),
         filter: 'agTextColumnFilter',
         floatingFilter,
+        hide: !this.isColumnVisible('payee'),
       },
-      { colId: 'memo', field: 'memo', headerName: 'Memo', hide: true, filter: 'agTextColumnFilter', floatingFilter },
-      { colId: 'who', field: 'whoName', headerName: 'Who', hide: true, filter: 'agTextColumnFilter', floatingFilter },
-      { colId: 'amount', field: 'amount', headerName: 'Amount', hide: true, filter: 'agNumberColumnFilter', floatingFilter },
-      { colId: 'category', field: 'displayCategory', headerName: 'Category', sortable: true, filter: 'agTextColumnFilter', floatingFilter },
-      { colId: 'tags', field: 'tagsDisplay', headerName: 'Tags', sortable: true, filter: 'agTextColumnFilter', floatingFilter },
       {
+        colId: 'memo',
+        field: 'memo',
+        headerName: 'Memo',
+        hide: !this.isColumnVisible('memo'),
+        filter: 'agTextColumnFilter',
+        floatingFilter,
+      },
+      {
+        colId: 'who',
+        field: 'whoName',
+        headerName: 'Who',
+        hide: !this.isColumnVisible('who'),
+        filter: 'agTextColumnFilter',
+        floatingFilter,
+      },
+      {
+        colId: 'amount',
+        field: 'amount',
+        headerName: 'Amount',
+        hide: !this.isColumnVisible('amount'),
+        filter: 'agNumberColumnFilter',
+        floatingFilter,
+      },
+      {
+        colId: 'category',
+        field: 'displayCategory',
+        headerName: 'Category',
+        sortable: true,
+        hide: !this.isColumnVisible('category'),
+        filter: 'agTextColumnFilter',
+        floatingFilter,
+      },
+      {
+        colId: 'tags',
+        field: 'tagsDisplay',
+        headerName: 'Tags',
+        sortable: true,
+        hide: !this.isColumnVisible('tags'),
+        filter: 'agTextColumnFilter',
+        floatingFilter,
+      },
+      {
+        colId: 'payment',
         field: 'payment',
         headerName: 'Payment',
         type: 'numericColumn',
         sortable: true,
+        hide: !this.isColumnVisible('payment'),
         filter: 'agNumberColumnFilter',
         floatingFilter,
         valueFormatter(params) {
@@ -358,10 +446,12 @@ export class TransactionsComponent implements OnInit {
         },
       },
       {
+        colId: 'deposit',
         field: 'deposit',
         headerName: 'Deposit',
         type: 'numericColumn',
         sortable: true,
+        hide: !this.isColumnVisible('deposit'),
         filter: 'agNumberColumnFilter',
         floatingFilter,
         valueFormatter(params) {
@@ -370,10 +460,12 @@ export class TransactionsComponent implements OnInit {
         },
       },
       {
+        colId: 'runningBalance',
         field: 'runningBalance',
         headerName: 'Balance',
         type: 'numericColumn',
         sortable: true,
+        hide: !this.isColumnVisible('runningBalance'),
         filter: 'agNumberColumnFilter',
         floatingFilter,
         valueFormatter(params) {
@@ -421,7 +513,7 @@ export class TransactionsComponent implements OnInit {
     } else if (element.categoryName) {
       element.displayCategory = element.categoryName;
       if (element.parentCategoryName) {
-        element.displayCategory = `${element.displayCategory}: ${element.parentCategoryName}`;
+        element.displayCategory = `${element.parentCategoryName}: ${element.displayCategory}`;
       }
     }
 
@@ -552,6 +644,53 @@ export class TransactionsComponent implements OnInit {
         this.agGrid?.api.ensureIndexVisible(rowIndex, 'middle');
       });
     });
+  }
+
+  private getSaveTransactionErrorMessage(error: HttpErrorResponse): string {
+    if (error.error?.detail) {
+      return error.error.detail;
+    }
+
+    if (typeof error.error === 'string' && error.error.trim()) {
+      return error.error;
+    }
+
+    if (error.message) {
+      return error.message;
+    }
+
+    return 'Saving the transaction failed. Check the browser console for details.';
+  }
+
+  private loadColumnVisibility(): void {
+    const cookieValue = this.getCookie(TransactionsComponent.COLUMN_VISIBILITY);
+    if (!cookieValue) {
+      return;
+    }
+
+    try {
+      const parsedValue = JSON.parse(cookieValue);
+      if (!Array.isArray(parsedValue)) {
+        return;
+      }
+
+      const validColumnIds = new Set(this.columnToggleOptions.map(option => option.id));
+      const nextVisibleColumnIds = parsedValue.filter((value): value is string => typeof value === 'string' && validColumnIds.has(value));
+      if (nextVisibleColumnIds.length > 0) {
+        this.visibleColumnIds = new Set(nextVisibleColumnIds);
+      }
+    } catch {
+      // Ignore invalid cookie data and fall back to defaults.
+    }
+  }
+
+  private persistColumnVisibility(): void {
+    this.saveCookie(TransactionsComponent.COLUMN_VISIBILITY, JSON.stringify(Array.from(this.visibleColumnIds)));
+  }
+
+  private refreshColumnDefs(): void {
+    this.columnDefs = this.buildColumnDefs();
+    this.agGrid?.api.setGridOption('columnDefs', this.columnDefs);
   }
 
   private getPageTitle(routeSnapshot: ActivatedRouteSnapshot): string {

@@ -133,10 +133,14 @@ dependencies {
     implementation "org.jdesktop:beansbinding:1.2.1"
     implementation "org.python:jython:2.5.3"
     implementation "net.sourceforge.javacsv:javacsv:2.0"
-    implementation "com.google.guava:guava:13.0"
+    implementation "com.google.guava:guava:33.4.0-jre"
     implementation "org.apache.poi:poi:3.7"
     implementation "net.java.dev.jna:jna:3.4.0"
     implementation "net.java.dev.jna:platform:3.4.0"
     implementation "com.jgoodies:forms:1.2.1"
     // Sunrise: END
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ["-parameters"]
 }

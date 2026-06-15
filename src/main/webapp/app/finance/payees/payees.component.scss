@@ -1,0 +1,84 @@
+@use '../manage-data/manage-data';
+
+.manage-table--payees .manage-table__row {
+  grid-template-columns: minmax(260px, 2fr) minmax(180px, 1fr) 100px 96px;
+}
+
+.manage-table__row--clickable,
+.manage-table__row--button {
+  cursor: pointer;
+}
+
+.manage-table__row--clickable:hover,
+.manage-table__row--button:hover {
+  background: color-mix(in srgb, var(--app-colours-primary) 8%, transparent);
+}
+
+:host-context(.theme-dark) .manage-table__row--clickable:hover,
+:host-context(.theme-dark) .manage-table__row--button:hover {
+  background: color-mix(in srgb, var(--app-colours-primary) 16%, var(--ps-colors-background-dark-2));
+}
+
+.manage-table__row--button {
+  width: 100%;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+}
+
+.manage-toolbar--dialog {
+  margin-bottom: 10px;
+}
+
+.manage-card--dialog {
+  max-height: min(32rem, 62vh);
+  overflow: auto;
+}
+
+.manage-table--category-transactions .manage-table__row {
+  grid-template-columns: 92px minmax(130px, 0.9fr) minmax(150px, 1fr) minmax(200px, 1.4fr) minmax(160px, 1.1fr) 110px;
+  min-width: 920px;
+  align-items: center;
+}
+
+.manage-table__amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.manage-amount {
+  font-weight: 600;
+}
+
+.manage-amount--positive {
+  color: #027a48;
+}
+
+.manage-amount--negative {
+  color: #b42318;
+}
+
+:host-context(.theme-dark) .manage-amount--positive {
+  color: #6ce9a6;
+}
+
+:host-context(.theme-dark) .manage-amount--negative {
+  color: #fda29b;
+}
+
+:host ::ng-deep .manage-transactions-dialog .p-dialog-content {
+  overflow: hidden;
+}
+
+:host ::ng-deep .manage-transaction-editor-dialog .p-dialog-content {
+  padding: 0;
+}
+
+:host ::ng-deep .manage-transaction-editor-dialog .transaction-editor {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}

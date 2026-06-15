@@ -1,41 +1,78 @@
-<div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-  <button routerLink="/">
-    <div class="selectionPill"></div>
-    <!-- <mat-icon aria-hidden="false" aria-label="Dashboard">dashboard_outline</mat-icon>-->
-    <fa-icon icon="home"></fa-icon>
-    <span class="nav-pane-button-name">Dashboard</span>
-  </button>
-</div>
-<div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-  <button routerLink="/account-list">
-    <div class="selectionPill"></div>
-    <!-- <mat-icon aria-hidden="false" aria-label="Dashboard">dashboard_outline</mat-icon>-->
-    <fa-icon icon="th-list"></fa-icon>
-    <span class="nav-pane-button-name">Wealth Overview</span>
-  </button>
-</div>
-<div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-  <button routerLink="/transactions">
-    <div class="selectionPill"></div>
-    <!-- <mat-icon aria-hidden="false" aria-label="Dashboard">dashboard_outline</mat-icon>-->
-    <fa-icon icon="book"></fa-icon>
-    <span class="nav-pane-button-name">Transactions</span>
-  </button>
-</div>
-<div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-  <button routerLink="/portfolio">
-    <div class="selectionPill"></div>
-    <!-- <mat-icon aria-hidden="false" aria-label="Dashboard">dashboard_outline</mat-icon>-->
-    <fa-icon icon="arrow-trend-up"></fa-icon>
-    <span class="nav-pane-button-name">Investments</span>
-  </button>
-</div>
+<div class="sidenav-menu">
+  <div class="sidenav-menu__primary">
+    <div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <button routerLink="/">
+        <div class="selectionPill"></div>
+        <fa-icon icon="home"></fa-icon>
+        <span class="nav-pane-button-name">Dashboard</span>
+      </button>
+    </div>
+    <div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <button routerLink="/account-list">
+        <div class="selectionPill"></div>
+        <fa-icon icon="th-list"></fa-icon>
+        <span class="nav-pane-button-name">Wealth Overview</span>
+      </button>
+    </div>
+    <div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <button routerLink="/transactions">
+        <div class="selectionPill"></div>
+        <fa-icon icon="book"></fa-icon>
+        <span class="nav-pane-button-name">Transactions</span>
+      </button>
+    </div>
+    <div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <button routerLink="/portfolio">
+        <div class="selectionPill"></div>
+        <fa-icon icon="arrow-trend-up"></fa-icon>
+        <span class="nav-pane-button-name">Investments</span>
+      </button>
+    </div>
 
-<div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-  <button routerLink="/planner">
-    <div class="selectionPill"></div>
-    <!-- <mat-icon aria-hidden="false" aria-label="Dashboard">dashboard_outline</mat-icon>-->
-    <fa-icon icon="road"></fa-icon>
-    <span class="nav-pane-button-name">Planner</span>
-  </button>
+    <div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <button routerLink="/planner">
+        <div class="selectionPill"></div>
+        <fa-icon icon="road"></fa-icon>
+        <span class="nav-pane-button-name">Planner</span>
+      </button>
+    </div>
+    <div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <button routerLink="/categories">
+        <div class="selectionPill"></div>
+        <fa-icon icon="list"></fa-icon>
+        <span class="nav-pane-button-name">Categories</span>
+      </button>
+    </div>
+    <div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <button routerLink="/payees">
+        <div class="selectionPill"></div>
+        <fa-icon icon="users"></fa-icon>
+        <span class="nav-pane-button-name">Payees</span>
+      </button>
+    </div>
+    <div class="nav-pane-button" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <button routerLink="/fx-rates">
+        <div class="selectionPill"></div>
+        <fa-icon icon="database"></fa-icon>
+        <span class="nav-pane-button-name">FX Rates</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="sidenav-menu__footer">
+    <div class="nav-pane-button" routerLinkActive="active">
+      <button routerLink="/assistant">
+        <div class="selectionPill"></div>
+        <fa-icon icon="robot"></fa-icon>
+        <span class="nav-pane-button-name">AI Assistant</span>
+      </button>
+    </div>
+    <div class="nav-pane-button" routerLinkActive="active">
+      <button routerLink="/settings/general">
+        <div class="selectionPill"></div>
+        <fa-icon icon="cog"></fa-icon>
+        <span class="nav-pane-button-name">Settings</span>
+      </button>
+    </div>
+  </div>
 </div>

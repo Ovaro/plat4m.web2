@@ -1,0 +1,301 @@
+.manage-page {
+  padding: 18px 22px;
+  height: 100%;
+  color: var(--text-color);
+}
+
+.manage-page__header,
+.manage-toolbar,
+.manage-table__row,
+.manage-dialog-actions {
+  display: flex;
+  align-items: center;
+}
+
+.manage-page__header {
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.manage-page__subtitle,
+.manage-table__secondary {
+  color: var(--text-secondary-color);
+  font-size: var(--app-font-size-xsmall);
+}
+
+.manage-toolbar {
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.manage-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: min(420px, 100%);
+  height: 35px;
+  padding: 0 10px;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 7px;
+  background: var(--app-colours-background-high-light);
+}
+
+:host-context(.theme-dark) .manage-search {
+  background: var(--ps-colors-background-dark-2);
+}
+
+.manage-search input,
+.manage-select,
+.manage-form input,
+.manage-form select,
+.manage-form textarea {
+  font-size: 0.72rem;
+  color: inherit;
+}
+
+.manage-search input {
+  border: 0;
+  outline: 0;
+  flex: 1;
+  background: transparent;
+}
+
+.manage-select,
+.manage-form input,
+.manage-form select,
+.manage-form textarea {
+  border: 1px solid var(--app-colours-border);
+  border-radius: 7px;
+  background: var(--app-colours-background-high-light);
+}
+
+:host-context(.theme-dark) .manage-select,
+:host-context(.theme-dark) .manage-form input,
+:host-context(.theme-dark) .manage-form select,
+:host-context(.theme-dark) .manage-form textarea {
+  border-color: color-mix(in srgb, var(--ps-colors-text-icon-high-on-dark) 20%, transparent);
+  background: var(--ps-colors-background-dark-2);
+}
+
+.manage-select {
+  height: 35px;
+  padding: 0 10px;
+}
+
+.manage-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 35px;
+  padding: 0 12px;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.72rem;
+}
+
+.manage-button--primary {
+  border-color: var(--app-colours-primary);
+  background: var(--app-colours-primary);
+  color: white;
+}
+
+.manage-button--danger {
+  border-color: #b42318;
+  background: #b42318;
+  color: white;
+}
+
+.manage-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 35px;
+  font-size: 0.72rem;
+}
+
+.manage-check input {
+  margin: 0;
+}
+
+.manage-card {
+  border: 1px solid var(--app-colours-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--app-colours-background-high-light) 86%, transparent);
+}
+
+:host-context(.theme-dark) .manage-card {
+  border-color: color-mix(in srgb, var(--ps-colors-text-icon-high-on-dark) 18%, transparent);
+  background: color-mix(in srgb, var(--ps-colors-background-dark-2) 88%, transparent);
+}
+
+.manage-table {
+  width: 100%;
+  overflow: auto;
+}
+
+.manage-table__row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) 110px minmax(160px, 1fr) minmax(160px, 1fr) 96px;
+  gap: 12px;
+  min-width: 760px;
+  padding: 9px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--app-colours-border) 70%, transparent);
+  font-size: 0.72rem;
+}
+
+:host-context(.theme-dark) .manage-table__row {
+  border-top-color: color-mix(in srgb, var(--ps-colors-text-icon-high-on-dark) 14%, transparent);
+}
+
+.manage-table__row--header {
+  border-top: 0;
+  font-weight: 600;
+  color: var(--text-secondary-color);
+  background: color-mix(in srgb, var(--app-colours-primary) 7%, transparent);
+}
+
+:host-context(.theme-dark) .manage-table__row--header {
+  background: color-mix(in srgb, var(--app-colours-primary) 18%, var(--ps-colors-background-dark-2));
+}
+
+.manage-table__primary {
+  font-weight: 500;
+}
+
+.manage-tree-cell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+
+.manage-tree-toggle,
+.manage-tree-spacer {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+}
+
+.manage-tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.68rem;
+}
+
+.manage-tree-toggle:hover {
+  background: var(--ps-colors-background-utility-30);
+}
+
+.manage-table__actions {
+  justify-content: flex-end;
+  display: flex;
+  gap: 6px;
+}
+
+.manage-icon-button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+
+.manage-icon-button:hover:not(:disabled) {
+  background: var(--ps-colors-background-utility-30);
+}
+
+.manage-icon-button--danger {
+  color: #b42318;
+}
+
+.manage-icon-button:disabled {
+  opacity: 0.35;
+}
+
+.manage-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-colours-primary) 16%, transparent);
+  color: var(--text-color);
+  font-size: 0.68rem;
+}
+
+.manage-pill--muted {
+  background: color-mix(in srgb, var(--text-secondary-color) 18%, transparent);
+  color: var(--text-secondary-color);
+}
+
+.manage-empty,
+.manage-alert {
+  padding: 12px;
+  font-size: 0.72rem;
+}
+
+.manage-alert {
+  margin-bottom: 12px;
+  border: 1px solid #fdb022;
+  border-radius: 8px;
+  color: #7a2e0e;
+  background: #fffaeb;
+}
+
+:host-context(.theme-dark) .manage-alert {
+  color: #fedf89;
+  background: color-mix(in srgb, #7a2e0e 55%, var(--ps-colors-background-dark-2));
+}
+
+:host ::ng-deep .p-dialog {
+  color: var(--text-color);
+}
+
+:host-context(.theme-dark) ::ng-deep .p-dialog,
+:host-context(.theme-dark) ::ng-deep .p-dialog-header,
+:host-context(.theme-dark) ::ng-deep .p-dialog-content {
+  color: var(--ps-colors-text-icon-high-on-dark);
+  background: var(--ps-colors-background-dark-2);
+}
+
+.manage-form {
+  display: grid;
+  gap: 12px;
+}
+
+.manage-form label {
+  display: grid;
+  gap: 5px;
+  font-size: 0.72rem;
+}
+
+.manage-form input,
+.manage-form select,
+.manage-form textarea {
+  width: 100%;
+  padding: 7px 9px;
+}
+
+.manage-dialog-actions {
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+@media screen and (max-width: 767px) {
+  .manage-page {
+    padding: 14px;
+  }
+}

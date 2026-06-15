@@ -33,6 +33,41 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
 
     Optional<FinanceTransaction> findById(UUID id);
     Optional<FinanceTransaction> findByIdAndUserGuid(UUID id, String userGuid);
+    List<FinanceTransaction> findAllByUserGuidAndParentIdOrderByNumberAscDateAscIdAsc(String userGuid, UUID parentId);
+    void deleteAllByUserGuidAndParentId(String userGuid, UUID parentId);
+
+    @Query(
+        "select f from FinanceTransaction f " +
+            "where f.userGuid = :userGuid " +
+            "and f.voided = false " +
+            "and f.recurring = false " +
+            "and f.category.id in :categoryIds " +
+            "order by f.date desc, f.number desc, f.id desc"
+    )
+    List<FinanceTransaction> findAllByUserGuidAndCategoryIds(
+        @Param("userGuid") String userGuid,
+        @Param("categoryIds") List<UUID> categoryIds
+    );
+
+    @Query(
+        "select f from FinanceTransaction f " +
+            "where f.userGuid = :userGuid " +
+            "and f.voided = false " +
+            "and f.recurring = false " +
+            "and f.who.id in :categoryIds " +
+            "order by f.date desc, f.number desc, f.id desc"
+    )
+    List<FinanceTransaction> findAllByUserGuidAndWhoIds(@Param("userGuid") String userGuid, @Param("categoryIds") List<UUID> categoryIds);
+
+    @Query(
+        "select f from FinanceTransaction f " +
+            "where f.userGuid = :userGuid " +
+            "and f.voided = false " +
+            "and f.recurring = false " +
+            "and f.payeeId in :payeeIds " +
+            "order by f.date desc, f.number desc, f.id desc"
+    )
+    List<FinanceTransaction> findAllByUserGuidAndPayeeIds(@Param("userGuid") String userGuid, @Param("payeeIds") List<String> payeeIds);
 
     @Query(
         "SELECT sum(amount) as balance FROM FinanceTransaction f WHERE f.accountId = :accountId AND f.voided = FALSE AND  f.splitChild = FALSE AND f.recurring = FALSE"

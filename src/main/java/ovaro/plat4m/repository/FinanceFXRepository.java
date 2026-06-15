@@ -1,7 +1,11 @@
 package ovaro.plat4m.repository;
 
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,17 +16,32 @@ import ovaro.plat4m.domain.FinanceFX;
  * Spring Data JPA repository for the {@link FinanceCurrency} entity.
  */
 @Repository
-public interface FinanceFXRepository extends JpaRepository<FinanceFX, String> {
+public interface FinanceFXRepository extends JpaRepository<FinanceFX, UUID> {
     //@Query(value="SELECT DISTINCT ON (a.to_currency_id, a.from_currency_id) * FROM fin_fx a ORDER BY a.to_currency_id, a.from_currency_id, a.date DESC;", nativeQuery=true)
     List<FinanceFX> findAll();
+    List<FinanceFX> findAllByOrderByDateDescFromIsoCodeAscToIsoCodeAsc();
+    Optional<FinanceFX> findById(UUID id);
+    Optional<FinanceFX> findByDateAndFromIsoCodeAndToIsoCode(ZonedDateTime date, String fromIsoCode, String toIsoCode);
+    List<FinanceFX> findByFromIsoCodeAndToIsoCode(String fromIsoCode, String toIsoCode, Sort sort);
+
+    @Query(
+        value = "SELECT * FROM (" +
+            "  SELECT DISTINCT ON (a.from_iso_code, a.to_iso_code) a.* " +
+            "  FROM fin_fx a " +
+            "  ORDER BY a.from_iso_code, a.to_iso_code, a.date DESC" +
+            ") latest " +
+            "ORDER BY latest.from_iso_code ASC, latest.to_iso_code ASC",
+        nativeQuery = true
+    )
+    List<FinanceFX> findLatestDistinctPairs();
 
     //@Query(value="SELECT DISTINCT ON (a.to_currency_id, a.from_currency_id) * FROM fin_fx a INNER JOIN  WHERE a.from_currency_id = :fromCurrencyId AND a.to_currency_id = :toCurrencyId ORDER BY a.to_currency_id, a.from_currency_id, a.date DESC;", nativeQuery=true)
 
     @Query(
         value = "SELECT DISTINCT ON (a.to_iso_code, a.from_iso_code) * " +
-        "FROM fin_fx a " +
-        "WHERE (a.from_iso_code = :from_iso_code AND a.to_iso_code = :to_iso_code) OR (a.from_iso_code = :to_iso_code AND a.to_iso_code = :from_iso_code) and date <= :date " +
-        "ORDER BY a.to_iso_code, a.from_iso_code, a.date DESC",
+            "FROM fin_fx a " +
+            "WHERE (a.from_iso_code = :from_iso_code AND a.to_iso_code = :to_iso_code) OR (a.from_iso_code = :to_iso_code AND a.to_iso_code = :from_iso_code) and date <= :date " +
+            "ORDER BY a.to_iso_code, a.from_iso_code, a.date DESC",
         nativeQuery = true
     )
     List<FinanceFX> findByFromIsoCodeAndToIsoCode(
@@ -33,10 +52,10 @@ public interface FinanceFXRepository extends JpaRepository<FinanceFX, String> {
 
     @Query(
         value = "WITH subq AS (   " +
-        "SELECT *, COUNT(*) OVER(ORDER BY date desc " +
-        "RANGE BETWEEN (INTERVAL '1' DAY) * :days PRECEDING AND CURRENT ROW) as cnt " +
-        "FROM fin_fx f  " +
-        "WHERE ((f.from_iso_code = :from_iso_code and f.to_iso_code = :to_iso_code) OR (f.from_iso_code = :to_iso_code and f.to_iso_code = :from_iso_code))  AND date BETWEEN :from_date AND :to_date ) SELECT * FROM subq where cnt = 1 ORDER BY date;",
+            "SELECT *, COUNT(*) OVER(ORDER BY date desc " +
+            "RANGE BETWEEN (INTERVAL '1' DAY) * :days PRECEDING AND CURRENT ROW) as cnt " +
+            "FROM fin_fx f  " +
+            "WHERE ((f.from_iso_code = :from_iso_code and f.to_iso_code = :to_iso_code) OR (f.from_iso_code = :to_iso_code and f.to_iso_code = :from_iso_code))  AND date BETWEEN :from_date AND :to_date ) SELECT * FROM subq where cnt = 1 ORDER BY date;",
         nativeQuery = true
     )
     List<FinanceFX> findFXSummaries(
@@ -49,10 +68,10 @@ public interface FinanceFXRepository extends JpaRepository<FinanceFX, String> {
 
     @Query(
         value = "WITH subq AS (   " +
-        "SELECT *, COUNT(*) OVER(ORDER BY date desc " +
-        "RANGE BETWEEN (INTERVAL '1' DAY) * :days PRECEDING AND CURRENT ROW) as cnt " +
-        "FROM fin_fx f  " +
-        "WHERE (f.from_iso_code in (:from_iso_code) OR f.to_iso_code in (:to_iso_code)) AND date BETWEEN :from_date AND :to_date ) SELECT * FROM subq where cnt = 1 ORDER BY date;",
+            "SELECT *, COUNT(*) OVER(ORDER BY date desc " +
+            "RANGE BETWEEN (INTERVAL '1' DAY) * :days PRECEDING AND CURRENT ROW) as cnt " +
+            "FROM fin_fx f  " +
+            "WHERE (f.from_iso_code in (:from_iso_code) OR f.to_iso_code in (:to_iso_code)) AND date BETWEEN :from_date AND :to_date ) SELECT * FROM subq where cnt = 1 ORDER BY date;",
         nativeQuery = true
     )
     List<FinanceFX> findFXSummariesMultiple(
@@ -65,11 +84,11 @@ public interface FinanceFXRepository extends JpaRepository<FinanceFX, String> {
 
     @Query(
         value = "SELECT id, DATE_PART('year', date) as y, DATE_PART('month', date) as m, date, from_iso_code, to_iso_code, rate FROM ( " +
-        "  SELECT *, " +
-        "    ROW_NUMBER() OVER (PARTITION BY from_iso_code, to_iso_code, DATE_PART('month', x.date) + DATE_PART('year', x.date) ORDER BY x.date DESC) rn " +
-        " FROM fin_fx AS x) xx " +
-        " WHERE rn = 1 and from_iso_code=:from_iso_code and to_iso_code=:to_iso_code and date BETWEEN :from_date AND :to_date" +
-        " ORDER BY date DESC;",
+            "  SELECT *, " +
+            "    ROW_NUMBER() OVER (PARTITION BY from_iso_code, to_iso_code, DATE_PART('month', x.date) + DATE_PART('year', x.date) ORDER BY x.date DESC) rn " +
+            " FROM fin_fx AS x) xx " +
+            " WHERE rn = 1 and from_iso_code=:from_iso_code and to_iso_code=:to_iso_code and date BETWEEN :from_date AND :to_date" +
+            " ORDER BY date DESC;",
         nativeQuery = true
     )
     List<FinanceFX> monthlyFX(
@@ -82,11 +101,11 @@ public interface FinanceFXRepository extends JpaRepository<FinanceFX, String> {
     // Same as above but asc
     @Query(
         value = "SELECT id, DATE_PART('year', date) as y, DATE_PART('month', date) as m, date, from_iso_code, to_iso_code, rate FROM ( " +
-        "  SELECT *, " +
-        "    ROW_NUMBER() OVER (PARTITION BY from_iso_code, to_iso_code, DATE_PART('month', x.date) + DATE_PART('year', x.date) ORDER BY x.date DESC) rn " +
-        " FROM fin_fx AS x) xx " +
-        " WHERE rn = 1 and from_iso_code=:from_iso_code and to_iso_code=:to_iso_code and date BETWEEN :from_date AND :to_date" +
-        " ORDER BY date ASC;",
+            "  SELECT *, " +
+            "    ROW_NUMBER() OVER (PARTITION BY from_iso_code, to_iso_code, DATE_PART('month', x.date) + DATE_PART('year', x.date) ORDER BY x.date DESC) rn " +
+            " FROM fin_fx AS x) xx " +
+            " WHERE rn = 1 and from_iso_code=:from_iso_code and to_iso_code=:to_iso_code and date BETWEEN :from_date AND :to_date" +
+            " ORDER BY date ASC;",
         nativeQuery = true
     )
     List<FinanceFX> monthlyFXAsending(

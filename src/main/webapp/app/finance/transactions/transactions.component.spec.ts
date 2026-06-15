@@ -108,7 +108,7 @@ describe('TransactionsComponent', () => {
     expect(component.isEditorOpen).toBe(true);
     expect(component.editorMode).toBe('view');
     expect(component.selectedTransactionId).toBe('txn-1');
-    expect(component.selectedTransaction?.displayCategory).toBe('Food: Living');
+    expect(component.selectedTransaction?.displayCategory).toBe('Living: Food');
     expect(setSelected).toHaveBeenCalledWith(true, true);
   });
 

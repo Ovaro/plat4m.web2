@@ -1,0 +1,43 @@
+<div class="settings-shell">
+  <aside class="settings-shell__nav">
+    <div class="settings-shell__nav-header">
+      <div>
+        <p class="settings-shell__eyebrow">Settings</p>
+        <!-- <h1 class="settings-shell__title">Workspace Settings</h1> -->
+      </div>
+
+      <label class="settings-shell__filter" for="settings-filter">
+        <fa-icon icon="search"></fa-icon>
+        <input
+          id="settings-filter"
+          type="search"
+          [ngModel]="filterText()"
+          (ngModelChange)="filterText.set($event)"
+          placeholder="Filter settings"
+        />
+      </label>
+    </div>
+
+    <nav class="settings-shell__sections" aria-label="Settings sections">
+      @for (section of filteredSections(); track section.label) {
+        <section class="settings-shell__section">
+          <p class="settings-shell__section-label">{{ section.label }}</p>
+
+          <div class="settings-shell__section-items">
+            @for (item of section.items; track item.route) {
+              <a class="settings-shell__link" [routerLink]="item.route" routerLinkActive="is-active">{{ item.label }}</a>
+            }
+          </div>
+        </section>
+      }
+
+      @if (filteredSections().length === 0) {
+        <p class="settings-shell__empty">No settings matched that filter.</p>
+      }
+    </nav>
+  </aside>
+
+  <section class="settings-shell__content">
+    <router-outlet></router-outlet>
+  </section>
+</div>

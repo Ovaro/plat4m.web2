@@ -37,6 +37,29 @@
           </button>
         </div>
         <div class="col-auto">
+          <div ngbDropdown [autoClose]="'outside'">
+            <button
+              type="button"
+              class="btn btn-outline-secondary transactions-columns-toggle"
+              ngbDropdownToggle
+              aria-label="Choose columns"
+              title="Choose columns"
+            >
+              <fa-icon icon="th-list"></fa-icon>
+            </button>
+            <div ngbDropdownMenu class="transactions-columns-menu">
+              <label class="transactions-columns-menu__item" *ngFor="let option of columnToggleOptions">
+                <input
+                  type="checkbox"
+                  [checked]="isColumnVisible(option.id)"
+                  (change)="toggleColumnVisibility(option.id, $any($event.target).checked)"
+                />
+                <span>{{ option.label }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="col-auto">
           <button
             type="button"
             class="btn btn-outline-secondary transactions-add-button"
@@ -84,6 +107,9 @@
     </div>
 
     <aside class="transactions-editor-panel" *ngIf="isEditorOpen">
+      <div class="transactions-editor-error" *ngIf="saveTransactionError">
+        {{ saveTransactionError }}
+      </div>
       <jhi-transaction-editor
         [transaction]="selectedTransaction"
         [mode]="editorMode"

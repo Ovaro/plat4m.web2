@@ -1,0 +1,218 @@
+<div class="standard-page-container manage-page">
+  <div class="manage-page__header">
+    <div>
+      <div class="breadcrumbs">
+        <div class="primary-breadcrumb">Categories</div>
+      </div>
+      <div class="manage-page__subtitle">Manage transaction categories and Who classifications.</div>
+    </div>
+    <button type="button" class="manage-button manage-button--primary" (click)="openAddDialog()">
+      <fa-icon icon="plus"></fa-icon>
+      <span>Add</span>
+    </button>
+  </div>
+
+  <div class="manage-toolbar">
+    <label class="manage-search">
+      <fa-icon icon="search"></fa-icon>
+      <input type="search" placeholder="Search categories" [(ngModel)]="searchText" />
+    </label>
+    <select class="manage-select" [(ngModel)]="classificationFilter">
+      <option value="category">Categories</option>
+      <option value="who">Who</option>
+      <option value="all">All</option>
+    </select>
+    <button type="button" class="manage-button" (click)="load()" [disabled]="isLoading">
+      <fa-icon icon="sync"></fa-icon>
+      <span>Refresh</span>
+    </button>
+  </div>
+
+  <div *ngIf="errorMessage" class="manage-alert">{{ errorMessage }}</div>
+
+  <div class="manage-card">
+    <div class="manage-table">
+      <div class="manage-table__row manage-table__row--header">
+        <div>Name</div>
+        <div>Type</div>
+        <div>Parent</div>
+        <div>Comment</div>
+        <div class="manage-table__actions">Actions</div>
+      </div>
+      <div *ngIf="isLoading" class="manage-empty">Loading categories...</div>
+      <div *ngIf="!isLoading && visibleTreeCategories.length === 0" class="manage-empty">No categories found.</div>
+      <div
+        *ngFor="let category of visibleTreeCategories"
+        class="manage-table__row manage-table__row--clickable"
+        (click)="openCategoryTransactions(category)"
+      >
+        <div class="manage-tree-cell" [style.paddingLeft.px]="getCategoryDepth(category) * 18">
+          <button
+            *ngIf="hasVisibleChildren(category)"
+            type="button"
+            class="manage-tree-toggle"
+            [attr.aria-label]="isCategoryExpanded(category) ? 'Collapse category' : 'Expand category'"
+            (click)="toggleCategory(category); $event.stopPropagation()"
+          >
+            <fa-icon [icon]="isCategoryExpanded(category) ? 'angle-down' : 'chevron-right'"></fa-icon>
+          </button>
+          <span *ngIf="!hasVisibleChildren(category)" class="manage-tree-spacer"></span>
+          <div>
+            <div class="manage-table__primary">{{ category.name }}</div>
+            <div *ngIf="category.displayName !== category.name" class="manage-table__secondary">{{ category.displayName }}</div>
+          </div>
+        </div>
+        <div>{{ getClassificationLabel(category.classificationId) }}</div>
+        <div>{{ category.parentName || 'None' }}</div>
+        <div>{{ category.comment || '' }}</div>
+        <div class="manage-table__actions">
+          <button type="button" class="manage-icon-button" title="Edit" (click)="openEditDialog(category); $event.stopPropagation()">
+            <fa-icon icon="pencil-alt"></fa-icon>
+          </button>
+          <button
+            type="button"
+            class="manage-icon-button manage-icon-button--danger"
+            title="Delete"
+            (click)="confirmDelete(category); $event.stopPropagation()"
+            [disabled]="category.hasChildren"
+          >
+            <fa-icon icon="trash-alt"></fa-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p-dialog
+  [header]="editingCategory ? 'Edit category' : 'Add category'"
+  [(visible)]="editorVisible"
+  [modal]="true"
+  [style]="{ width: '32rem' }"
+  [draggable]="false"
+>
+  <form class="manage-form" [formGroup]="form" (ngSubmit)="save()">
+    <label>
+      <span>Name</span>
+      <input type="text" formControlName="name" autofocus />
+    </label>
+    <label>
+      <span>Type</span>
+      <select formControlName="classificationId">
+        <option [ngValue]="0">Category</option>
+        <option [ngValue]="1">Who</option>
+      </select>
+    </label>
+    <label>
+      <span>Parent</span>
+      <select formControlName="parentId">
+        <option [ngValue]="null">None</option>
+        <option *ngFor="let category of parentOptions" [ngValue]="category.id">{{ category.displayName }}</option>
+      </select>
+    </label>
+    <label>
+      <span>Comment</span>
+      <textarea rows="3" formControlName="comment"></textarea>
+    </label>
+    <div class="manage-dialog-actions">
+      <button type="button" class="manage-button" (click)="editorVisible = false" [disabled]="isSaving">Cancel</button>
+      <button type="submit" class="manage-button manage-button--primary" [disabled]="isSaving">Save</button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog header="Delete category?" [(visible)]="deleteDialogVisible" [modal]="true" [style]="{ width: '28rem' }" [draggable]="false">
+  <p>Delete {{ deleteCandidate?.displayName }}?</p>
+  <div class="manage-dialog-actions">
+    <button type="button" class="manage-button" (click)="deleteCandidate = null" [disabled]="isSaving">Cancel</button>
+    <button type="button" class="manage-button manage-button--danger" (click)="deleteCategory()" [disabled]="isSaving">Delete</button>
+  </div>
+</p-dialog>
+
+<p-dialog
+  [header]="selectedTransactionCategory ? selectedTransactionCategory.displayName + ' transactions' : 'Transactions'"
+  [(visible)]="categoryTransactionsDialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(82rem, 96vw)' }"
+  styleClass="manage-transactions-dialog"
+>
+  <div class="manage-toolbar manage-toolbar--dialog">
+    <label class="manage-search">
+      <fa-icon icon="search"></fa-icon>
+      <input type="search" placeholder="Filter transactions" [(ngModel)]="categoryTransactionsFilter" />
+    </label>
+    <button
+      type="button"
+      class="manage-button"
+      (click)="selectedTransactionCategory && openCategoryTransactions(selectedTransactionCategory)"
+      [disabled]="transactionsLoading"
+    >
+      <fa-icon icon="sync"></fa-icon>
+      <span>Refresh</span>
+    </button>
+  </div>
+
+  <div *ngIf="transactionsErrorMessage" class="manage-alert">{{ transactionsErrorMessage }}</div>
+
+  <div class="manage-card manage-card--dialog">
+    <div class="manage-table manage-table--category-transactions">
+      <div class="manage-table__row manage-table__row--header">
+        <div>Date</div>
+        <div>Account</div>
+        <div>Payee</div>
+        <div>Category / Who</div>
+        <div>Memo</div>
+        <div class="manage-table__amount">Amount</div>
+      </div>
+      <div *ngIf="transactionsLoading" class="manage-empty">Loading transactions...</div>
+      <div *ngIf="!transactionsLoading && filteredCategoryTransactions.length === 0" class="manage-empty">No transactions found.</div>
+      <button
+        *ngFor="let transaction of filteredCategoryTransactions"
+        type="button"
+        class="manage-table__row manage-table__row--button"
+        (click)="openTransactionEditor(transaction)"
+      >
+        <div>{{ transaction.date }}</div>
+        <div>{{ getAccountName(transaction.accountId) || 'Unknown account' }}</div>
+        <div>
+          <div class="manage-table__primary">{{ transaction.payeeName || 'No payee' }}</div>
+          <div class="manage-table__secondary" *ngIf="transaction.splitChild">Split line</div>
+        </div>
+        <div>
+          <div class="manage-table__primary">{{ transaction.displayCategory || 'Uncategorised' }}</div>
+          <div class="manage-table__secondary" *ngIf="transaction.whoName">Who: {{ transaction.whoName }}</div>
+        </div>
+        <div>{{ transaction.memo || '' }}</div>
+        <div class="manage-table__amount" [ngClass]="getTransactionAmountClass(transaction)">
+          {{ transaction.amount | number: '1.2-2' }}
+        </div>
+      </button>
+    </div>
+  </div>
+</p-dialog>
+
+<p-dialog
+  header="Transaction"
+  [(visible)]="transactionEditorVisible"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(52rem, 96vw)' }"
+  styleClass="manage-transaction-editor-dialog"
+  (onHide)="closeTransactionEditor()"
+>
+  <jhi-transaction-editor
+    *ngIf="selectedCategoryTransaction"
+    [transaction]="selectedCategoryTransaction"
+    [mode]="'view'"
+    [dialogView]="true"
+    [readonlyReason]="'Open this transaction from its account register to edit it.'"
+    [currentAccountId]="selectedCategoryTransaction.accountId ?? null"
+    [accounts]="transferAccountOptions"
+    [currencyCode]="getAccountCurrency(selectedCategoryTransaction.accountId)"
+    (saveTransaction)="noopEditorAction()"
+    (newTransaction)="noopEditorAction()"
+    (editTransaction)="noopEditorAction()"
+    (cancelEditor)="closeTransactionEditor()"
+  ></jhi-transaction-editor>
+</p-dialog>

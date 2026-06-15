@@ -16,6 +16,65 @@ public class FinanceTransactionUpdateDTO {
     private String memo;
     private Boolean cleared;
     private List<String> tags;
+    private List<SplitLineDTO> splits;
+
+    public static class SplitLineDTO {
+
+        private String categoryId;
+        private String categoryName;
+        private String whoId;
+        private String whoName;
+        private String memo;
+        private BigDecimal amount;
+
+        public String getCategoryId() {
+            return categoryId;
+        }
+
+        public void setCategoryId(String categoryId) {
+            this.categoryId = categoryId;
+        }
+
+        public String getCategoryName() {
+            return categoryName;
+        }
+
+        public void setCategoryName(String categoryName) {
+            this.categoryName = categoryName;
+        }
+
+        public String getWhoId() {
+            return whoId;
+        }
+
+        public void setWhoId(String whoId) {
+            this.whoId = whoId;
+        }
+
+        public String getWhoName() {
+            return whoName;
+        }
+
+        public void setWhoName(String whoName) {
+            this.whoName = whoName;
+        }
+
+        public String getMemo() {
+            return memo;
+        }
+
+        public void setMemo(String memo) {
+            this.memo = memo;
+        }
+
+        public BigDecimal getAmount() {
+            return amount;
+        }
+
+        public void setAmount(BigDecimal amount) {
+            this.amount = amount;
+        }
+    }
 
     public LocalDate getDate() {
         return date;
@@ -95,5 +154,13 @@ public class FinanceTransactionUpdateDTO {
 
     public void setTags(List<String> tags) {
         this.tags = tags;
+    }
+
+    public List<SplitLineDTO> getSplits() {
+        return splits;
+    }
+
+    public void setSplits(List<SplitLineDTO> splits) {
+        this.splits = splits;
     }
 }

@@ -1,6 +1,24 @@
 {
   "settings": {
+    "shell": {
+      "title": "Settings"
+    },
     "title": "User settings for [<strong>{{username}}</strong>]",
+    "general": {
+      "title": "General",
+      "subtitle": "Manage your profile, language, and app preferences for {{username}}.",
+      "sections": {
+        "profile": "Profile",
+        "profileHelp": "Update the core account details used across the app.",
+        "preferences": "Preferences",
+        "preferencesHelp": "Choose how the app should feel and behave by default."
+      },
+      "form": {
+        "themePreference": "Theme",
+        "themePreferenceHelp": "Auto follows your device preference by default.",
+        "agGridTheme": "AG Grid Theme"
+      }
+    },
     "form": {
       "firstname": "First Name",
       "firstname.placeholder": "Your first name",

@@ -412,6 +412,8 @@ public class MsMoneyService {
         fiStatus.setTaskFinished(true);
         if (fiStatus.getNumCreated() > 0 || fiStatus.getNumUpdated() > 0) {
             this.editorLookupCacheService.invalidateCategoryOptions(user.getGuid().toString());
+            this.editorLookupCacheService.invalidateWhoOptions(user.getGuid().toString());
+            this.editorLookupCacheService.invalidateWhoTreeOptions(user.getGuid().toString());
         }
         return fiStatus;
     }

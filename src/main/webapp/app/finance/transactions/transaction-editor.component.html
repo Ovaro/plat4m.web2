@@ -1,4 +1,4 @@
-<section class="transaction-editor" *ngIf="transaction; else emptyState">
+<section class="transaction-editor" [class.transaction-editor--dialog]="dialogView" *ngIf="transaction; else emptyState">
   <div class="transaction-editor__header">
     <p-selectbutton
       [options]="transactionTypeOptions"
@@ -10,11 +10,18 @@
       size="small"
     ></p-selectbutton>
     <div class="transaction-editor__header-actions">
-      <button type="button" class="btn btn-outline-secondary transaction-editor__mode-button" (click)="newTransaction.emit()">New</button>
       <button
         type="button"
         class="btn btn-outline-secondary transaction-editor__mode-button"
-        *ngIf="canEdit()"
+        *ngIf="!dialogView"
+        (click)="newTransaction.emit()"
+      >
+        New
+      </button>
+      <button
+        type="button"
+        class="btn btn-outline-secondary transaction-editor__mode-button"
+        *ngIf="!dialogView && canEdit()"
         (click)="editTransaction.emit()"
       >
         Edit
@@ -31,16 +38,16 @@
     {{ readonlyReason }}
   </div>
 
-  <form class="transaction-editor__form" [formGroup]="form" (ngSubmit)="onSubmit()">
+  <form class="transaction-editor__form" [formGroup]="form" (ngSubmit)="onSubmit()" (keydown)="onFormKeydown($event)">
     <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--payee" *ngIf="!isTransferMode()">
-      <span class="transaction-editor__field-label">Saved payee</span>
+      <span class="transaction-editor__field-label">{{ getPayeeLabel() }}</span>
       <p-autocomplete
         formControlName="payee"
         [suggestions]="payeeSuggestions"
         optionLabel="name"
         placeholder="No saved payee"
         [showClear]="true"
-        [forceSelection]="true"
+        [forceSelection]="false"
         [virtualScroll]="true"
         [virtualScrollItemSize]="40"
         appendTo="body"
@@ -99,88 +106,378 @@
       <input type="date" class="form-control" formControlName="date" />
     </label>
 
-    <label
-      class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--category"
-      *ngIf="!isTransferMode()"
-    >
-      <span class="transaction-editor__field-label">Category</span>
-      <p-autocomplete
-        formControlName="category"
-        [suggestions]="categorySuggestions"
-        optionLabel="name"
-        placeholder="No category"
-        [showClear]="true"
-        [forceSelection]="true"
-        [virtualScroll]="true"
-        [virtualScrollItemSize]="40"
-        appendTo="body"
-        styleClass="transaction-editor__select"
-        panelStyleClass="transaction-editor__select-panel"
-        (completeMethod)="searchCategories($event)"
-        (onClear)="clearCategory()"
-      ></p-autocomplete>
-    </label>
+    <div class="transaction-editor__field-row transaction-editor__field-row--details">
+      <label class="transaction-editor__field transaction-editor__field--compact" *ngIf="!isTransferMode() && !isSplitMode()">
+        <span class="transaction-editor__field-label">Category</span>
+        <div class="transaction-editor__category-picker">
+          <p-treeselect
+            formControlName="category"
+            [options]="categoryOptions"
+            selectionMode="single"
+            placeholder="No category"
+            [showClear]="true"
+            [filter]="true"
+            filterBy="label"
+            filterMode="lenient"
+            filterPlaceholder="Search categories"
+            scrollHeight="24rem"
+            [virtualScroll]="true"
+            [virtualScrollItemSize]="32"
+            [loading]="categoryLoading"
+            appendTo="body"
+            containerStyleClass="transaction-editor__select transaction-editor__category-select"
+            panelStyleClass="transaction-editor__select-panel transaction-editor__tree-panel"
+            (onShow)="positionTreeSelectPanelAbove($event)"
+            (onClear)="clearCategory()"
+          >
+            <ng-template #value let-value let-placeholder="placeholder">
+              <span class="transaction-editor__category-value" [class.transaction-editor__category-value--placeholder]="!value">
+                {{ getCategoryTreeSelectLabel(value, placeholder) }}
+              </span>
+            </ng-template>
+          </p-treeselect>
+          <button
+            type="button"
+            class="btn btn-outline-secondary transaction-editor__field-action"
+            *ngIf="!isViewMode() && !getEffectiveReadonlyReason()"
+            (click)="openNewCategoryDialog()"
+          >
+            Add
+          </button>
+        </div>
+      </label>
 
-    <div
-      class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--category transaction-editor__field--summary"
-      *ngIf="isTransferMode()"
-    >
-      <span class="transaction-editor__field-label">Transfer</span>
-      <div class="transaction-editor__summary">
-        {{ getTransferSummary() }}
+      <div class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--summary" *ngIf="isTransferMode()">
+        <span class="transaction-editor__field-label">Transfer</span>
+        <div class="transaction-editor__summary">
+          {{ getTransferSummary() }}
+        </div>
       </div>
+
+      <div class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--summary" *ngIf="isSplitMode()">
+        <span class="transaction-editor__field-label">Split details</span>
+        <button
+          type="button"
+          class="btn btn-outline-secondary transaction-editor__split-button"
+          [disabled]="splitRowsLoading"
+          (click)="openSplitEditor()"
+        >
+          {{ getSplitButtonLabel() }}
+        </button>
+      </div>
+
+      <div
+        class="transaction-editor__field-cluster transaction-editor__field-cluster--tags"
+        [class.transaction-editor__field-cluster--who-only]="isViewMode()"
+        *ngIf="!isTransferMode() && !isSplitMode()"
+      >
+        <div class="transaction-editor__field transaction-editor__field--compact" *ngIf="!isViewMode()">
+          <span class="transaction-editor__field-label">Split</span>
+          <button
+            type="button"
+            class="btn btn-outline-secondary transaction-editor__split-button transaction-editor__split-button--compact"
+            [disabled]="isViewMode() || !!getEffectiveReadonlyReason()"
+            (click)="enableSplitMode()"
+          >
+            Split
+          </button>
+        </div>
+
+        <label class="transaction-editor__field transaction-editor__field--compact">
+          <span class="transaction-editor__field-label">Who</span>
+          <p-treeselect
+            formControlName="who"
+            [options]="whoOptions"
+            selectionMode="single"
+            placeholder="None"
+            [showClear]="true"
+            [filter]="true"
+            filterBy="label"
+            filterPlaceholder="Search people"
+            scrollHeight="24rem"
+            [virtualScroll]="true"
+            [virtualScrollItemSize]="32"
+            [loading]="whoLoading"
+            appendTo="body"
+            containerStyleClass="transaction-editor__select"
+            panelStyleClass="transaction-editor__select-panel transaction-editor__tree-panel"
+            (onShow)="positionTreeSelectPanelAbove($event)"
+            (onClear)="clearWho()"
+          ></p-treeselect>
+        </label>
+      </div>
+
+      <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--details-amount">
+        <span class="transaction-editor__field-label">Amount</span>
+        <p-inputnumber
+          formControlName="amount"
+          mode="currency"
+          [currency]="currencyCode"
+          locale="en-AU"
+          [min]="0"
+          [minFractionDigits]="2"
+          [maxFractionDigits]="2"
+          inputStyleClass="transaction-editor__currency-input"
+        ></p-inputnumber>
+      </label>
     </div>
 
-    <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--family" *ngIf="!isTransferMode()">
-      <span class="transaction-editor__field-label">Who</span>
-      <p-autocomplete
-        formControlName="who"
-        [suggestions]="whoSuggestions"
-        optionLabel="name"
-        placeholder="None"
-        [showClear]="true"
-        [forceSelection]="true"
-        [virtualScroll]="true"
-        [virtualScrollItemSize]="40"
-        appendTo="body"
-        styleClass="transaction-editor__select"
-        panelStyleClass="transaction-editor__select-panel"
-        (completeMethod)="searchWho($event)"
-        (onClear)="clearWho()"
-      ></p-autocomplete>
-    </label>
+    <div class="transaction-editor__field-row transaction-editor__field-row--full">
+      <label class="transaction-editor__field transaction-editor__field--full">
+        <span class="transaction-editor__field-label">Memo</span>
+        <textarea class="form-control" rows="1" formControlName="memo" placeholder="Add a note"></textarea>
+      </label>
 
-    <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--amount">
-      <span class="transaction-editor__field-label">Amount</span>
-      <p-inputnumber
-        formControlName="amount"
-        mode="currency"
-        [currency]="currencyCode"
-        locale="en-AU"
-        [min]="0"
-        [minFractionDigits]="2"
-        [maxFractionDigits]="2"
-        inputStyleClass="transaction-editor__currency-input"
-      ></p-inputnumber>
-    </label>
-
-    <label class="transaction-editor__field transaction-editor__field--full">
-      <span class="transaction-editor__field-label">Memo</span>
-      <textarea class="form-control" rows="1" formControlName="memo" placeholder="Add a note"></textarea>
-    </label>
-
-    <label class="transaction-editor__toggle">
-      <input type="checkbox" formControlName="cleared" />
-      <span>Cleared</span>
-    </label>
+      <label class="transaction-editor__toggle">
+        <input type="checkbox" formControlName="cleared" />
+        <span>Cleared</span>
+      </label>
+    </div>
 
     <div class="transaction-editor__actions" *ngIf="form.dirty && !getEffectiveReadonlyReason()">
       <button type="button" class="btn btn-outline-secondary" (click)="cancelEditor.emit()">Cancel</button>
-      <button type="submit" class="btn btn-primary" [disabled]="form.invalid || saving">
+      <button type="button" class="btn btn-primary" [disabled]="form.invalid || saving" (click)="onSubmit()">
         {{ saving ? 'Saving...' : isAddMode() ? 'Add transaction' : 'Save changes' }}
       </button>
     </div>
   </form>
+
+  <div class="transaction-editor__dialog-backdrop" *ngIf="pendingCategoryCreation as pendingCategory">
+    <section
+      class="transaction-editor__dialog transaction-editor__dialog--category"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="category-editor-title"
+    >
+      <header class="transaction-editor__dialog-header">
+        <div>
+          <h3 id="category-editor-title">{{ getCategoryCreationTitle() }}</h3>
+          <p>{{ getCategoryCreationMessage() }}</p>
+        </div>
+        <button type="button" class="transaction-editor__close" aria-label="Close category editor" (click)="cancelCategoryCreateDialog()">
+          <span></span>
+          <span></span>
+        </button>
+      </header>
+
+      <div class="transaction-editor__category-confirm">
+        <label class="transaction-editor__field">
+          <span class="transaction-editor__field-label">
+            {{ pendingCategory.parentCategoryId ? 'Sub-category name' : 'Category name' }}
+          </span>
+          <input
+            type="text"
+            class="form-control"
+            [(ngModel)]="pendingCategory.rawName"
+            [ngModelOptions]="{ standalone: true }"
+            [placeholder]="pendingCategory.parentCategoryId ? 'New child category' : 'Parent or Parent: Child'"
+            (ngModelChange)="onPendingCategoryNameChange()"
+          />
+        </label>
+
+        <div class="transaction-editor__category-path">
+          <ng-container *ngIf="pendingCategory.parentCategoryId; else normalCategoryPreview">
+            <span *ngIf="pendingCategory.rawName; else selectedParentOnly">
+              {{ pendingCategory.parentName }} <strong>:</strong> {{ pendingCategory.rawName }}
+            </span>
+            <ng-template #selectedParentOnly>{{ pendingCategory.parentName || 'Enter a sub-category name' }}</ng-template>
+          </ng-container>
+          <ng-template #normalCategoryPreview>
+            <span *ngIf="pendingCategory.childName; else parentCategoryOnly">
+              {{ pendingCategory.parentName }} <strong>:</strong> {{ pendingCategory.childName }}
+            </span>
+            <ng-template #parentCategoryOnly>{{ pendingCategory.parentName || 'Enter a category name' }}</ng-template>
+          </ng-template>
+        </div>
+
+        <p *ngIf="pendingCategory.parentCategoryId">
+          Enter the new sub-category name to add under <strong>{{ pendingCategory.parentName }}</strong
+          >.
+        </p>
+        <p *ngIf="!pendingCategory.parentCategoryId && pendingCategory.childName">
+          Confirm that <strong>{{ pendingCategory.childName }}</strong> should really be a sub-category of
+          <strong>{{ pendingCategory.parentName }}</strong
+          >. If the parent does not already exist, it will be created under the selected type.
+        </p>
+        <p *ngIf="!pendingCategory.parentCategoryId && !pendingCategory.childName">
+          Confirm this category name and choose whether it belongs under Income or Expense.
+        </p>
+
+        <div class="transaction-editor__category-type" *ngIf="shouldShowCategoryTypeChoice(); else inferredCategoryType">
+          <span class="transaction-editor__field-label">Type</span>
+          <label>
+            <input type="radio" name="categoryType" value="expense" [(ngModel)]="pendingCategory.type" />
+            Expense
+          </label>
+          <label>
+            <input type="radio" name="categoryType" value="income" [(ngModel)]="pendingCategory.type" />
+            Income
+          </label>
+        </div>
+        <ng-template #inferredCategoryType>
+          <div class="transaction-editor__category-type transaction-editor__category-type--inferred">
+            <span class="transaction-editor__field-label">Type</span>
+            <strong>{{ pendingCategory.type === 'income' ? 'Income' : 'Expense' }}</strong>
+            <span>inferred from the existing parent category.</span>
+          </div>
+        </ng-template>
+
+        <div class="transaction-editor__readonly" *ngIf="pendingCategory.error">
+          {{ pendingCategory.error }}
+        </div>
+      </div>
+
+      <footer class="transaction-editor__dialog-footer">
+        <span></span>
+        <div class="transaction-editor__dialog-actions">
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            [disabled]="pendingCategory.saving"
+            (click)="cancelCategoryCreateDialog()"
+          >
+            Cancel
+          </button>
+          <button type="button" class="btn btn-primary" [disabled]="pendingCategory.saving" (click)="confirmCategoryCreateDialog()">
+            {{ pendingCategory.saving ? 'Adding...' : 'OK, add category' }}
+          </button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <div class="transaction-editor__dialog-backdrop" *ngIf="isSplitEditorOpen">
+    <section class="transaction-editor__dialog" role="dialog" aria-modal="true" aria-labelledby="split-editor-title">
+      <header class="transaction-editor__dialog-header">
+        <div>
+          <h3 id="split-editor-title">Split Transaction Editor</h3>
+          <p>Itemise the amount spent in each category below. The amounts should add up to the total transaction amount</p>
+        </div>
+        <button type="button" class="transaction-editor__close" aria-label="Close split editor" (click)="cancelSplitEditor()">
+          <span></span>
+          <span></span>
+        </button>
+      </header>
+
+      <div class="transaction-editor__split-table">
+        <div class="transaction-editor__split-head">
+          <span>Category</span>
+          <span>Who</span>
+          <span>Description/Memo</span>
+          <span>Amount</span>
+          <span></span>
+        </div>
+        <div class="transaction-editor__split-row" *ngFor="let row of splitDraftRows; let index = index">
+          <div class="transaction-editor__split-category">
+            <p-treeselect
+              [(ngModel)]="row.category"
+              [ngModelOptions]="{ standalone: true }"
+              [options]="categoryOptions"
+              selectionMode="single"
+              placeholder="Category"
+              [showClear]="true"
+              [disabled]="isViewMode() || !!getEffectiveReadonlyReason()"
+              [filter]="true"
+              filterBy="label"
+              filterMode="lenient"
+              filterPlaceholder="Search categories"
+              scrollHeight="24rem"
+              [virtualScroll]="true"
+              [virtualScrollItemSize]="32"
+              [loading]="categoryLoading"
+              appendTo="body"
+              containerStyleClass="transaction-editor__select transaction-editor__split-control"
+              panelStyleClass="transaction-editor__select-panel transaction-editor__tree-panel"
+              (onShow)="positionTreeSelectPanelAbove($event)"
+            >
+              <ng-template #value let-value let-placeholder="placeholder">
+                <span class="transaction-editor__category-value" [class.transaction-editor__category-value--placeholder]="!value">
+                  {{ getCategoryTreeSelectLabel(value, placeholder) }}
+                </span>
+              </ng-template>
+            </p-treeselect>
+            <button
+              type="button"
+              class="btn btn-outline-secondary transaction-editor__split-category-add"
+              *ngIf="!isViewMode() && !getEffectiveReadonlyReason()"
+              (click)="openNewSplitCategoryDialog(index)"
+            >
+              Add
+            </button>
+          </div>
+          <p-treeselect
+            [(ngModel)]="row.who"
+            [ngModelOptions]="{ standalone: true }"
+            [options]="whoOptions"
+            selectionMode="single"
+            placeholder="Who"
+            [showClear]="true"
+            [disabled]="isViewMode() || !!getEffectiveReadonlyReason()"
+            [filter]="true"
+            filterBy="label"
+            filterPlaceholder="Search people"
+            scrollHeight="24rem"
+            [virtualScroll]="true"
+            [virtualScrollItemSize]="32"
+            appendTo="body"
+            containerStyleClass="transaction-editor__select transaction-editor__split-control"
+            panelStyleClass="transaction-editor__select-panel transaction-editor__tree-panel"
+            (onShow)="positionTreeSelectPanelAbove($event)"
+          ></p-treeselect>
+          <input
+            type="text"
+            class="form-control transaction-editor__split-memo"
+            [(ngModel)]="row.memo"
+            [ngModelOptions]="{ standalone: true }"
+            [disabled]="isViewMode() || !!getEffectiveReadonlyReason()"
+          />
+          <p-inputnumber
+            [(ngModel)]="row.amount"
+            [ngModelOptions]="{ standalone: true }"
+            mode="currency"
+            [currency]="currencyCode"
+            locale="en-AU"
+            [min]="0"
+            [disabled]="isViewMode() || !!getEffectiveReadonlyReason()"
+            [minFractionDigits]="2"
+            [maxFractionDigits]="2"
+            inputStyleClass="transaction-editor__currency-input"
+          ></p-inputnumber>
+          <button
+            type="button"
+            class="btn btn-outline-danger transaction-editor__split-delete"
+            *ngIf="!isViewMode() && !getEffectiveReadonlyReason()"
+            (click)="deleteSplitRow(index)"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="btn btn-outline-secondary transaction-editor__split-add"
+        *ngIf="!isViewMode() && !getEffectiveReadonlyReason()"
+        (click)="addSplitRow()"
+      >
+        + Add row
+      </button>
+
+      <footer class="transaction-editor__dialog-footer">
+        <div class="transaction-editor__split-total" [class.transaction-editor__split-total--different]="isSplitDraftTotalDifferent()">
+          <span>Split total</span>
+          <strong>{{ formatMoney(getSplitDraftTotal()) }}</strong>
+          <small *ngIf="isSplitDraftTotalDifferent()">Transaction total will become {{ formatMoney(getSplitDraftTotal()) }}</small>
+        </div>
+        <div class="transaction-editor__dialog-actions">
+          <button type="button" class="btn btn-outline-secondary" (click)="cancelSplitEditor()">Cancel</button>
+          <button type="button" class="btn btn-primary" (click)="doneSplitEditor()">
+            {{ isViewMode() || getEffectiveReadonlyReason() ? 'Close' : 'Done' }}
+          </button>
+        </div>
+      </footer>
+    </section>
+  </div>
 </section>
 
 <ng-template #emptyState>

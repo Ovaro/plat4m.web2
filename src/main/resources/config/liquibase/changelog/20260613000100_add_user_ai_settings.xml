@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet author="codex" id="20260613000100-1">
+        <createTable tableName="user_ai_settings">
+            <column name="id" type="uuid">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="user_ai_settings_pk"/>
+            </column>
+            <column name="provider" type="varchar(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="default_model" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="gemini_api_key" type="varchar(512)"/>
+            <column name="model_overrides_json" type="text"/>
+            <column name="user_id" type="bigint">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_user_ai_settings_user_id"/>
+            </column>
+            <column name="created_by" type="varchar(50)"/>
+            <column name="created_date" type="${datetimeType}"/>
+            <column name="last_modified_by" type="varchar(50)"/>
+            <column name="last_modified_date" type="${datetimeType}"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="user_ai_settings"
+            baseColumnNames="user_id"
+            referencedTableName="jhi_user"
+            referencedColumnNames="id"
+            constraintName="fk_user_ai_settings_user_id"/>
+
+        <createIndex indexName="idx_user_ai_settings_user_id" tableName="user_ai_settings">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

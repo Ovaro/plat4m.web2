@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,13 +34,19 @@ import ovaro.plat4m.service.FinanceAccountService;
 import ovaro.plat4m.service.FinanceTransactionService;
 import ovaro.plat4m.service.UserService;
 import ovaro.plat4m.service.dto.FinanceAccountDTO;
+import ovaro.plat4m.service.dto.FinanceCategoryCreateDTO;
 import ovaro.plat4m.service.dto.FinanceIndicatorDTO;
 import ovaro.plat4m.service.dto.FinanceIndicatorsDTO;
+import ovaro.plat4m.service.dto.FinanceManageCategoryDTO;
+import ovaro.plat4m.service.dto.FinanceManageCategoryUpdateDTO;
+import ovaro.plat4m.service.dto.FinanceManagePayeeDTO;
+import ovaro.plat4m.service.dto.FinanceManagePayeeUpdateDTO;
 import ovaro.plat4m.service.dto.FinanceResourceDTO;
 import ovaro.plat4m.service.dto.FinanceSnapshotsPerResourceDTO;
 import ovaro.plat4m.service.dto.FinanceTransactionEditorOptionsDTO;
 import ovaro.plat4m.service.dto.FinanceTransactionRowDTO;
 import ovaro.plat4m.service.dto.FinanceTransactionUpdateDTO;
+import ovaro.plat4m.service.dto.FinanceTreeNodeDTO;
 import tech.jhipster.web.util.PaginationUtil;
 
 @RestController
@@ -185,6 +192,34 @@ public class FinanceAccountResource {
         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
     }
 
+    @PostMapping("/transactions/editor-options/categories")
+    public ResponseEntity<FinanceResourceDTO> createTransactionCategory(@RequestBody FinanceCategoryCreateDTO request) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        try {
+            FinanceResourceDTO category = financeTransactionService.createCategory(
+                u.get(),
+                request.getName(),
+                request.getType(),
+                request.getParentCategoryId()
+            );
+            return new ResponseEntity<>(category, HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
+    }
+
+    @GetMapping("/transactions/editor-options/categories-tree")
+    public ResponseEntity<List<FinanceTreeNodeDTO>> getTransactionCategoryTreeOptions() throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        return new ResponseEntity<>(financeTransactionService.getCategoryTreeOptions(u.get()), HttpStatus.OK);
+    }
+
     @GetMapping("/transactions/editor-options/who")
     public ResponseEntity<List<FinanceResourceDTO>> getTransactionWhoOptions(
         @RequestParam(name = "query", required = false) String query,
@@ -196,6 +231,14 @@ public class FinanceAccountResource {
         final Page<FinanceResourceDTO> page = financeTransactionService.getWhoOptions(u.get(), query, pageable);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/transactions/editor-options/who-tree")
+    public ResponseEntity<List<FinanceTreeNodeDTO>> getTransactionWhoTreeOptions() throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        return new ResponseEntity<>(financeTransactionService.getWhoTreeOptions(u.get()), HttpStatus.OK);
     }
 
     @GetMapping("/transactions/editor-options/payees")
@@ -224,6 +267,114 @@ public class FinanceAccountResource {
         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
     }
 
+    @GetMapping("/categories")
+    public ResponseEntity<List<FinanceManageCategoryDTO>> getCategories() throws IOException {
+        Optional<User> u = getCurrentUser();
+        return new ResponseEntity<>(financeTransactionService.getManagedCategories(u.get()), HttpStatus.OK);
+    }
+
+    @PostMapping("/categories")
+    public ResponseEntity<FinanceManageCategoryDTO> createCategory(@RequestBody FinanceManageCategoryUpdateDTO update) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            return new ResponseEntity<>(financeTransactionService.createManagedCategory(u.get(), update), HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    @PutMapping("/categories/{categoryId}")
+    public ResponseEntity<FinanceManageCategoryDTO> updateCategory(
+        @PathVariable(name = "categoryId") UUID categoryId,
+        @RequestBody FinanceManageCategoryUpdateDTO update
+    ) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            return new ResponseEntity<>(financeTransactionService.updateManagedCategory(u.get(), categoryId, update), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
+    }
+
+    @DeleteMapping("/categories/{categoryId}")
+    public ResponseEntity<Void> deleteCategory(@PathVariable(name = "categoryId") UUID categoryId) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            financeTransactionService.deleteManagedCategory(u.get(), categoryId);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
+    }
+
+    @GetMapping("/categories/{categoryId}/transactions")
+    public ResponseEntity<List<FinanceTransactionRowDTO>> getCategoryTransactions(@PathVariable(name = "categoryId") UUID categoryId)
+        throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            return new ResponseEntity<>(financeTransactionService.getManagedCategoryTransactions(u.get(), categoryId), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    @GetMapping("/payees")
+    public ResponseEntity<List<FinanceManagePayeeDTO>> getPayees(
+        @RequestParam(name = "includeHidden", defaultValue = "false") boolean includeHidden
+    ) throws IOException {
+        Optional<User> u = getCurrentUser();
+        return new ResponseEntity<>(financeTransactionService.getManagedPayees(u.get(), includeHidden), HttpStatus.OK);
+    }
+
+    @GetMapping("/payees/{payeeId}/transactions")
+    public ResponseEntity<List<FinanceTransactionRowDTO>> getPayeeTransactions(@PathVariable(name = "payeeId") UUID payeeId)
+        throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            return new ResponseEntity<>(financeTransactionService.getManagedPayeeTransactions(u.get(), payeeId), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    @PostMapping("/payees")
+    public ResponseEntity<FinanceManagePayeeDTO> createPayee(@RequestBody FinanceManagePayeeUpdateDTO update) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            return new ResponseEntity<>(financeTransactionService.createManagedPayee(u.get(), update), HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    @PutMapping("/payees/{payeeId}")
+    public ResponseEntity<FinanceManagePayeeDTO> updatePayee(
+        @PathVariable(name = "payeeId") UUID payeeId,
+        @RequestBody FinanceManagePayeeUpdateDTO update
+    ) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            return new ResponseEntity<>(financeTransactionService.updateManagedPayee(u.get(), payeeId, update), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    @DeleteMapping("/payees/{payeeId}")
+    public ResponseEntity<Void> deletePayee(@PathVariable(name = "payeeId") UUID payeeId) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            financeTransactionService.deleteManagedPayee(u.get(), payeeId);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
     @PutMapping("/account/{accountId}/transactions/{transactionId}")
     public ResponseEntity<FinanceTransactionRowDTO> updateTransaction(
         @PathVariable(name = "accountId") String accountId,
@@ -240,6 +391,31 @@ public class FinanceAccountResource {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
         } catch (IllegalStateException e) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
+    }
+
+    private Optional<User> getCurrentUser() {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+        return userService.getUserWithAuthoritiesByLogin(userLogin);
+    }
+
+    @GetMapping("/account/{accountId}/transactions/{transactionId}/splits")
+    public ResponseEntity<List<FinanceTransactionUpdateDTO.SplitLineDTO>> getTransactionSplits(
+        @PathVariable(name = "accountId") String accountId,
+        @PathVariable(name = "transactionId") UUID transactionId
+    ) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        try {
+            List<FinanceTransactionUpdateDTO.SplitLineDTO> splits = financeTransactionService.getSplitTransactions(
+                u.get(),
+                accountId,
+                transactionId
+            );
+            return new ResponseEntity<>(splits, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
         }
     }
 

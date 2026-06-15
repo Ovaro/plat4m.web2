@@ -18,4 +18,3 @@ mapstruct-processor = { module = "org.mapstruct:mapstruct-processor", version.re
 gradle-git-properties = { id = "com.gorylenko.gradle-git-properties", version = "3.0.3" }
 spring-boot = { id = "org.springframework.boot", version = "4.0.6" }
 # jhipster-needle-gradle-dependency-catalog-plugins - JHipster will add additional plugins versions
-

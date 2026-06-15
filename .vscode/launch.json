@@ -6,6 +6,13 @@
   "configurations": [
     {
       "type": "java",
+      "name": "TransactionInfoImpl",
+      "request": "launch",
+      "mainClass": "com.le.sunriise.mnyobject.impl.TransactionInfoImpl",
+      "projectName": "plat4m.web2"
+    },
+    {
+      "type": "java",
       "name": "AccountViewer",
       "request": "launch",
       "mainClass": "com.le.sunriise.accountviewer.AccountViewer",

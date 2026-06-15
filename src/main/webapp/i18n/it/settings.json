@@ -1,6 +1,24 @@
 {
   "settings": {
+    "shell": {
+      "title": "Impostazioni"
+    },
     "title": "Impostazioni per l'utente [<strong>{{username}}</strong>]",
+    "general": {
+      "title": "Generale",
+      "subtitle": "Gestisci profilo, lingua e preferenze dell'app per {{username}}.",
+      "sections": {
+        "profile": "Profilo",
+        "profileHelp": "Aggiorna i dettagli principali dell'account usati nell'app.",
+        "preferences": "Preferenze",
+        "preferencesHelp": "Scegli l'aspetto e il comportamento predefinito dell'app."
+      },
+      "form": {
+        "themePreference": "Tema",
+        "themePreferenceHelp": "Auto segue per impostazione predefinita il tema del dispositivo.",
+        "agGridTheme": "Tema AG Grid"
+      }
+    },
     "form": {
       "firstname": "Nome",
       "firstname.placeholder": "Il tuo nome",

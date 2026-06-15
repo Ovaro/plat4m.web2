@@ -83,6 +83,7 @@ export type TreeMapChartOptions = {
   legend: ApexLegend;
   title: ApexTitleSubtitle;
   plotOptions: ApexPlotOptions;
+  colors: string[];
   dataLabels: ApexDataLabels;
   tooltip: ApexTooltip;
   theme?: ApexTheme;
@@ -415,6 +416,7 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
         show: true,
       },
       title: {},
+      colors: ['#5EBFEA', '#91E5C4', '#4F6FD1', '#B7C4F0', '#8ED1F6', '#0074AB', '#58B9EB', '#351973', '#2EA0D6', '#0084BD', '#D9F1FF'],
       plotOptions: {
         treemap: {
           enableShades: true,
@@ -528,14 +530,9 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
       (this.treemapChartOptions.dataLabels = {
         enabled: true,
         distributed: true,
-        // eslint-disable-next-line object-shorthand
-        formatter:
-          // function (val: string, op: any): string[] {
-          //   return [val, ptr.currencyFormatter(op.value)]; // + '<br>' + String(op.value)
-          // },
-          function (val: string, op: any): string | number {
-            return ptr.currencyFormatter(op.value); // + '<br>' + String(op.value)
-          },
+        formatter: function (val: string, op: any): string {
+          return `${val}\n${ptr.currencyFormatter(op.value)}`;
+        },
       }));
 
     this.treemapChartOptions.tooltip = {
@@ -696,7 +693,7 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
 
   navigateToInvestment(id: string): void {
     this.zone.run(() => {
-      this.router.navigate(['/', 'finance', 'investment', id], { skipLocationChange: false }).then(
+      this.router.navigate(['/', 'investment', id], { skipLocationChange: false }).then(
         nav => {
           // eslint-disable-next-line no-console
           console.log(nav); // true if navigation is successful
@@ -1550,7 +1547,7 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
   private setHistorySeries(series: ApexAxisChartSeries): void {
     this.historyChartOptions = {
       ...this.historyChartOptions,
-      series: this.normalizeAxisSeries(series, 'All Holdings'),
+      series: this.normalizeTimeSeries(series, 'All Holdings'),
     };
   }
 
@@ -1564,7 +1561,7 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
   private setTreemapSeries(series: ApexAxisChartSeries): void {
     this.treemapChartOptions = {
       ...this.treemapChartOptions,
-      series: this.normalizeAxisSeries(series, this.selectedGroup.name),
+      series: this.normalizeTreemapSeries(series, this.selectedGroup.name),
     };
   }
 
@@ -1577,7 +1574,7 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
     this.refreshPieChart();
   }
 
-  private normalizeAxisSeries(series: ApexAxisChartSeries | null | undefined, defaultName: string): ApexAxisChartSeries {
+  private normalizeTimeSeries(series: ApexAxisChartSeries | null | undefined, defaultName: string): ApexAxisChartSeries {
     if (!Array.isArray(series) || series.length === 0) {
       return [{ name: defaultName, data: [] }];
     }
@@ -1594,6 +1591,34 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
                 y: typeof point.y === 'number' ? point.y : Number(point.y ?? 0),
               }))
               .filter((point: { x: number; y: number }) => !Number.isNaN(point.x) && !Number.isNaN(point.y))
+          : [],
+      }))
+      .filter((entry: any) => Array.isArray(entry.data));
+
+    if (normalizedSeries.length === 0) {
+      return [{ name: defaultName, data: [] }];
+    }
+
+    return normalizedSeries;
+  }
+
+  private normalizeTreemapSeries(series: ApexAxisChartSeries | null | undefined, defaultName: string): ApexAxisChartSeries {
+    if (!Array.isArray(series) || series.length === 0) {
+      return [{ name: defaultName, data: [] }];
+    }
+
+    const normalizedSeries = series
+      .filter((entry: any) => entry != null)
+      .map((entry: any, index: number) => ({
+        name: entry.name ?? `${defaultName} ${index + 1}`,
+        data: Array.isArray(entry.data)
+          ? entry.data
+              .filter((point: any) => point != null)
+              .map((point: any) => ({
+                x: String(point.x ?? ''),
+                y: typeof point.y === 'number' ? point.y : Number(point.y ?? 0),
+              }))
+              .filter((point: { x: string; y: number }) => point.x.length > 0 && !Number.isNaN(point.y))
           : [],
       }))
       .filter((entry: any) => Array.isArray(entry.data));

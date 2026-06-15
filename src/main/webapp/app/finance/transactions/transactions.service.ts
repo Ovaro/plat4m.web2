@@ -6,7 +6,14 @@ import { createRequestOption } from 'app/core/request/request-util';
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
 import { FinancialTransaction } from '../finance.model';
 import { Pagination } from 'app/core/request/request.model';
-import { TransactionLookupQuery, TransactionOption, TransactionUpdate } from './transactions.types';
+import {
+  TransactionCategoryCreateRequest,
+  TransactionLookupQuery,
+  TransactionOption,
+  TransactionSplitUpdate,
+  TransactionTreeOption,
+  TransactionUpdate,
+} from './transactions.types';
 
 @Injectable({
   providedIn: 'root', // Add this line
@@ -34,6 +41,19 @@ export class Transactions {
     });
   }
 
+  getCategoryTreeOptions(): Observable<TransactionTreeOption[]> {
+    return this.http.get<TransactionTreeOption[]>(
+      this.applicationConfigService.getEndpointFor('api/transactions/editor-options/categories-tree'),
+    );
+  }
+
+  createCategory(request: TransactionCategoryCreateRequest): Observable<TransactionOption> {
+    return this.http.post<TransactionOption>(
+      this.applicationConfigService.getEndpointFor('api/transactions/editor-options/categories'),
+      request,
+    );
+  }
+
   getPayeeOptions(req: TransactionLookupQuery): Observable<HttpResponse<TransactionOption[]>> {
     const options = createRequestOption(req);
     return this.http.get<TransactionOption[]>(this.applicationConfigService.getEndpointFor('api/transactions/editor-options/payees'), {
@@ -50,12 +70,22 @@ export class Transactions {
     });
   }
 
+  getWhoTreeOptions(): Observable<TransactionTreeOption[]> {
+    return this.http.get<TransactionTreeOption[]>(this.applicationConfigService.getEndpointFor('api/transactions/editor-options/who-tree'));
+  }
+
   getTagOptions(req: TransactionLookupQuery): Observable<HttpResponse<TransactionOption[]>> {
     const options = createRequestOption(req);
     return this.http.get<TransactionOption[]>(this.applicationConfigService.getEndpointFor('api/transactions/editor-options/tags'), {
       params: options,
       observe: 'response',
     });
+  }
+
+  getSplits(accountId: string, transactionId: string): Observable<TransactionSplitUpdate[]> {
+    return this.http.get<TransactionSplitUpdate[]>(
+      this.applicationConfigService.getEndpointFor(`api/account/${accountId}/transactions/${transactionId}/splits`),
+    );
   }
 
   update(accountId: string, transactionId: string, update: TransactionUpdate): Observable<FinancialTransaction> {

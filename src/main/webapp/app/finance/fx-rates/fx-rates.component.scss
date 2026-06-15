@@ -1,0 +1,135 @@
+@use '../manage-data/manage-data';
+
+.manage-table--fx .manage-table__row {
+  grid-template-columns: minmax(210px, 1.4fr) 140px minmax(160px, 1fr) 96px;
+  align-items: center;
+}
+
+.manage-table--fx-history .manage-table__row {
+  grid-template-columns: 140px minmax(180px, 1fr) minmax(140px, 0.8fr) 96px;
+  align-items: center;
+}
+
+.manage-table__row--clickable {
+  cursor: pointer;
+}
+
+.manage-table__row--clickable:hover {
+  background: color-mix(in srgb, var(--app-colours-primary) 8%, transparent);
+}
+
+:host-context(.theme-dark) .manage-table__row--clickable:hover {
+  background: color-mix(in srgb, var(--app-colours-primary) 16%, var(--ps-colors-background-dark-2));
+}
+
+.manage-rate {
+  font-variant-numeric: tabular-nums;
+}
+
+.manage-import-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 90px minmax(240px, 1.4fr) 150px auto;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-colours-background-high-light) 86%, transparent);
+}
+
+:host-context(.theme-dark) .manage-import-card {
+  border-color: color-mix(in srgb, var(--ps-colors-text-icon-high-on-dark) 18%, transparent);
+  background: color-mix(in srgb, var(--ps-colors-background-dark-2) 88%, transparent);
+}
+
+.manage-import-card label {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+.manage-import-card input {
+  height: 35px;
+  padding: 0 9px;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 7px;
+  background: var(--app-colours-background-high-light);
+  color: inherit;
+  font-size: 0.72rem;
+}
+
+:host-context(.theme-dark) .manage-import-card input {
+  border-color: color-mix(in srgb, var(--ps-colors-text-icon-high-on-dark) 20%, transparent);
+  background: var(--ps-colors-background-dark-2);
+}
+
+.manage-alert--success {
+  border-color: #12b76a;
+  color: #05603a;
+  background: #ecfdf3;
+}
+
+:host-context(.theme-dark) .manage-alert--success {
+  color: #a6f4c5;
+  background: color-mix(in srgb, #05603a 50%, var(--ps-colors-background-dark-2));
+}
+
+.manage-toolbar--dialog {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.fx-rates-history-dialog__summary {
+  min-width: 0;
+}
+
+.fx-rates-history-dialog__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.fx-rates-history-dialog__content {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.fx-rates-history-dialog__chart-card {
+  min-height: 288px;
+  padding: 10px 10px 6px;
+}
+
+.fx-rates-history-dialog__chart {
+  display: block;
+}
+
+.manage-card--dialog {
+  max-height: min(32rem, 62vh);
+  overflow: auto;
+}
+
+:host ::ng-deep .fx-rates-history-dialog .p-dialog-content {
+  overflow: hidden;
+}
+
+@media screen and (max-width: 960px) {
+  .manage-import-card {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .manage-import-card > div,
+  .manage-import-card__quotes {
+    grid-column: 1 / -1;
+  }
+
+  .fx-rates-history-dialog__content {
+    grid-template-columns: 1fr;
+  }
+}

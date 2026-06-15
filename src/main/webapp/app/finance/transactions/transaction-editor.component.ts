@@ -1,20 +1,60 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  DestroyRef,
+  EventEmitter,
+  Input,
+  OnChanges,
+  OnInit,
+  Output,
+  SimpleChanges,
+  inject,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { finalize } from 'rxjs';
 import { AutoCompleteModule } from 'primeng/autocomplete';
+import { OverlayOnShowEvent } from 'primeng/api';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectButtonModule } from 'primeng/selectbutton';
+import { TreeSelectModule } from 'primeng/treeselect';
 import { AutoCompleteCompleteEvent } from 'primeng/autocomplete';
 import { FinancialTransaction } from '../finance.model';
 import { Transactions } from './transactions.service';
-import { TransactionEditorMode, TransactionLookupQuery, TransactionOption, TransactionUpdate } from './transactions.types';
+import {
+  TransactionEditorMode,
+  TransactionCategoryType,
+  TransactionLookupQuery,
+  TransactionOption,
+  TransactionSplitUpdate,
+  TransactionTreeOption,
+  TransactionUpdate,
+} from './transactions.types';
 
-type TransactionEditorType = 'deposit' | 'withdrawal' | 'transfer';
+type TransactionEditorType = 'withdrawal' | 'deposit' | 'transfer' | 'split';
+
+interface TransactionSplitEditorRow {
+  category: TransactionTreeOption | null;
+  who: TransactionTreeOption | null;
+  memo: string | null;
+  amount: number | null;
+}
+
+interface PendingCategoryCreation {
+  rawName: string;
+  parentName: string;
+  childName: string | null;
+  type: TransactionCategoryType;
+  parentCategoryId: string | null;
+  targetSplitRowIndex: number | null;
+  saving: boolean;
+  error: string | null;
+}
 
 @Component({
   selector: 'jhi-transaction-editor',
-  imports: [CommonModule, ReactiveFormsModule, AutoCompleteModule, SelectButtonModule, InputNumberModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, AutoCompleteModule, SelectButtonModule, InputNumberModule, TreeSelectModule],
   templateUrl: './transaction-editor.component.html',
   styleUrls: ['./transaction-editor.component.scss'],
 })
@@ -28,54 +68,61 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
   @Input() currentAccountId: string | null = null;
   @Input() accounts: TransactionOption[] = [];
   @Input() saving = false;
+  @Input() dialogView = false;
 
   @Output() saveTransaction = new EventEmitter<TransactionUpdate>();
   @Output() newTransaction = new EventEmitter<void>();
   @Output() editTransaction = new EventEmitter<void>();
   @Output() cancelEditor = new EventEmitter<void>();
 
-  protected categorySuggestions: TransactionOption[] = [];
-  protected whoSuggestions: TransactionOption[] = [];
+  protected categoryOptions: TransactionTreeOption[] = [];
+  protected whoOptions: TransactionTreeOption[] = [];
   protected payeeSuggestions: TransactionOption[] = [];
   protected transferAccountSuggestions: TransactionOption[] = [];
   protected tagSuggestions: string[] = [];
   protected categoryLoading = false;
   protected whoLoading = false;
   protected payeeLoading = false;
+  protected splitRows: TransactionSplitEditorRow[] = [];
+  protected splitDraftRows: TransactionSplitEditorRow[] = [];
+  protected isSplitEditorOpen = false;
+  protected splitRowsLoading = false;
+  protected splitDraftConvertsTransaction = false;
+  protected pendingCategoryCreation: PendingCategoryCreation | null = null;
 
   protected readonly form = new FormGroup({
     transactionType: new FormControl<TransactionEditorType>('withdrawal', { nonNullable: true }),
     date: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     amount: new FormControl<number | null>(0, { validators: [Validators.required, Validators.min(0)] }),
-    payee: new FormControl<TransactionOption | null>(null),
+    payee: new FormControl<TransactionOption | string | null>(null),
     transferAccount: new FormControl<TransactionOption | null>(null),
     tags: new FormControl<string[]>([], { nonNullable: true }),
-    category: new FormControl<TransactionOption | null>(null),
-    who: new FormControl<TransactionOption | null>(null),
+    category: new FormControl<TransactionTreeOption | null>(null),
+    who: new FormControl<TransactionTreeOption | null>(null),
     memo: new FormControl<string | null>(null),
     cleared: new FormControl(false, { nonNullable: true }),
   });
   protected readonly tagInput = new FormControl('', { nonNullable: true });
 
   protected readonly transactionTypeOptions = [
-    { label: 'Deposit', value: 'deposit' },
     { label: 'Withdrawal', value: 'withdrawal' },
+    { label: 'Deposit', value: 'deposit' },
     { label: 'Transfer', value: 'transfer' },
   ];
 
   private readonly transactionsService = inject(Transactions);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
+  private splitRowsLoadSequence = 0;
 
   ngOnInit(): void {
     const selectedPayee = this.getSelectedPayeeOption();
-    const selectedCategory = this.getSelectedCategoryOption();
-    const selectedWho = this.getSelectedWhoOption();
     const selectedTransferAccount = this.getSelectedTransferAccountOption();
 
     this.payeeSuggestions = selectedPayee ? [selectedPayee] : [];
-    this.categorySuggestions = selectedCategory ? [selectedCategory] : [];
-    this.whoSuggestions = selectedWho ? [selectedWho] : [];
     this.transferAccountSuggestions = selectedTransferAccount ? [selectedTransferAccount] : [];
+    this.loadCategoryTreeOptions();
+    this.loadWhoTreeOptions();
     this.form.controls.transactionType.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.applyFormState();
     });
@@ -98,20 +145,25 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
 
     const rawValue = this.form.getRawValue();
     const normalizedAmount = Math.abs(rawValue.amount ?? 0);
-    const signedAmount = this.getSignedAmount(rawValue.transactionType, normalizedAmount);
+    const splitPayload = this.isSplitMode() ? this.buildSplitPayload(this.splitRows) : null;
+    const reconciledAmount = splitPayload?.length ? this.getSplitRowsTotal(splitPayload) : normalizedAmount;
+    const signedAmount = this.getSignedAmount(rawValue.transactionType, reconciledAmount);
     const isTransfer = rawValue.transactionType === 'transfer';
-
+    const isSplit = rawValue.transactionType === 'split';
+    const payeeValue = this.normalizePayeeValue(rawValue.payee);
+    const whoId = this.normalizeWhoValue(rawValue.who);
     this.saveTransaction.emit({
       date: rawValue.date,
       amount: signedAmount,
-      payeeId: isTransfer ? null : (rawValue.payee?.id ?? null),
-      payeeName: isTransfer ? null : this.trimToNull(rawValue.payee?.name ?? null),
-      categoryId: isTransfer ? null : (rawValue.category?.id ?? null),
-      whoId: isTransfer ? null : (rawValue.who?.id ?? null),
+      payeeId: isTransfer ? null : payeeValue.id,
+      payeeName: isTransfer ? null : payeeValue.name,
+      categoryId: isTransfer || isSplit ? null : this.normalizeCategoryValue(rawValue.category),
+      whoId: isTransfer || isSplit ? null : whoId,
       tags: rawValue.tags,
       transferredAccountId: isTransfer ? (rawValue.transferAccount?.id ?? null) : null,
       memo: this.trimToNull(rawValue.memo),
       cleared: rawValue.cleared,
+      splits: splitPayload,
     });
   }
 
@@ -143,16 +195,16 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     return this.transaction && this.transaction.amount >= 0 ? 'Incoming transfer' : 'Outgoing transfer';
   }
 
+  getPayeeLabel(): string {
+    if (this.form.controls.transactionType.value === 'deposit') {
+      return 'To';
+    }
+
+    return 'Pay to';
+  }
+
   searchPayees(event: AutoCompleteCompleteEvent): void {
     this.loadPayees(event.query);
-  }
-
-  searchCategories(event: AutoCompleteCompleteEvent): void {
-    this.loadCategories(event.query);
-  }
-
-  searchWho(event: AutoCompleteCompleteEvent): void {
-    this.loadWho(event.query);
   }
 
   clearPayee(): void {
@@ -163,13 +215,178 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     this.form.controls.category.setValue(null);
   }
 
+  getCategoryTreeSelectLabel(
+    value: TransactionTreeOption | TransactionTreeOption[] | null | undefined,
+    placeholder = 'No category',
+  ): string {
+    const selectedValue = Array.isArray(value) ? value[0] : value;
+    if (!selectedValue?.key) {
+      return placeholder;
+    }
+
+    return this.getCategoryPathByKey(selectedValue.key) ?? selectedValue.label;
+  }
+
+  positionTreeSelectPanelAbove(event: OverlayOnShowEvent): void {
+    requestAnimationFrame(() => {
+      const overlay = event.overlay;
+      const target = event.target;
+      if (!overlay || !target) {
+        return;
+      }
+
+      const targetRect = target.getBoundingClientRect();
+      const overlayRect = overlay.getBoundingClientRect();
+      const viewportPadding = 8;
+      const gutter = 4;
+      const nextTop = Math.max(viewportPadding, targetRect.top + window.scrollY - overlayRect.height - gutter);
+      const nextLeft = Math.min(
+        Math.max(viewportPadding, targetRect.left + window.scrollX),
+        window.scrollX + window.innerWidth - overlayRect.width - viewportPadding,
+      );
+
+      overlay.style.top = `${nextTop}px`;
+      overlay.style.left = `${nextLeft}px`;
+      overlay.style.insetInlineStart = `${nextLeft}px`;
+      overlay.style.marginTop = '0';
+      overlay.style.transformOrigin = 'bottom';
+    });
+  }
+
+  openNewCategoryDialog(): void {
+    this.openCategoryCreateDialog('', null, this.form.controls.category.value);
+  }
+
+  openNewSplitCategoryDialog(index: number): void {
+    this.openCategoryCreateDialog('', index, this.splitDraftRows[index]?.category ?? null);
+  }
+
+  cancelCategoryCreateDialog(): void {
+    if (this.pendingCategoryCreation?.saving) {
+      return;
+    }
+
+    this.pendingCategoryCreation = null;
+  }
+
+  onPendingCategoryNameChange(): void {
+    const pendingCategory = this.pendingCategoryCreation;
+    if (!pendingCategory) {
+      return;
+    }
+
+    if (pendingCategory.parentCategoryId) {
+      pendingCategory.childName = this.trimToNull(pendingCategory.rawName);
+      pendingCategory.error = null;
+      return;
+    }
+
+    const parsedCategory = this.parseCategoryName(pendingCategory.rawName);
+    pendingCategory.parentName = parsedCategory?.parentName ?? '';
+    pendingCategory.childName = parsedCategory?.childName ?? null;
+    pendingCategory.error = null;
+    const inferredType = this.inferCategoryTypeFromParent(pendingCategory.parentName);
+    if (inferredType) {
+      pendingCategory.type = inferredType;
+    }
+  }
+
+  confirmCategoryCreateDialog(): void {
+    const pendingCategory = this.pendingCategoryCreation;
+    if (!pendingCategory || pendingCategory.saving) {
+      return;
+    }
+
+    const parsedCategory = pendingCategory.parentCategoryId
+      ? this.parseChildCategoryName(pendingCategory.rawName, pendingCategory.parentName)
+      : this.parseCategoryName(pendingCategory.rawName);
+    if (!parsedCategory) {
+      pendingCategory.error = pendingCategory.parentCategoryId ? 'Enter a sub-category name.' : 'Enter a category name.';
+      return;
+    }
+
+    pendingCategory.parentName = parsedCategory.parentName;
+    pendingCategory.childName = parsedCategory.childName;
+    pendingCategory.rawName = pendingCategory.parentCategoryId ? parsedCategory.childName! : parsedCategory.rawName;
+    pendingCategory.saving = true;
+    pendingCategory.error = null;
+    this.transactionsService
+      .createCategory({
+        name: pendingCategory.parentCategoryId ? parsedCategory.childName! : pendingCategory.rawName,
+        type: pendingCategory.type,
+        parentCategoryId: pendingCategory.parentCategoryId,
+      })
+      .subscribe({
+        next: category => {
+          const categoryNode = { key: category.id, label: category.name, leaf: true };
+          if (pendingCategory.targetSplitRowIndex == null) {
+            this.form.controls.category.setValue(categoryNode);
+            this.form.controls.category.markAsDirty();
+          } else if (this.splitDraftRows[pendingCategory.targetSplitRowIndex]) {
+            this.splitDraftRows[pendingCategory.targetSplitRowIndex].category = categoryNode;
+          }
+          this.form.markAsDirty();
+          this.pendingCategoryCreation = null;
+          this.loadCategoryTreeOptions();
+        },
+        error: error => {
+          pendingCategory.saving = false;
+          pendingCategory.error = error?.error?.detail ?? error?.message ?? 'Creating the category failed.';
+        },
+      });
+  }
+
+  getCategoryCreationTitle(): string {
+    return this.pendingCategoryCreation?.parentCategoryId || this.pendingCategoryCreation?.childName
+      ? 'Add sub-category?'
+      : 'Add category?';
+  }
+
+  getCategoryCreationMessage(): string {
+    const pendingCategory = this.pendingCategoryCreation;
+    if (!pendingCategory) {
+      return '';
+    }
+
+    if (pendingCategory.parentCategoryId) {
+      const childName = this.trimToNull(pendingCategory.rawName);
+      return childName
+        ? `Create "${childName}" as a sub-category of "${pendingCategory.parentName}"?`
+        : `Create a new sub-category under "${pendingCategory.parentName}".`;
+    }
+
+    if (pendingCategory.childName) {
+      return `Create "${pendingCategory.childName}" as a sub-category of "${pendingCategory.parentName}"?`;
+    }
+
+    return `Create "${pendingCategory.parentName}" as a new ${pendingCategory.type} category?`;
+  }
+
+  shouldShowCategoryTypeChoice(): boolean {
+    const pendingCategory = this.pendingCategoryCreation;
+    if (!pendingCategory?.parentName) {
+      return true;
+    }
+
+    if (pendingCategory.parentCategoryId) {
+      return false;
+    }
+
+    return this.inferCategoryTypeFromParent(pendingCategory.parentName) == null;
+  }
+
   clearWho(): void {
     this.form.controls.who.setValue(null);
   }
 
   onTagInputKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' || event.key === ',' || event.key === 'Tab') {
+    if (event.key === 'Enter' || event.key === ',') {
       event.preventDefault();
+      this.commitTagInput();
+      return;
+    }
+
+    if (event.key === 'Tab') {
       this.commitTagInput();
       return;
     }
@@ -180,6 +397,27 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
       this.form.controls.tags.setValue(tags);
       this.form.controls.tags.markAsDirty();
     }
+  }
+
+  onFormKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter') {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    if (target instanceof HTMLTextAreaElement || target instanceof HTMLButtonElement) {
+      return;
+    }
+
+    if (target.classList.contains('transaction-editor__tag-input')) {
+      return;
+    }
+
+    event.preventDefault();
   }
 
   onTagInputBlur(): void {
@@ -220,6 +458,116 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     return this.form.controls.transactionType.value === 'transfer';
   }
 
+  isSplitMode(): boolean {
+    return this.form.controls.transactionType.value === 'split';
+  }
+
+  openSplitEditor(): void {
+    if (this.splitRowsLoading) {
+      return;
+    }
+
+    this.splitDraftConvertsTransaction = false;
+    this.splitDraftRows = this.cloneSplitRows(this.splitRows.length ? this.splitRows : [this.createEmptySplitRow()]);
+    this.isSplitEditorOpen = true;
+  }
+
+  enableSplitMode(): void {
+    if (this.isViewMode() || this.getEffectiveReadonlyReason()) {
+      return;
+    }
+
+    this.splitDraftConvertsTransaction = true;
+    this.splitDraftRows = [this.createSplitRowFromCurrentTransaction()];
+    this.isSplitEditorOpen = true;
+  }
+
+  cancelSplitEditor(): void {
+    this.isSplitEditorOpen = false;
+    this.splitDraftRows = [];
+    this.splitDraftConvertsTransaction = false;
+  }
+
+  doneSplitEditor(): void {
+    if (this.isViewMode() || this.getEffectiveReadonlyReason()) {
+      this.cancelSplitEditor();
+      return;
+    }
+
+    const nextSplitRows = this.cloneSplitRows(this.splitDraftRows).filter(
+      row => row.category || row.who || this.trimToNull(row.memo) || row.amount != null,
+    );
+    const total = this.getSplitDraftTotal();
+    if (nextSplitRows.length > 0) {
+      this.splitRows = nextSplitRows;
+      if (this.splitDraftConvertsTransaction) {
+        this.form.controls.transactionType.setValue('split');
+        this.form.controls.category.setValue(null);
+        this.form.controls.who.setValue(null);
+      }
+      this.form.controls.amount.setValue(total);
+      this.form.controls.amount.markAsDirty();
+      this.form.markAsDirty();
+    } else {
+      this.splitRows = [];
+      if (this.isSplitMode()) {
+        this.form.controls.transactionType.setValue(this.getNonSplitTransactionType());
+        this.form.markAsDirty();
+      }
+    }
+
+    this.cancelSplitEditor();
+  }
+
+  addSplitRow(): void {
+    if (this.isViewMode() || this.getEffectiveReadonlyReason()) {
+      return;
+    }
+
+    this.splitDraftRows = [...this.splitDraftRows, this.createEmptySplitRow()];
+  }
+
+  deleteSplitRow(index: number): void {
+    if (this.isViewMode() || this.getEffectiveReadonlyReason()) {
+      return;
+    }
+
+    this.splitDraftRows = this.splitDraftRows.filter((_row, rowIndex) => rowIndex !== index);
+  }
+
+  getCommittedSplitTotal(): number {
+    return this.getSplitRowsTotal(this.buildSplitPayload(this.splitRows));
+  }
+
+  getSplitDraftTotal(): number {
+    return this.getSplitRowsTotal(this.buildSplitPayload(this.splitDraftRows));
+  }
+
+  getSourceTransactionTotal(): number {
+    return Math.abs(this.form.controls.amount.value ?? 0);
+  }
+
+  isSplitDraftTotalDifferent(): boolean {
+    return Math.abs(this.getSplitDraftTotal() - this.getSourceTransactionTotal()) >= 0.005;
+  }
+
+  getSplitButtonLabel(): string {
+    if (this.splitRowsLoading) {
+      return 'Loading splits...';
+    }
+
+    const count = this.splitRows.length;
+    if (count === 0) {
+      return 'Itemise split';
+    }
+
+    return `${count} split ${count === 1 ? 'row' : 'rows'} · ${this.formatMoney(this.getCommittedSplitTotal())}`;
+  }
+
+  formatMoney(value: number): string {
+    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: this.currencyCode }).format(value);
+  }
+
   private patchForm(): void {
     const transactionType = this.getTransactionType();
 
@@ -236,6 +584,10 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
       cleared: this.transaction?.cleared ?? false,
     });
     this.tagInput.setValue('');
+    this.isSplitEditorOpen = false;
+    this.splitDraftRows = [];
+    this.splitRows = [];
+    this.loadSplitRows();
   }
 
   private trimToNull(value: string | null): string | null {
@@ -248,11 +600,31 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
   }
 
   private getTransactionType(): TransactionEditorType {
+    if (this.transaction?.splitParent) {
+      return 'split';
+    }
+
     if (this.transaction?.transferredAccountId) {
       return 'transfer';
     }
 
     return (this.transaction?.amount ?? 0) >= 0 ? 'deposit' : 'withdrawal';
+  }
+
+  private getNonSplitTransactionType(): TransactionEditorType {
+    if (this.transaction?.transferredAccountId) {
+      return 'transfer';
+    }
+
+    const amount = this.form.controls.amount.value ?? Math.abs(this.transaction?.amount ?? 0);
+    if (
+      (this.transaction?.amount ?? 0) > 0 ||
+      (!this.transaction && amount > 0 && this.form.controls.transactionType.value === 'deposit')
+    ) {
+      return 'deposit';
+    }
+
+    return this.form.controls.transactionType.value === 'deposit' ? 'deposit' : 'withdrawal';
   }
 
   private applyFormState(): void {
@@ -266,6 +638,12 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
       this.form.controls.category.disable({ emitEvent: false });
       this.form.controls.who.disable({ emitEvent: false });
       this.form.controls.transferAccount.enable({ emitEvent: false });
+    } else if (transactionType === 'split') {
+      this.form.controls.transferAccount.clearValidators();
+      this.form.controls.transferAccount.updateValueAndValidity({ emitEvent: false });
+      this.form.controls.transferAccount.disable({ emitEvent: false });
+      this.form.controls.category.disable({ emitEvent: false });
+      this.form.controls.who.disable({ emitEvent: false });
     } else {
       this.form.controls.transferAccount.clearValidators();
       this.form.controls.transferAccount.updateValueAndValidity({ emitEvent: false });
@@ -295,42 +673,50 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     });
   }
 
-  private loadCategories(query: string): void {
+  private loadCategoryTreeOptions(): void {
     this.categoryLoading = true;
-    const req: TransactionLookupQuery = { page: 0, size: TransactionEditorComponent.LOOKUP_PAGE_SIZE, query };
-    this.transactionsService.getCategoryOptions(req).subscribe({
-      next: response => {
+    this.transactionsService.getCategoryTreeOptions().subscribe({
+      next: options => {
         this.categoryLoading = false;
-        this.categorySuggestions = this.mergeSelectedSuggestion(response.body ?? [], this.getSelectedCategoryOption());
+        this.categoryOptions = options;
+        const selectedCategory = this.form.controls.category.value;
+        if (selectedCategory?.key) {
+          this.form.controls.category.setValue(this.findCategoryOptionByKey(selectedCategory.key) ?? selectedCategory, {
+            emitEvent: false,
+          });
+        }
       },
       error: () => {
         this.categoryLoading = false;
-      },
-    });
-  }
-
-  private loadWho(query: string): void {
-    this.whoLoading = true;
-    const req: TransactionLookupQuery = { page: 0, size: TransactionEditorComponent.LOOKUP_PAGE_SIZE, query };
-    this.transactionsService.getWhoOptions(req).subscribe({
-      next: response => {
-        this.whoLoading = false;
-        this.whoSuggestions = this.mergeSelectedSuggestion(response.body ?? [], this.getSelectedWhoControlOption());
-      },
-      error: () => {
-        this.whoLoading = false;
+        this.categoryOptions = [];
       },
     });
   }
 
   private ensureSelectedSuggestionsPresent(): void {
     this.payeeSuggestions = this.mergeSelectedSuggestion(this.payeeSuggestions, this.getSelectedPayeeOption());
-    this.categorySuggestions = this.mergeSelectedSuggestion(this.categorySuggestions, this.getSelectedCategoryOption());
-    this.whoSuggestions = this.mergeSelectedSuggestion(this.whoSuggestions, this.getSelectedWhoControlOption());
     this.transferAccountSuggestions = this.mergeSelectedSuggestion(
       this.transferAccountSuggestions,
       this.getSelectedTransferAccountControlOption(),
     );
+  }
+
+  private loadWhoTreeOptions(): void {
+    this.whoLoading = true;
+    this.transactionsService.getWhoTreeOptions().subscribe({
+      next: options => {
+        this.whoLoading = false;
+        this.whoOptions = options;
+        const selectedWho = this.form.controls.who.value;
+        if (selectedWho?.key) {
+          this.form.controls.who.setValue(this.findWhoOptionByKey(selectedWho.key) ?? selectedWho, { emitEvent: false });
+        }
+      },
+      error: () => {
+        this.whoLoading = false;
+        this.whoOptions = [];
+      },
+    });
   }
 
   private mergeSelectedSuggestion(options: TransactionOption[], selectedOption: TransactionOption | null): TransactionOption[] {
@@ -345,6 +731,267 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     return [...options, selectedOption];
   }
 
+  private openCategoryCreateDialog(
+    rawName: string,
+    targetSplitRowIndex: number | null,
+    selectedParentCategory: TransactionTreeOption | null = null,
+  ): void {
+    const normalizedParentCategory = this.getCategoryCreateParent(selectedParentCategory);
+    const parentCategoryId = this.trimToNull(normalizedParentCategory?.key ?? null);
+    const parentName = parentCategoryId ? (this.getCategoryPathByKey(parentCategoryId) ?? normalizedParentCategory?.label ?? '') : '';
+    const parsedCategory = parentCategoryId ? null : this.parseCategoryName(rawName);
+    const inferredType = parentCategoryId
+      ? this.inferCategoryTypeFromKey(parentCategoryId)
+      : this.inferCategoryTypeFromParent(parsedCategory?.parentName ?? '');
+    this.pendingCategoryCreation = {
+      rawName: parentCategoryId ? '' : (parsedCategory?.rawName ?? ''),
+      parentName: parentCategoryId ? parentName : (parsedCategory?.parentName ?? ''),
+      childName: parentCategoryId ? null : (parsedCategory?.childName ?? null),
+      type: inferredType ?? (this.form.controls.transactionType.value === 'deposit' ? 'income' : 'expense'),
+      parentCategoryId,
+      targetSplitRowIndex,
+      saving: false,
+      error: null,
+    };
+  }
+
+  private parseCategoryName(category: string): { rawName: string; parentName: string; childName: string | null } | null {
+    const normalizedCategory = this.trimToNull(category);
+    if (!normalizedCategory) {
+      return null;
+    }
+
+    const parts = normalizedCategory.split(':', 2).map(part => part.trim());
+    if (!parts[0] || (parts.length > 1 && !parts[1])) {
+      return null;
+    }
+
+    return {
+      rawName: parts.length > 1 ? `${parts[0]}: ${parts[1]}` : parts[0],
+      parentName: parts[0],
+      childName: parts.length > 1 ? parts[1] : null,
+    };
+  }
+
+  private parseChildCategoryName(
+    childName: string,
+    parentName: string,
+  ): { rawName: string; parentName: string; childName: string | null } | null {
+    const normalizedChildName = this.trimToNull(childName);
+    const normalizedParentName = this.trimToNull(parentName);
+    if (!normalizedChildName || !normalizedParentName) {
+      return null;
+    }
+
+    return {
+      rawName: `${normalizedParentName}: ${normalizedChildName}`,
+      parentName: normalizedParentName,
+      childName: normalizedChildName,
+    };
+  }
+
+  private inferCategoryTypeFromParent(parentName: string): TransactionCategoryType | null {
+    const parentNode = this.findCategoryOptionByLabel(parentName);
+    if (!parentNode?.key) {
+      return null;
+    }
+
+    const rootNode = this.findCategoryRootForKey(parentNode.key);
+    if (rootNode?.label?.toLowerCase() === 'income') {
+      return 'income';
+    }
+    if (rootNode?.label?.toLowerCase() === 'expense') {
+      return 'expense';
+    }
+
+    return null;
+  }
+
+  private inferCategoryTypeFromKey(key: string): TransactionCategoryType | null {
+    const rootNode = this.findCategoryRootForKey(key);
+    if (rootNode?.label?.toLowerCase() === 'income') {
+      return 'income';
+    }
+    if (rootNode?.label?.toLowerCase() === 'expense') {
+      return 'expense';
+    }
+
+    return null;
+  }
+
+  private normalizePayeeValue(payee: TransactionOption | string | null): { id: string | null; name: string | null } {
+    if (payee == null) {
+      return { id: null, name: null };
+    }
+
+    if (typeof payee === 'string') {
+      return { id: null, name: this.trimToNull(payee) };
+    }
+
+    return {
+      id: payee.id,
+      name: this.trimToNull(payee.name),
+    };
+  }
+
+  private normalizeWhoValue(who: TransactionTreeOption | null): string | null {
+    if (who == null) {
+      return null;
+    }
+
+    return this.trimToNull(who.key);
+  }
+
+  private normalizeCategoryValue(category: TransactionTreeOption | null): string | null {
+    if (category == null) {
+      return null;
+    }
+
+    return this.trimToNull(category.key);
+  }
+
+  private getSelectedWhoOption(): TransactionTreeOption | null {
+    const transaction = this.transaction;
+    if (!transaction?.whoId || !transaction.whoName) {
+      return null;
+    }
+
+    return this.findWhoOptionByKey(transaction.whoId) ?? { key: transaction.whoId, label: transaction.whoName, leaf: true };
+  }
+
+  private getSelectedCategoryOption(): TransactionTreeOption | null {
+    const transaction = this.transaction;
+    if (!transaction?.categoryId || !transaction.displayCategory) {
+      return null;
+    }
+
+    return (
+      this.findCategoryOptionByKey(transaction.categoryId) ?? {
+        key: transaction.categoryId,
+        label: transaction.displayCategory,
+        leaf: true,
+      }
+    );
+  }
+
+  private findCategoryOptionByKey(key: string): TransactionTreeOption | null {
+    return this.findTreeOptionByKeyInNodes(this.categoryOptions, key);
+  }
+
+  private findCategoryOptionByLabel(label: string): TransactionTreeOption | null {
+    const normalizedLabel = this.trimToNull(label)?.toLowerCase();
+    if (!normalizedLabel) {
+      return null;
+    }
+
+    return this.findTreeOptionByLabelInNodes(this.categoryOptions, normalizedLabel);
+  }
+
+  private findCategoryRootForKey(key: string): TransactionTreeOption | null {
+    for (const node of this.categoryOptions) {
+      if (node.key === key || this.findTreeOptionByKeyInNodes(node.children ?? [], key)) {
+        return node;
+      }
+    }
+
+    return null;
+  }
+
+  private getCategoryPathByKey(key: string): string | null {
+    const path = this.findTreeOptionPathByKey(this.categoryOptions, key);
+    if (!path.length) {
+      return null;
+    }
+
+    const categoryPath = path.filter(label => !['income', 'expense'].includes(label.toLowerCase()));
+    return categoryPath.length ? categoryPath.join(' : ') : path[path.length - 1];
+  }
+
+  private getCategoryCreateParent(selectedCategory: TransactionTreeOption | null): TransactionTreeOption | null {
+    if (!selectedCategory?.key) {
+      return null;
+    }
+
+    const path = this.findTreeOptionNodePathByKey(this.categoryOptions, selectedCategory.key);
+    if (path.length <= 1) {
+      return null;
+    }
+
+    // Only allow Income/Expense > Parent > Child. If a child is selected,
+    // create under its parent rather than creating a grandchild.
+    return path[1];
+  }
+
+  private findWhoOptionByKey(key: string): TransactionTreeOption | null {
+    return this.findTreeOptionByKeyInNodes(this.whoOptions, key);
+  }
+
+  private findTreeOptionByKeyInNodes(nodes: TransactionTreeOption[], key: string): TransactionTreeOption | null {
+    for (const node of nodes) {
+      if (node.key === key) {
+        return node;
+      }
+
+      const childMatch = this.findTreeOptionByKeyInNodes(node.children ?? [], key);
+      if (childMatch) {
+        return childMatch;
+      }
+    }
+
+    return null;
+  }
+
+  private findTreeOptionPathByKey(nodes: TransactionTreeOption[], key: string, parentPath: string[] = []): string[] {
+    for (const node of nodes) {
+      const nextPath = [...parentPath, node.label];
+      if (node.key === key) {
+        return nextPath;
+      }
+
+      const childPath = this.findTreeOptionPathByKey(node.children ?? [], key, nextPath);
+      if (childPath.length) {
+        return childPath;
+      }
+    }
+
+    return [];
+  }
+
+  private findTreeOptionNodePathByKey(
+    nodes: TransactionTreeOption[],
+    key: string,
+    parentPath: TransactionTreeOption[] = [],
+  ): TransactionTreeOption[] {
+    for (const node of nodes) {
+      const nextPath = [...parentPath, node];
+      if (node.key === key) {
+        return nextPath;
+      }
+
+      const childPath = this.findTreeOptionNodePathByKey(node.children ?? [], key, nextPath);
+      if (childPath.length) {
+        return childPath;
+      }
+    }
+
+    return [];
+  }
+
+  private findTreeOptionByLabelInNodes(nodes: TransactionTreeOption[], normalizedLabel: string): TransactionTreeOption | null {
+    for (const node of nodes) {
+      if (node.label.toLowerCase() === normalizedLabel) {
+        return node;
+      }
+
+      const childMatch = this.findTreeOptionByLabelInNodes(node.children ?? [], normalizedLabel);
+      if (childMatch) {
+        return childMatch;
+      }
+    }
+
+    return null;
+  }
+
   private getSelectedPayeeOption(): TransactionOption | null {
     const transaction = this.transaction;
     if (!transaction?.payeeId || !transaction.payeeName) {
@@ -354,30 +1001,6 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     return {
       id: transaction.payeeId,
       name: transaction.payeeName,
-    };
-  }
-
-  private getSelectedCategoryOption(): TransactionOption | null {
-    const transaction = this.transaction;
-    if (!transaction?.categoryId || !transaction.displayCategory) {
-      return null;
-    }
-
-    return {
-      id: transaction.categoryId,
-      name: transaction.displayCategory,
-    };
-  }
-
-  private getSelectedWhoOption(): TransactionOption | null {
-    const transaction = this.transaction;
-    if (!transaction?.whoId || !transaction.whoName) {
-      return null;
-    }
-
-    return {
-      id: transaction.whoId,
-      name: transaction.whoName,
     };
   }
 
@@ -394,10 +1017,6 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     return this.form.controls.transferAccount.value;
   }
 
-  private getSelectedWhoControlOption(): TransactionOption | null {
-    return this.form.controls.who.value ?? this.getSelectedWhoOption();
-  }
-
   private getAvailableTransferAccounts(): TransactionOption[] {
     return this.accounts.filter(account => account.id !== this.currentAccountId);
   }
@@ -405,6 +1024,10 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
   private getSignedAmount(transactionType: TransactionEditorType, normalizedAmount: number): number {
     if (transactionType === 'deposit') {
       return normalizedAmount;
+    }
+
+    if (transactionType === 'split') {
+      return this.transaction && this.transaction.amount > 0 ? normalizedAmount : normalizedAmount * -1;
     }
 
     if (transactionType === 'transfer') {
@@ -416,6 +1039,112 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     }
 
     return normalizedAmount * -1;
+  }
+
+  private loadSplitRows(): void {
+    const loadSequence = ++this.splitRowsLoadSequence;
+    if (!this.transaction?.splitParent || !this.currentAccountId || !this.transaction.id) {
+      this.splitRowsLoading = false;
+      return;
+    }
+
+    this.splitRowsLoading = true;
+    this.transactionsService
+      .getSplits(this.currentAccountId, this.transaction.id)
+      .pipe(
+        finalize(() => {
+          if (loadSequence === this.splitRowsLoadSequence) {
+            this.splitRowsLoading = false;
+            this.changeDetectorRef.markForCheck();
+          }
+        }),
+      )
+      .subscribe({
+        next: splits => {
+          if (loadSequence !== this.splitRowsLoadSequence) {
+            return;
+          }
+
+          try {
+            this.splitRows = splits.map(split => this.mapSplitUpdateToEditorRow(split));
+          } catch (error) {
+            console.error('Failed to map transaction splits', {
+              transactionId: this.transaction?.id,
+              splits,
+              error,
+            });
+            this.splitRows = [];
+          }
+        },
+        error: error => {
+          if (loadSequence !== this.splitRowsLoadSequence) {
+            return;
+          }
+
+          console.error('Failed to load transaction splits', {
+            accountId: this.currentAccountId,
+            transactionId: this.transaction?.id,
+            error,
+          });
+          this.splitRows = [];
+        },
+      });
+  }
+
+  private mapSplitUpdateToEditorRow(split: TransactionSplitUpdate): TransactionSplitEditorRow {
+    return {
+      category: split.categoryId
+        ? (this.findCategoryOptionByKey(split.categoryId) ?? { key: split.categoryId, label: split.categoryName ?? 'Category', leaf: true })
+        : null,
+      who: split.whoId ? (this.findWhoOptionByKey(split.whoId) ?? { key: split.whoId, label: split.whoName ?? 'Who', leaf: true }) : null,
+      memo: split.memo,
+      amount: Math.abs(split.amount ?? 0),
+    };
+  }
+
+  private buildSplitPayload(rows: TransactionSplitEditorRow[]): TransactionSplitUpdate[] {
+    return rows
+      .map(row => {
+        const categoryId = this.normalizeCategoryValue(row.category);
+        const whoId = this.normalizeWhoValue(row.who);
+        const memo = this.trimToNull(row.memo);
+        const hasAmount = row.amount != null;
+        return {
+          categoryId,
+          whoId,
+          memo,
+          amount: Math.abs(row.amount ?? 0),
+          hasContent: Boolean(categoryId || whoId || memo || hasAmount),
+        };
+      })
+      .filter(row => row.hasContent)
+      .map(({ hasContent: _hasContent, ...row }) => row);
+  }
+
+  private getSplitRowsTotal(rows: TransactionSplitUpdate[]): number {
+    return rows.reduce((total, row) => total + Math.abs(row.amount ?? 0), 0);
+  }
+
+  private createEmptySplitRow(): TransactionSplitEditorRow {
+    return {
+      category: null,
+      who: null,
+      memo: null,
+      amount: null,
+    };
+  }
+
+  private createSplitRowFromCurrentTransaction(): TransactionSplitEditorRow {
+    return {
+      category: this.form.controls.category.value ?? this.getSelectedCategoryOption(),
+      who: this.form.controls.who.value ?? this.getSelectedWhoOption(),
+      memo: this.form.controls.memo.value,
+      amount: Math.abs(this.form.controls.amount.value ?? this.transaction?.amount ?? 0),
+    };
+  }
+
+  private cloneSplitRows(rows: TransactionSplitEditorRow[]): TransactionSplitEditorRow[] {
+    return rows.map(row => ({ ...row }));
   }
 
   private commitTagInput(): void {

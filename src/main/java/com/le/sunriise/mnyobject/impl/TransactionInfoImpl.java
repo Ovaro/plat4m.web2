@@ -163,4 +163,10 @@ public class TransactionInfoImpl implements TransactionInfo {
             "] "
         );
     }
+
+    public static void main(String[] args) {
+        TransactionInfoImpl transactionInfo = new TransactionInfoImpl();
+        transactionInfo.setFlag(6);
+        System.out.println(transactionInfo.toString());
+    }
 }
