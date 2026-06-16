@@ -219,6 +219,7 @@
             </column>
             <column name="account_id" type="VARCHAR(255)"/>
             <column name="amount" type="numeric(19, 2)"/>
+            <column name="principal_amount" type="numeric(19, 2)"/>
             <column name="amount_base" type="numeric(19, 2)"/>
             <column name="cleared" type="BOOLEAN">
                 <constraints nullable="false"/>

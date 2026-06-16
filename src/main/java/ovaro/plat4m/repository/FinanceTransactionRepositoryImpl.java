@@ -29,6 +29,7 @@ public class FinanceTransactionRepositoryImpl implements FinanceTransactionRepos
         " SELECT " +
         "  f.account_id as accountId, " +
         "  f.amount as amount, " +
+        "  f.principal_amount as principalAmount, " +
         "  f.category_id as categoryId, " +
         "  c.name as categoryName, " +
         "  f.cleared as cleared, " +
@@ -104,7 +105,7 @@ public class FinanceTransactionRepositoryImpl implements FinanceTransactionRepos
 
         String selectSql =
             BASE_CTE +
-            " SELECT accountId, amount, categoryId, categoryName, cleared, date, id, investment, investmentActivityType, investmentActivityTypeId, " +
+            " SELECT accountId, amount, principalAmount, categoryId, categoryName, cleared, date, id, investment, investmentActivityType, investmentActivityTypeId, " +
             " masterGuid, memo, number, parentCategoryId, parentCategoryName, payeeId, payeeName, price, quantity, reconciled, recurring, " +
             " runningBalance, securityId, splitChild, splitParent, statementId, statusFlag, transfer, transferTo, transferredAccountId, voided, whoId, whoName, tagsJson, tagsDisplay" +
             " FROM txn_rows" +
@@ -133,7 +134,7 @@ public class FinanceTransactionRepositoryImpl implements FinanceTransactionRepos
     public FinanceTransactionRowDTO findTransactionRowById(String userGuid, String accountId, UUID transactionId) {
         Query query = entityManager.createNativeQuery(
             BASE_CTE +
-                " SELECT accountId, amount, categoryId, categoryName, cleared, date, id, investment, investmentActivityType, investmentActivityTypeId, " +
+                " SELECT accountId, amount, principalAmount, categoryId, categoryName, cleared, date, id, investment, investmentActivityType, investmentActivityTypeId, " +
                 " masterGuid, memo, number, parentCategoryId, parentCategoryName, payeeId, payeeName, price, quantity, reconciled, recurring, " +
                 " runningBalance, securityId, splitChild, splitParent, statementId, statusFlag, transfer, transferTo, transferredAccountId, voided, whoId, whoName, tagsJson, tagsDisplay" +
                 " FROM txn_rows WHERE uuid(id) = uuid(:transaction_id)"
@@ -155,39 +156,40 @@ public class FinanceTransactionRepositoryImpl implements FinanceTransactionRepos
         FinanceTransactionRowDTO dto = new FinanceTransactionRowDTO();
         dto.setAccountId(asString(row[0]));
         dto.setAmount(asBigDecimal(row[1]));
-        dto.setCategoryId(asString(row[2]));
-        dto.setCategoryName(asString(row[3]));
-        dto.setCleared(asBoolean(row[4]));
-        dto.setDate(asLocalDate(row[5]));
-        dto.setId(asString(row[6]));
-        dto.setInvestment(asBoolean(row[7]));
-        dto.setInvestmentActivityType(asString(row[8]));
-        dto.setInvestmentActivityTypeId(asInteger(row[9]));
-        dto.setMasterGuid(asString(row[10]));
-        dto.setMemo(asString(row[11]));
-        dto.setNumber(asInteger(row[12]));
-        dto.setParentCategoryId(asString(row[13]));
-        dto.setParentCategoryName(asString(row[14]));
-        dto.setPayeeId(asString(row[15]));
-        dto.setPayeeName(asString(row[16]));
-        dto.setPrice(asDouble(row[17]));
-        dto.setQuantity(asDouble(row[18]));
-        dto.setReconciled(asBoolean(row[19]));
-        dto.setRecurring(asBoolean(row[20]));
-        dto.setRunningBalance(asBigDecimal(row[21]));
-        dto.setSecurityId(asString(row[22]));
-        dto.setSplitChild(asBoolean(row[23]));
-        dto.setSplitParent(asBoolean(row[24]));
-        dto.setStatementId(asString(row[25]));
-        dto.setStatusFlag(asInteger(row[26]));
-        dto.setTransfer(asBoolean(row[27]));
-        dto.setTransferTo(asBoolean(row[28]));
-        dto.setTransferredAccountId(asString(row[29]));
-        dto.setVoided(asBoolean(row[30]));
-        dto.setWhoId(asString(row[31]));
-        dto.setWhoName(asString(row[32]));
-        dto.setTags(parseStringList(row[33]));
-        dto.setTagsDisplay(asString(row[34]));
+        dto.setPrincipalAmount(asBigDecimal(row[2]));
+        dto.setCategoryId(asString(row[3]));
+        dto.setCategoryName(asString(row[4]));
+        dto.setCleared(asBoolean(row[5]));
+        dto.setDate(asLocalDate(row[6]));
+        dto.setId(asString(row[7]));
+        dto.setInvestment(asBoolean(row[8]));
+        dto.setInvestmentActivityType(asString(row[9]));
+        dto.setInvestmentActivityTypeId(asInteger(row[10]));
+        dto.setMasterGuid(asString(row[11]));
+        dto.setMemo(asString(row[12]));
+        dto.setNumber(asInteger(row[13]));
+        dto.setParentCategoryId(asString(row[14]));
+        dto.setParentCategoryName(asString(row[15]));
+        dto.setPayeeId(asString(row[16]));
+        dto.setPayeeName(asString(row[17]));
+        dto.setPrice(asDouble(row[18]));
+        dto.setQuantity(asDouble(row[19]));
+        dto.setReconciled(asBoolean(row[20]));
+        dto.setRecurring(asBoolean(row[21]));
+        dto.setRunningBalance(asBigDecimal(row[22]));
+        dto.setSecurityId(asString(row[23]));
+        dto.setSplitChild(asBoolean(row[24]));
+        dto.setSplitParent(asBoolean(row[25]));
+        dto.setStatementId(asString(row[26]));
+        dto.setStatusFlag(asInteger(row[27]));
+        dto.setTransfer(asBoolean(row[28]));
+        dto.setTransferTo(asBoolean(row[29]));
+        dto.setTransferredAccountId(asString(row[30]));
+        dto.setVoided(asBoolean(row[31]));
+        dto.setWhoId(asString(row[32]));
+        dto.setWhoName(asString(row[33]));
+        dto.setTags(parseStringList(row[34]));
+        dto.setTagsDisplay(asString(row[35]));
         return dto;
     }
 

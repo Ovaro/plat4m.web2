@@ -13,6 +13,8 @@ public interface IFinanceTransactionWithRunningBalance {
     void setId(String id);
     BigDecimal getAmount();
     void setAmount(BigDecimal amount);
+    BigDecimal getPrincipalAmount();
+    void setPrincipalAmount(BigDecimal principalAmount);
     Integer getStatusFlag();
     void setStatusFlag(Integer statusFlag);
     LocalDate getDate();

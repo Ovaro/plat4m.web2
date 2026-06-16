@@ -868,6 +868,7 @@ public class FinanceTransactionService {
         FinanceTransactionRowDTO dto = new FinanceTransactionRowDTO();
         dto.setAccountId(transaction.getAccountId());
         dto.setAmount(transaction.getAmount());
+        dto.setPrincipalAmount(transaction.getPrincipalAmount());
         if (transaction.getCategory() != null) {
             FinanceCategory category = transaction.getCategory();
             dto.setCategoryId(category.getId().toString());

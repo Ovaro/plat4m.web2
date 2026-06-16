@@ -78,6 +78,10 @@ import ovaro.plat4m.service.dto.MsMoneyImportDTO;
 @Service
 public class MsMoneyService {
 
+    private static final int LOAN_ACCOUNT_TYPE = 6;
+    private static final String LOAN_TRANSFER_SUFFIX = "loan-transfer";
+    private static final String LOAN_INTEREST_SUFFIX = "loan-interest";
+
     private final Logger log = LoggerFactory.getLogger(MsMoneyService.class);
     private FinanceAccountRepository accountRepository;
     private SourceRepository sourceRepository;
@@ -1538,6 +1542,10 @@ public class MsMoneyService {
         Map<Integer, com.le.sunriise.mnyobject.Payee> payees = PayeeImplUtil.getPayees(oDB.getDb());
 
         Map<Integer, Integer> pendingSplits = new HashMap<Integer, Integer>();
+        Map<Integer, Integer> transferLinksByFromId = new HashMap<Integer, Integer>();
+        for (TransferLink transferLink : TransferLinkImplUtil.getTransferLinks(oDB.getDb())) {
+            transferLinksByFromId.put(transferLink.getFromId(), transferLink.getLinkId());
+        }
 
         Instant instant = null;
         if (source.getLastSyncDateTime() != null) {
@@ -1574,7 +1582,8 @@ public class MsMoneyService {
                     securitySourceLinks,
                     oDB,
                     currencies,
-                    pendingSplits
+                    pendingSplits,
+                    transferLinksByFromId
                 );
             } else {
                 log.debug("Transaction Batched: " + originalTxns.size());
@@ -1596,7 +1605,8 @@ public class MsMoneyService {
                 securitySourceLinks,
                 oDB,
                 currencies,
-                pendingSplits
+                pendingSplits,
+                transferLinksByFromId
             );
         }
 
@@ -1647,19 +1657,14 @@ public class MsMoneyService {
         Cursor cursor = null;
         cursor = Cursor.createCursor(table);
         Map<String, Object> row = null;
-        List<Integer> existingRows = new ArrayList<Integer>();
-
-        Map<Integer, SourceLink> txnSourceLinks = getSourceLinksByIDForType(user, source, TABLE_TRN);
+        Map<String, SourceLink> txnSourceLinks = getSourceLinksForType(user, source, TABLE_TRN);
         while (cursor.moveToNextRow()) {
             row = cursor.getCurrentRow();
             Integer htrn = (Integer) row.get(TransactionImplUtil.COL_ID);
-            existingRows.add(htrn);
-            SourceLink l = txnSourceLinks.get(htrn);
-            if (l == null) {
+            String sourceId = htrn.toString();
+            boolean removed = txnSourceLinks.entrySet().removeIf(entry -> getBaseTransactionSourceId(entry.getKey()).equals(sourceId));
+            if (!removed) {
                 log.error("Couldn't find transaction " + htrn + " in the database.");
-            } else {
-                // Removing since exists!
-                txnSourceLinks.remove(htrn);
             }
         }
 
@@ -1684,6 +1689,32 @@ public class MsMoneyService {
 
     private static int ITERATION = 0;
 
+    private static class ImportedTransactionItem {
+
+        private final FinanceTransaction transaction;
+        private final String sourceId;
+        private final String sourceGuid;
+
+        private ImportedTransactionItem(FinanceTransaction transaction, String sourceId, String sourceGuid) {
+            this.transaction = transaction;
+            this.sourceId = sourceId;
+            this.sourceGuid = sourceGuid;
+        }
+    }
+
+    private static class ImportedTransferLinkItem {
+
+        private final FinanceTransaction fromTransaction;
+        private final FinanceTransaction linkTransaction;
+        private final String sourceId;
+
+        private ImportedTransferLinkItem(FinanceTransaction fromTransaction, FinanceTransaction linkTransaction, String sourceId) {
+            this.fromTransaction = fromTransaction;
+            this.linkTransaction = linkTransaction;
+            this.sourceId = sourceId;
+        }
+    }
+
     private void processTransactionSyncBatch(
         User user,
         FinanceImportStatus fiStatus,
@@ -1695,7 +1726,8 @@ public class MsMoneyService {
         Map<String, SourceLink> securitySourceLinks,
         OpenedDb oDB,
         Map<Integer, Currency> currencies,
-        Map<Integer, Integer> pendingSplits
+        Map<Integer, Integer> pendingSplits,
+        Map<Integer, Integer> transferLinksByFromId
     ) {
         StopWatch sw = new StopWatch();
         ITERATION++;
@@ -1704,25 +1736,37 @@ public class MsMoneyService {
         //sw.start("Process Batch Size: " + originalTxns.size() + "");
         ///Map<String, SourceLink> sourceLinkCache2 = cacheSourceLinksBySourceIds(originalTxns);
         Map<String, SourceLink> txnSourceLinks = getSourceLinksForType(user, source, TABLE_TRN);
+        Map<String, SourceLink> transferSourceLinks = getSourceLinksForType(user, source, TABLE_XFER);
         sw.stop();
         sw.start("Process Txn Sync #" + ITERATION + ". Processing Txns[" + originalTxns.size() + "]");
-        List<FinanceTransaction> txns = new ArrayList<FinanceTransaction>(originalTxns.size());
+        List<ImportedTransactionItem> importedItems = new ArrayList<ImportedTransactionItem>(originalTxns.size() * 2);
+        List<ImportedTransferLinkItem> importedTransferLinks = new ArrayList<>();
+        List<Integer> skippedSourceTxnIds = new ArrayList<>();
         for (com.le.sunriise.mnyobject.Transaction originalTxn : originalTxns) {
-            FinanceTransaction txn = processTransactionSyncBatchItem(
+            ImportedBatchItem importedBatchItem = processTransactionSyncBatchItem(
                 user,
                 fiStatus,
                 originalTxn,
+                source,
                 txnSourceLinks,
+                transferSourceLinks,
                 accountSourceLinks,
                 payeeSourceLinks,
                 categoriesSourceLinks,
                 securitySourceLinks,
                 oDB,
                 currencies,
-                pendingSplits
+                pendingSplits,
+                transferLinksByFromId,
+                skippedSourceTxnIds
             );
-            txns.add(txn);
+            importedItems.addAll(importedBatchItem.transactions);
+            importedTransferLinks.addAll(importedBatchItem.transferLinks);
         }
+        List<FinanceTransaction> txns = importedItems
+            .stream()
+            .map(item -> item.transaction)
+            .toList();
         sw.stop();
         sw.start("Process Txn Sync #" + ITERATION + ". Saving Txns[" + originalTxns.size() + "]");
         List<FinanceTransaction> newTxns = transactionRepository.saveAll(txns);
@@ -1732,26 +1776,73 @@ public class MsMoneyService {
         // Save Source Links
         List<SourceLink> newSlinks = new ArrayList<SourceLink>();
         Map<String, SourceLink> sourceLinkCacheByLocalId = transferSourceLinkCacheToLocalIds(txnSourceLinks);
-        Map<String, com.le.sunriise.mnyobject.Transaction> cacheOriginalTxnsByGuid = cacheOriginalTransactionsByGuid(originalTxns);
-        for (FinanceTransaction newTxn : newTxns) {
+        for (ImportedTransactionItem importedItem : importedItems) {
+            FinanceTransaction newTxn = importedItem.transaction;
             if (sourceLinkCacheByLocalId.get(newTxn.getId().toString()) == null) {
-                // No source link, create.
-                String uuid = newTxn.getId().toString();
-                String masterGuid = newTxn.getMasterGuid();
-                com.le.sunriise.mnyobject.Transaction originalTxn = cacheOriginalTxnsByGuid.get(masterGuid);
-
-                SourceLink sl = createSourceLink(user, source, uuid, originalTxn.getId().toString(), masterGuid, TABLE_TRN, true);
+                SourceLink sl = createSourceLink(
+                    user,
+                    source,
+                    newTxn.getId().toString(),
+                    importedItem.sourceId,
+                    importedItem.sourceGuid,
+                    TABLE_TRN,
+                    true
+                );
                 newSlinks.add(sl);
             }
         }
 
         sourceLinkRepository.saveAll(newSlinks);
+
+        List<SourceLink> newTransferSourceLinks = new ArrayList<>();
+        for (ImportedTransferLinkItem importedTransferLink : importedTransferLinks) {
+            UUID fromId = importedTransferLink.fromTransaction.getId();
+            UUID linkId = importedTransferLink.linkTransaction.getId();
+            FinanceTransferLink transferLink = resolveExistingTransferLink(
+                user,
+                transferSourceLinks.get(importedTransferLink.sourceId),
+                fromId,
+                linkId
+            );
+            transferLink.setUserGuid(user.getGuid().toString());
+            transferLink.setFromId(fromId);
+            transferLink.setLinkId(linkId);
+            FinanceTransferLink savedTransferLink = this.transferLinkRepository.save(transferLink);
+
+            if (!transferSourceLinks.containsKey(importedTransferLink.sourceId)) {
+                newTransferSourceLinks.add(
+                    createSourceLink(
+                        user,
+                        source,
+                        savedTransferLink.getId().toString(),
+                        importedTransferLink.sourceId,
+                        null,
+                        TABLE_XFER,
+                        true
+                    )
+                );
+            }
+        }
+        if (!newTransferSourceLinks.isEmpty()) {
+            this.sourceLinkRepository.saveAll(newTransferSourceLinks);
+        }
         sw.stop();
         log.info(sw.prettyPrint());
 
         newTxns.clear();
         originalTxns.clear();
         newSlinks.clear();
+    }
+
+    private static class ImportedBatchItem {
+
+        private final List<ImportedTransactionItem> transactions;
+        private final List<ImportedTransferLinkItem> transferLinks;
+
+        private ImportedBatchItem(List<ImportedTransactionItem> transactions, List<ImportedTransferLinkItem> transferLinks) {
+            this.transactions = transactions;
+            this.transferLinks = transferLinks;
+        }
     }
 
     private Map<String, SourceLink> transferSourceLinkCacheToLocalIds(Map<String, SourceLink> sourceLinkCacheIn) {
@@ -1762,35 +1853,50 @@ public class MsMoneyService {
         return sourceLinkCacheOut;
     }
 
-    private Map<String, com.le.sunriise.mnyobject.Transaction> cacheOriginalTransactionsByGuid(
-        List<com.le.sunriise.mnyobject.Transaction> originalTxns
-    ) {
-        Map<String, com.le.sunriise.mnyobject.Transaction> cache = new HashMap<String, com.le.sunriise.mnyobject.Transaction>();
-        for (com.le.sunriise.mnyobject.Transaction originalTxn : originalTxns) {
-            String sguid = originalTxn.getGuid();
-            String trimed = trimSguid(sguid);
-            cache.put(trimed, originalTxn);
-            //log.info("Original Txn ID: " + originalTxn.getId() + " had guid: " + originalTxn.getGuid() + ", and was trimmed and stored as: " + trimed);
-        }
-
-        return cache;
-    }
-
-    private FinanceTransaction processTransactionSyncBatchItem(
+    private ImportedBatchItem processTransactionSyncBatchItem(
         User user,
         FinanceImportStatus fiStatus,
         com.le.sunriise.mnyobject.Transaction originalTxn,
+        Source source,
         Map<String, SourceLink> sourceLinkCache,
+        Map<String, SourceLink> transferSourceLinks,
         Map<String, SourceLink> accountCache,
         Map<String, SourceLink> payeeSourceLinks,
         Map<String, SourceLink> categoriesSourceLinks,
         Map<String, SourceLink> securitySourceLinks,
         OpenedDb oDB,
         Map<Integer, Currency> currencies,
-        Map<Integer, Integer> pendingSplits
+        Map<Integer, Integer> pendingSplits,
+        Map<Integer, Integer> transferLinksByFromId,
+        List<Integer> skippedSourceTxnIds
     ) {
+        if (skippedSourceTxnIds.contains(originalTxn.getId())) {
+            return new ImportedBatchItem(List.of(), List.of());
+        }
+
+        LoanImportResult loanImportResult = processLoanSplitTransactions(
+            user,
+            fiStatus,
+            originalTxn,
+            source,
+            sourceLinkCache,
+            transferSourceLinks,
+            accountCache,
+            payeeSourceLinks,
+            categoriesSourceLinks,
+            securitySourceLinks,
+            oDB,
+            currencies,
+            pendingSplits,
+            transferLinksByFromId
+        );
+        if (loanImportResult != null) {
+            skippedSourceTxnIds.addAll(loanImportResult.sourceTxnIdsToSkip);
+            return new ImportedBatchItem(loanImportResult.transactions, loanImportResult.transferLinks);
+        }
+
         SourceLink sl = sourceLinkCache.get(originalTxn.getId().toString());
-        FinanceTransaction txn = null;
+        FinanceTransaction txn;
         if (sl != null) {
             // Has to exist if data model is consistent
             log.debug(
@@ -1851,7 +1957,10 @@ public class MsMoneyService {
             fiStatus.setNumCreated(fiStatus.getNumCreated() + 1);
         }
 
-        return txn;
+        return new ImportedBatchItem(
+            List.of(new ImportedTransactionItem(txn, originalTxn.getId().toString(), trimSguid(originalTxn.getGuid()))),
+            List.of()
+        );
     }
 
     private static String trimSguid(String id) {
@@ -1882,14 +1991,19 @@ public class MsMoneyService {
         txn.setNumber(originalTransaction.getId());
         txn.setDate(LocalDate.ofInstant(originalTransaction.getDate().toInstant(), ZoneId.systemDefault()));
         txn.setAmount(originalTransaction.getAmount());
+        txn.setPrincipalAmount(null);
         if (originalTransaction.getCategoryId() != null) {
             SourceLink categoryLink = categoriesSourceLinks.get(originalTransaction.getCategoryId().toString());
             txn.setCategory(new FinanceCategory(categoryLink.getLocalId()));
+        } else {
+            txn.setCategory(null);
         }
 
         if (originalTransaction.getWhoId() != null && !"-1".equals(originalTransaction.getWhoId().toString())) {
             SourceLink categoryLink = categoriesSourceLinks.get(originalTransaction.getWhoId().toString());
             txn.setWho(new FinanceCategory(categoryLink.getLocalId()));
+        } else {
+            txn.setWho(null);
         }
 
         txn.setSourcePayeeId(originalTransaction.getPayeeId());
@@ -1897,6 +2011,7 @@ public class MsMoneyService {
         if (payeeLink != null) {
             txn.setPayeeId(payeeLink.getLocalId());
         } else {
+            txn.setPayeeId(null);
             log.warn("Couldn't find local payee for id: " + originalTransaction.getPayeeId() + ", SL: " + payeeLink);
         }
         if (originalTransaction.getPayee() != null) {
@@ -1917,6 +2032,8 @@ public class MsMoneyService {
             txn.setTransferredAccountId(transferLink.getLocalId());
             txn.setTransfer(true);
         } else {
+            txn.setTransferredAccountId(null);
+            txn.setTransfer(false);
             log.warn("Couldn't find local account for id: " + originalTransaction.getTransferredAccountId());
         }
 
@@ -1991,6 +2108,381 @@ public class MsMoneyService {
         }
 
         txn.setSerialDateTime(ZonedDateTime.ofInstant(originalTransaction.getSerialDate().toInstant(), ZoneId.systemDefault()));
+    }
+
+    private LoanImportResult processLoanSplitTransactions(
+        User user,
+        FinanceImportStatus fiStatus,
+        com.le.sunriise.mnyobject.Transaction originalTxn,
+        Source source,
+        Map<String, SourceLink> sourceLinkCache,
+        Map<String, SourceLink> transferSourceLinks,
+        Map<String, SourceLink> accountCache,
+        Map<String, SourceLink> payeeSourceLinks,
+        Map<String, SourceLink> categoriesSourceLinks,
+        Map<String, SourceLink> securitySourceLinks,
+        OpenedDb oDB,
+        Map<Integer, Currency> currencies,
+        Map<Integer, Integer> pendingSplits,
+        Map<Integer, Integer> transferLinksByFromId
+    ) {
+        LoanSplitComponents loanSplit = identifyLoanSplit(originalTxn, accountCache, transferLinksByFromId);
+        if (loanSplit == null) {
+            return null;
+        }
+
+        removeLegacyLoanSplitTransactions(user, originalTxn, sourceLinkCache);
+
+        String transferSourceId = buildDerivedTransactionSourceId(originalTxn.getId(), LOAN_TRANSFER_SUFFIX);
+        String interestSourceId = buildDerivedTransactionSourceId(originalTxn.getId(), LOAN_INTEREST_SUFFIX);
+        String baseGuid = trimSguid(originalTxn.getGuid());
+        String transferGuid = buildDerivedTransactionSourceGuid(baseGuid, LOAN_TRANSFER_SUFFIX);
+        String interestGuid = buildDerivedTransactionSourceGuid(baseGuid, LOAN_INTEREST_SUFFIX);
+
+        FinanceTransaction transferTxn = resolveImportedTransaction(user, sourceLinkCache.get(transferSourceId), transferGuid, fiStatus);
+        updateTransaction(
+            transferTxn,
+            originalTxn,
+            accountCache,
+            payeeSourceLinks,
+            categoriesSourceLinks,
+            securitySourceLinks,
+            oDB,
+            currencies,
+            pendingSplits
+        );
+        transferTxn.setMasterGuid(transferGuid);
+        transferTxn.setCategory(null);
+        transferTxn.setWho(null);
+        transferTxn.setAmount(loanSplit.totalAmount);
+        transferTxn.setTransferredAccountId(loanSplit.loanAccountId);
+        transferTxn.setTransfer(true);
+        transferTxn.setTransferTo(loanSplit.totalAmount != null && loanSplit.totalAmount.signum() > 0);
+        transferTxn.setSplitChild(false);
+        transferTxn.setSplitParent(false);
+        transferTxn.setParentId(null);
+        transferTxn.setPrincipalAmount(loanSplit.principalAmount);
+
+        FinanceTransaction loanCounterpartTxn = resolveImportedTransaction(
+            user,
+            sourceLinkCache.get(loanSplit.loanCounterpartSourceId.toString()),
+            buildDerivedTransactionSourceGuid(baseGuid, "loan-counterpart"),
+            fiStatus
+        );
+        configureImportedLoanTransferCounterpart(loanCounterpartTxn, transferTxn, loanSplit.loanAccountId);
+        loanCounterpartTxn.setMasterGuid(buildDerivedTransactionSourceGuid(baseGuid, "loan-counterpart"));
+        loanCounterpartTxn.setPrincipalAmount(null);
+
+        FinanceTransaction interestTxn = resolveImportedTransaction(user, sourceLinkCache.get(interestSourceId), interestGuid, fiStatus);
+        updateTransaction(
+            interestTxn,
+            loanSplit.interestTransaction,
+            accountCache,
+            payeeSourceLinks,
+            categoriesSourceLinks,
+            securitySourceLinks,
+            oDB,
+            currencies,
+            pendingSplits
+        );
+        interestTxn.setMasterGuid(interestGuid);
+        interestTxn.setAccountId(loanSplit.loanAccountId);
+        interestTxn.setTransferredAccountId(null);
+        interestTxn.setTransfer(false);
+        interestTxn.setTransferTo(false);
+        interestTxn.setSplitChild(false);
+        interestTxn.setSplitParent(false);
+        interestTxn.setParentId(null);
+        interestTxn.setAmount(loanSplit.adjustedInterestAmount);
+        if (loanSplit.interestAdjustmentNote != null) {
+            interestTxn.setMemo(appendMemoNote(interestTxn.getMemo(), loanSplit.interestAdjustmentNote));
+        }
+        interestTxn.setPrincipalAmount(null);
+
+        String transferLinkSourceId = buildTransferSourceId(loanSplit.principalSourceId, loanSplit.loanCounterpartSourceId);
+        return new LoanImportResult(
+            List.of(
+                new ImportedTransactionItem(transferTxn, transferSourceId, transferGuid),
+                new ImportedTransactionItem(
+                    loanCounterpartTxn,
+                    loanSplit.loanCounterpartSourceId.toString(),
+                    loanCounterpartTxn.getMasterGuid()
+                ),
+                new ImportedTransactionItem(interestTxn, interestSourceId, interestGuid)
+            ),
+            List.of(new ImportedTransferLinkItem(transferTxn, loanCounterpartTxn, transferLinkSourceId)),
+            List.of(loanSplit.principalSourceId, loanSplit.interestSourceId, loanSplit.loanCounterpartSourceId)
+        );
+    }
+
+    private void configureImportedLoanTransferCounterpart(
+        FinanceTransaction counterpartTxn,
+        FinanceTransaction sourceTransferTxn,
+        String loanAccountId
+    ) {
+        counterpartTxn.setUserGuid(sourceTransferTxn.getUserGuid());
+        counterpartTxn.setAccountId(loanAccountId);
+        counterpartTxn.setTransferredAccountId(sourceTransferTxn.getAccountId());
+        counterpartTxn.setDate(sourceTransferTxn.getDate());
+        counterpartTxn.setAmount(sourceTransferTxn.getAmount() == null ? null : sourceTransferTxn.getAmount().negate());
+        counterpartTxn.setRecurring(false);
+        counterpartTxn.setTransfer(true);
+        counterpartTxn.setTransferTo(sourceTransferTxn.getAmount() != null && sourceTransferTxn.getAmount().signum() > 0);
+        counterpartTxn.setSplitParent(false);
+        counterpartTxn.setSplitChild(false);
+        counterpartTxn.setParentId(null);
+        counterpartTxn.setVoided(false);
+        counterpartTxn.setInvestment(false);
+        counterpartTxn.setCleared(sourceTransferTxn.isCleared());
+        counterpartTxn.setReconciled(sourceTransferTxn.isReconciled());
+        counterpartTxn.setMemo(sourceTransferTxn.getMemo());
+        counterpartTxn.setCategory(null);
+        counterpartTxn.setWho(null);
+        counterpartTxn.setPayeeId(null);
+        counterpartTxn.setPayeeName(null);
+        counterpartTxn.setStatementId(null);
+        counterpartTxn.setNumber(sourceTransferTxn.getNumber());
+        counterpartTxn.setCurrencyCode(
+            accountRepository
+                .findById(UUID.fromString(loanAccountId))
+                .map(FinanceAccount::getCurrencyCode)
+                .orElse(sourceTransferTxn.getCurrencyCode())
+        );
+        counterpartTxn.setAmountBase(null);
+        counterpartTxn.setRateToBase(null);
+        counterpartTxn.setSourcePayeeId(sourceTransferTxn.getSourcePayeeId());
+        counterpartTxn.setSerialDateTime(sourceTransferTxn.getSerialDateTime());
+    }
+
+    private void removeLegacyLoanSplitTransactions(
+        User user,
+        com.le.sunriise.mnyobject.Transaction originalTxn,
+        Map<String, SourceLink> sourceLinkCache
+    ) {
+        List<String> legacySourceIds = new ArrayList<>();
+        legacySourceIds.add(originalTxn.getId().toString());
+        for (TransactionSplit split : originalTxn.getSplits()) {
+            if (split.getTransaction() != null) {
+                legacySourceIds.add(split.getTransaction().getId().toString());
+            }
+        }
+
+        List<UUID> transactionIdsToDelete = new ArrayList<>();
+        List<Long> sourceLinkIdsToDelete = new ArrayList<>();
+        for (String legacySourceId : legacySourceIds) {
+            SourceLink sourceLink = sourceLinkCache.remove(legacySourceId);
+            if (sourceLink == null) {
+                continue;
+            }
+
+            transactionIdsToDelete.add(UUID.fromString(sourceLink.getLocalId()));
+            sourceLinkIdsToDelete.add(sourceLink.getId());
+        }
+
+        if (transactionIdsToDelete.isEmpty()) {
+            return;
+        }
+
+        deleteTransferLinksForTransactions(user, transactionIdsToDelete);
+        transactionRepository.deleteAllById(transactionIdsToDelete);
+        sourceLinkRepository.deleteAllById(sourceLinkIdsToDelete);
+    }
+
+    private FinanceTransaction resolveImportedTransaction(
+        User user,
+        SourceLink sourceLink,
+        String masterGuid,
+        FinanceImportStatus fiStatus
+    ) {
+        if (sourceLink != null) {
+            Optional<FinanceTransaction> existingTransaction = transactionRepository.findById(UUID.fromString(sourceLink.getLocalId()));
+            if (existingTransaction.isPresent()) {
+                fiStatus.setNumUpdated(fiStatus.getNumUpdated() + 1);
+                return existingTransaction.get();
+            }
+        }
+
+        FinanceTransaction transaction = new FinanceTransaction();
+        transaction.setUserGuid(user.getGuid().toString());
+        transaction.setMasterGuid(masterGuid);
+        fiStatus.setNumCreated(fiStatus.getNumCreated() + 1);
+        return transaction;
+    }
+
+    private LoanSplitComponents identifyLoanSplit(
+        com.le.sunriise.mnyobject.Transaction originalTxn,
+        Map<String, SourceLink> accountCache,
+        Map<Integer, Integer> transferLinksByFromId
+    ) {
+        if (originalTxn.getSplits() == null || originalTxn.getSplits().size() != 2) {
+            return null;
+        }
+
+        com.le.sunriise.mnyobject.Transaction principalTransaction = null;
+        com.le.sunriise.mnyobject.Transaction interestTransaction = null;
+        String loanAccountId = null;
+        BigDecimal principalAmount = null;
+        BigDecimal interestAmount = null;
+
+        for (TransactionSplit split : originalTxn.getSplits()) {
+            com.le.sunriise.mnyobject.Transaction splitTransaction = split.getTransaction();
+            if (splitTransaction == null) {
+                return null;
+            }
+            if ("Principal".equals(splitTransaction.getMemo()) && splitTransaction.getTransferredAccountId() != null) {
+                SourceLink transferAccountLink = accountCache.get(splitTransaction.getTransferredAccountId().toString());
+                if (transferAccountLink != null && isLoanAccount(transferAccountLink.getLocalId())) {
+                    principalTransaction = splitTransaction;
+                    loanAccountId = transferAccountLink.getLocalId();
+                    principalAmount = splitTransaction.getAmount();
+                }
+            } else if (
+                "Interest".equals(splitTransaction.getMemo()) &&
+                splitTransaction.getAmount() != null &&
+                splitTransaction.getAmount().signum() < 0
+            ) {
+                interestTransaction = splitTransaction;
+                interestAmount = splitTransaction.getAmount();
+            }
+        }
+
+        if (
+            principalTransaction == null ||
+            interestTransaction == null ||
+            loanAccountId == null ||
+            principalAmount == null ||
+            interestAmount == null
+        ) {
+            return null;
+        }
+
+        Integer loanCounterpartSourceId = transferLinksByFromId.get(principalTransaction.getId());
+        if (loanCounterpartSourceId == null) {
+            log.warn("Loan split principal transaction {} does not have a transfer link counterpart", principalTransaction.getId());
+            return null;
+        }
+
+        BigDecimal principalAbs = principalAmount.abs();
+        BigDecimal interestAbs = interestAmount.abs();
+        BigDecimal totalAbs = principalAbs.add(interestAbs);
+        BigDecimal adjustedInterestAmount = interestAmount;
+        String interestAdjustmentNote = null;
+
+        if (originalTxn.getAmount() != null) {
+            BigDecimal overallAbs = originalTxn.getAmount().abs();
+            if (overallAbs.compareTo(totalAbs) != 0 && overallAbs.compareTo(principalAbs) >= 0) {
+                BigDecimal adjustedInterestAbs = overallAbs.subtract(principalAbs);
+                adjustedInterestAmount = interestAmount.signum() < 0 ? adjustedInterestAbs.negate() : adjustedInterestAbs;
+                totalAbs = overallAbs;
+                if (adjustedInterestAmount.compareTo(interestAmount) != 0) {
+                    interestAdjustmentNote =
+                        "Adjusted interest from source " + interestAmount + " to " + adjustedInterestAmount + " using total less principal";
+                }
+            }
+        }
+
+        BigDecimal totalAmount = totalAbs;
+        if (principalAmount.signum() < 0) {
+            totalAmount = totalAbs.negate();
+        }
+
+        return new LoanSplitComponents(
+            loanAccountId,
+            principalAmount,
+            totalAmount,
+            adjustedInterestAmount,
+            interestAdjustmentNote,
+            interestTransaction,
+            principalTransaction.getId(),
+            interestTransaction.getId(),
+            loanCounterpartSourceId
+        );
+    }
+
+    private boolean isLoanAccount(String localAccountId) {
+        return accountRepository
+            .findById(UUID.fromString(localAccountId))
+            .map(FinanceAccount::getType)
+            .map(type -> type == LOAN_ACCOUNT_TYPE)
+            .orElse(false);
+    }
+
+    private String buildDerivedTransactionSourceId(Integer sourceId, String suffix) {
+        return sourceId + ":" + suffix;
+    }
+
+    private String buildDerivedTransactionSourceGuid(String sourceGuid, String suffix) {
+        return sourceGuid + ":" + suffix;
+    }
+
+    private String getBaseTransactionSourceId(String sourceId) {
+        int separator = sourceId.indexOf(':');
+        if (separator < 0) {
+            return sourceId;
+        }
+        return sourceId.substring(0, separator);
+    }
+
+    private String appendMemoNote(String memo, String note) {
+        if (note == null || note.isBlank()) {
+            return memo;
+        }
+        if (memo == null || memo.isBlank()) {
+            return note;
+        }
+        return memo + " [" + note + "]";
+    }
+
+    private static class LoanSplitComponents {
+
+        private final String loanAccountId;
+        private final BigDecimal principalAmount;
+        private final BigDecimal totalAmount;
+        private final BigDecimal adjustedInterestAmount;
+        private final String interestAdjustmentNote;
+        private final com.le.sunriise.mnyobject.Transaction interestTransaction;
+        private final Integer principalSourceId;
+        private final Integer interestSourceId;
+        private final Integer loanCounterpartSourceId;
+
+        private LoanSplitComponents(
+            String loanAccountId,
+            BigDecimal principalAmount,
+            BigDecimal totalAmount,
+            BigDecimal adjustedInterestAmount,
+            String interestAdjustmentNote,
+            com.le.sunriise.mnyobject.Transaction interestTransaction,
+            Integer principalSourceId,
+            Integer interestSourceId,
+            Integer loanCounterpartSourceId
+        ) {
+            this.loanAccountId = loanAccountId;
+            this.principalAmount = principalAmount;
+            this.totalAmount = totalAmount;
+            this.adjustedInterestAmount = adjustedInterestAmount;
+            this.interestAdjustmentNote = interestAdjustmentNote;
+            this.interestTransaction = interestTransaction;
+            this.principalSourceId = principalSourceId;
+            this.interestSourceId = interestSourceId;
+            this.loanCounterpartSourceId = loanCounterpartSourceId;
+        }
+    }
+
+    private static class LoanImportResult {
+
+        private final List<ImportedTransactionItem> transactions;
+        private final List<ImportedTransferLinkItem> transferLinks;
+        private final List<Integer> sourceTxnIdsToSkip;
+
+        private LoanImportResult(
+            List<ImportedTransactionItem> transactions,
+            List<ImportedTransferLinkItem> transferLinks,
+            List<Integer> sourceTxnIdsToSkip
+        ) {
+            this.transactions = transactions;
+            this.transferLinks = transferLinks;
+            this.sourceTxnIdsToSkip = sourceTxnIdsToSkip;
+        }
     }
 
     private FinanceTransaction convertTransaction(

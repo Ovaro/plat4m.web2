@@ -9,6 +9,7 @@ public class FinanceTransactionRowDTO {
 
     private String accountId;
     private BigDecimal amount;
+    private BigDecimal principalAmount;
     private String categoryId;
     private String categoryName;
     private Boolean cleared;
@@ -48,6 +49,7 @@ public class FinanceTransactionRowDTO {
     public FinanceTransactionRowDTO(IFinanceTransactionWithRunningBalance transaction) {
         this.accountId = transaction.getAccountId();
         this.amount = transaction.getAmount();
+        this.principalAmount = transaction.getPrincipalAmount();
         this.categoryId = transaction.getCategoryId();
         this.categoryName = transaction.getCategoryName();
         this.cleared = transaction.getCleared();
@@ -95,6 +97,14 @@ public class FinanceTransactionRowDTO {
 
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
+    }
+
+    public BigDecimal getPrincipalAmount() {
+        return principalAmount;
+    }
+
+    public void setPrincipalAmount(BigDecimal principalAmount) {
+        this.principalAmount = principalAmount;
     }
 
     public String getCategoryId() {

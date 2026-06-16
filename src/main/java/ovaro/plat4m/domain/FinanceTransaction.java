@@ -37,6 +37,7 @@ public class FinanceTransaction implements Serializable {
     private Integer number;
     private String accountId;
     private BigDecimal amount;
+    private BigDecimal principalAmount;
     private Integer statusFlag;
     private LocalDate date;
     private boolean recurring;
@@ -131,6 +132,14 @@ public class FinanceTransaction implements Serializable {
 
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
+    }
+
+    public BigDecimal getPrincipalAmount() {
+        return principalAmount;
+    }
+
+    public void setPrincipalAmount(BigDecimal principalAmount) {
+        this.principalAmount = principalAmount;
     }
 
     public Integer getStatusFlag() {
