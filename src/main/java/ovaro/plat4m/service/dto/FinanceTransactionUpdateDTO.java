@@ -17,6 +17,7 @@ public class FinanceTransactionUpdateDTO {
     private Boolean cleared;
     private List<String> tags;
     private List<SplitLineDTO> splits;
+    private Boolean replaceWithTransfer;
 
     public static class SplitLineDTO {
 
@@ -162,5 +163,13 @@ public class FinanceTransactionUpdateDTO {
 
     public void setSplits(List<SplitLineDTO> splits) {
         this.splits = splits;
+    }
+
+    public Boolean getReplaceWithTransfer() {
+        return replaceWithTransfer;
+    }
+
+    public void setReplaceWithTransfer(Boolean replaceWithTransfer) {
+        this.replaceWithTransfer = replaceWithTransfer;
     }
 }

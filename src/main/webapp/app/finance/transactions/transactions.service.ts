@@ -95,6 +95,10 @@ export class Transactions {
     );
   }
 
+  delete(accountId: string, transactionId: string): Observable<void> {
+    return this.http.delete<void>(this.applicationConfigService.getEndpointFor(`api/account/${accountId}/transactions/${transactionId}`));
+  }
+
   create(accountId: string, update: TransactionUpdate): Observable<FinancialTransaction> {
     return this.http.post<FinancialTransaction>(
       this.applicationConfigService.getEndpointFor(`api/account/${accountId}/transactions`),

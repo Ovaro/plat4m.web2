@@ -74,7 +74,11 @@ export class ImportComponent implements OnInit {
     this.importService.getSources().subscribe({
       next: (res: Source[]) => {
         this.sources = res;
-        this.onChangeType(null);
+        if (!this.sources.some(source => source.typeId === this.selectedSourceId) && this.sources.length > 0) {
+          this.selectedSourceId = this.sources[0].typeId;
+        }
+        this.onChangeType();
+        this.changeDetectorRef.detectChanges();
       },
       //error: () => (),
     });
@@ -89,15 +93,8 @@ export class ImportComponent implements OnInit {
     this.importStatusService.disconnect();
   }
 
-  onChangeType(event: any): void {
-    // Find the type in the sources
-    if (this.sources) {
-      for (let index = 0; index < this.sources.length; index++) {
-        if (this.sources[index].typeId === this.selectedSourceId) {
-          this.selectedSource = this.sources[index];
-        }
-      }
-    }
+  onChangeType(_event?: unknown): void {
+    this.selectedSource = this.sources?.find(source => source.typeId === this.selectedSourceId);
   }
 
   showImportStatus(newStatus: ImportStatus): void {

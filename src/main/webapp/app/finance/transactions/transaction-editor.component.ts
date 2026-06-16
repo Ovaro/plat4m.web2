@@ -20,10 +20,13 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TreeSelectModule } from 'primeng/treeselect';
 import { AutoCompleteCompleteEvent } from 'primeng/autocomplete';
+import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { FinancialTransaction } from '../finance.model';
 import { Transactions } from './transactions.service';
 import {
+  TransactionEditorDraftRequest,
   TransactionEditorMode,
+  TransactionEditorSelectableType,
   TransactionCategoryType,
   TransactionLookupQuery,
   TransactionOption,
@@ -32,7 +35,7 @@ import {
   TransactionUpdate,
 } from './transactions.types';
 
-type TransactionEditorType = 'withdrawal' | 'deposit' | 'transfer' | 'split';
+type TransactionEditorType = TransactionEditorSelectableType | 'split';
 
 interface TransactionSplitEditorRow {
   category: TransactionTreeOption | null;
@@ -52,9 +55,26 @@ interface PendingCategoryCreation {
   error: string | null;
 }
 
+interface PendingTransactionTypeChange {
+  targetType: TransactionEditorSelectableType;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  alternateLabel?: string;
+}
+
 @Component({
   selector: 'jhi-transaction-editor',
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, AutoCompleteModule, SelectButtonModule, InputNumberModule, TreeSelectModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    AutoCompleteModule,
+    SelectButtonModule,
+    InputNumberModule,
+    TreeSelectModule,
+    FontAwesomeModule,
+  ],
   templateUrl: './transaction-editor.component.html',
   styleUrls: ['./transaction-editor.component.scss'],
 })
@@ -69,10 +89,12 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
   @Input() accounts: TransactionOption[] = [];
   @Input() saving = false;
   @Input() dialogView = false;
+  @Input() initialTransactionType: TransactionEditorSelectableType | null = null;
 
   @Output() saveTransaction = new EventEmitter<TransactionUpdate>();
-  @Output() newTransaction = new EventEmitter<void>();
+  @Output() newTransaction = new EventEmitter<TransactionEditorDraftRequest | void>();
   @Output() editTransaction = new EventEmitter<void>();
+  @Output() deleteTransaction = new EventEmitter<void>();
   @Output() cancelEditor = new EventEmitter<void>();
 
   protected categoryOptions: TransactionTreeOption[] = [];
@@ -89,6 +111,9 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
   protected splitRowsLoading = false;
   protected splitDraftConvertsTransaction = false;
   protected pendingCategoryCreation: PendingCategoryCreation | null = null;
+  protected pendingTransactionTypeChange: PendingTransactionTypeChange | null = null;
+  protected actionsMenuOpen = false;
+  protected deleteConfirmOpen = false;
 
   protected readonly form = new FormGroup({
     transactionType: new FormControl<TransactionEditorType>('withdrawal', { nonNullable: true }),
@@ -114,6 +139,9 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
   private readonly destroyRef = inject(DestroyRef);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private splitRowsLoadSequence = 0;
+  private suppressTransactionTypePrompt = false;
+  private lastSelectableTransactionType: TransactionEditorType = 'withdrawal';
+  private replaceWithTransferOnSave = false;
 
   ngOnInit(): void {
     const selectedPayee = this.getSelectedPayeeOption();
@@ -164,6 +192,7 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
       memo: this.trimToNull(rawValue.memo),
       cleared: rawValue.cleared,
       splits: splitPayload,
+      replaceWithTransfer: isTransfer && this.replaceWithTransferOnSave,
     });
   }
 
@@ -201,6 +230,29 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     }
 
     return 'Pay to';
+  }
+
+  onTransactionTypeSelectionChange(nextType: TransactionEditorSelectableType): void {
+    if (this.suppressTransactionTypePrompt) {
+      this.lastSelectableTransactionType = nextType;
+      return;
+    }
+
+    const previousType = this.lastSelectableTransactionType;
+    if (nextType === previousType) {
+      return;
+    }
+
+    if (!this.shouldInterceptTransactionTypeChange(previousType, nextType)) {
+      this.lastSelectableTransactionType = nextType;
+      if (nextType !== 'transfer') {
+        this.replaceWithTransferOnSave = false;
+      }
+      return;
+    }
+
+    this.pendingTransactionTypeChange = this.buildPendingTransactionTypeChange(previousType, nextType);
+    this.setTransactionTypeSilently(previousType);
   }
 
   searchPayees(event: AutoCompleteCompleteEvent): void {
@@ -377,6 +429,24 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
 
   clearWho(): void {
     this.form.controls.who.setValue(null);
+  }
+
+  toggleActionsMenu(): void {
+    this.actionsMenuOpen = !this.actionsMenuOpen;
+  }
+
+  openDeleteConfirmation(): void {
+    this.actionsMenuOpen = false;
+    this.deleteConfirmOpen = true;
+  }
+
+  cancelDeleteConfirmation(): void {
+    this.deleteConfirmOpen = false;
+  }
+
+  confirmDeleteTransaction(): void {
+    this.deleteConfirmOpen = false;
+    this.deleteTransaction.emit();
   }
 
   onTagInputKeydown(event: KeyboardEvent): void {
@@ -568,8 +638,46 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     return new Intl.NumberFormat('en-AU', { style: 'currency', currency: this.currencyCode }).format(value);
   }
 
+  confirmTransactionTypeChange(): void {
+    const pendingChange = this.pendingTransactionTypeChange;
+    if (!pendingChange) {
+      return;
+    }
+
+    this.pendingTransactionTypeChange = null;
+    if (pendingChange.targetType === 'transfer') {
+      this.replaceWithTransferOnSave = true;
+    }
+    this.setTransactionTypeSilently(pendingChange.targetType);
+  }
+
+  chooseNewTransferTransaction(): void {
+    const pendingChange = this.pendingTransactionTypeChange;
+    this.pendingTransactionTypeChange = null;
+    this.replaceWithTransferOnSave = false;
+    this.setTransactionTypeSilently(this.lastSelectableTransactionType);
+    if (!pendingChange) {
+      return;
+    }
+
+    this.newTransaction.emit({
+      initialTransactionType: pendingChange.targetType,
+      date: this.form.controls.date.value,
+      amount: Math.abs(this.form.controls.amount.value ?? Math.abs(this.transaction?.amount ?? 0)),
+      memo: this.trimToNull(this.form.controls.memo.value),
+      cleared: this.form.controls.cleared.value,
+      tags: [...this.form.controls.tags.value],
+    });
+  }
+
+  cancelTransactionTypeChange(): void {
+    this.pendingTransactionTypeChange = null;
+    this.replaceWithTransferOnSave = false;
+    this.setTransactionTypeSilently(this.lastSelectableTransactionType);
+  }
+
   private patchForm(): void {
-    const transactionType = this.getTransactionType();
+    const transactionType = this.isAddMode() && this.initialTransactionType ? this.initialTransactionType : this.getTransactionType();
 
     this.form.reset({
       transactionType,
@@ -587,6 +695,11 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     this.isSplitEditorOpen = false;
     this.splitDraftRows = [];
     this.splitRows = [];
+    this.pendingTransactionTypeChange = null;
+    this.actionsMenuOpen = false;
+    this.deleteConfirmOpen = false;
+    this.replaceWithTransferOnSave = false;
+    this.lastSelectableTransactionType = transactionType;
     this.loadSplitRows();
   }
 
@@ -657,6 +770,60 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     }
 
     this.form.controls.transactionType.enable({ emitEvent: false });
+  }
+
+  private shouldInterceptTransactionTypeChange(previousType: TransactionEditorType, nextType: TransactionEditorSelectableType): boolean {
+    if (this.mode !== 'edit' || this.readonlyReason || !this.transaction?.id) {
+      return false;
+    }
+
+    if ((previousType === 'deposit' || previousType === 'withdrawal') && (nextType === 'deposit' || nextType === 'withdrawal')) {
+      return true;
+    }
+
+    return previousType !== 'transfer' && nextType === 'transfer';
+  }
+
+  private buildPendingTransactionTypeChange(
+    previousType: TransactionEditorType,
+    nextType: TransactionEditorSelectableType,
+  ): PendingTransactionTypeChange {
+    if ((previousType === 'deposit' || previousType === 'withdrawal') && (nextType === 'deposit' || nextType === 'withdrawal')) {
+      return {
+        targetType: nextType,
+        title: `Change to ${this.getTransactionTypeLabel(nextType)}?`,
+        message: `This will convert the existing transaction from ${this.getTransactionTypeLabel(previousType).toLowerCase()} to ${this.getTransactionTypeLabel(nextType).toLowerCase()} when you save it.`,
+        confirmLabel: `Yes, change it`,
+      };
+    }
+
+    return {
+      targetType: nextType,
+      title: 'Change to transfer?',
+      message: 'You can either create a new transfer transaction, or convert this existing transaction into a transfer when you save.',
+      confirmLabel: 'Convert existing',
+      alternateLabel: 'Create new transfer',
+    };
+  }
+
+  private getTransactionTypeLabel(type: TransactionEditorType): string {
+    switch (type) {
+      case 'deposit':
+        return 'Deposit';
+      case 'transfer':
+        return 'Transfer';
+      case 'split':
+        return 'Split';
+      default:
+        return 'Withdrawal';
+    }
+  }
+
+  private setTransactionTypeSilently(transactionType: TransactionEditorType): void {
+    this.suppressTransactionTypePrompt = true;
+    this.form.controls.transactionType.setValue(transactionType);
+    this.lastSelectableTransactionType = transactionType;
+    this.suppressTransactionTypePrompt = false;
   }
 
   private loadPayees(query: string): void {

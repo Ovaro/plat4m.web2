@@ -8,6 +8,7 @@
       [allowEmpty]="false"
       styleClass="transaction-editor__type-toggle"
       size="small"
+      (onChange)="onTransactionTypeSelectionChange($event.value)"
     ></p-selectbutton>
     <div class="transaction-editor__header-actions">
       <button
@@ -26,6 +27,22 @@
       >
         Edit
       </button>
+      <div class="transaction-editor__actions-menu" *ngIf="!dialogView && canEdit()">
+        <button
+          type="button"
+          class="btn btn-outline-secondary transaction-editor__mode-button transaction-editor__actions-toggle"
+          aria-label="Transaction actions"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="actionsMenuOpen"
+          (click)="toggleActionsMenu()"
+        >
+          <fa-icon icon="bars"></fa-icon>
+          <fa-icon icon="angle-down"></fa-icon>
+        </button>
+        <div class="transaction-editor__actions-dropdown" *ngIf="actionsMenuOpen" role="menu">
+          <button type="button" class="transaction-editor__actions-item" role="menuitem" (click)="openDeleteConfirmation()">Delete</button>
+        </div>
+      </div>
       <span class="transaction-editor__status" *ngIf="transaction.cleared">Cleared</span>
     </div>
     <button type="button" class="transaction-editor__close" aria-label="Close editor" (click)="cancelEditor.emit()">
@@ -474,6 +491,65 @@
           <button type="button" class="btn btn-primary" (click)="doneSplitEditor()">
             {{ isViewMode() || getEffectiveReadonlyReason() ? 'Close' : 'Done' }}
           </button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <div class="transaction-editor__dialog-backdrop" *ngIf="pendingTransactionTypeChange as pendingTypeChange">
+    <section class="transaction-editor__dialog transaction-editor__dialog--type-change" role="dialog" aria-modal="true">
+      <header class="transaction-editor__dialog-header">
+        <div>
+          <h3>{{ pendingTypeChange.title }}</h3>
+          <p>{{ pendingTypeChange.message }}</p>
+        </div>
+        <button type="button" class="transaction-editor__close" aria-label="Close confirmation" (click)="cancelTransactionTypeChange()">
+          <span></span>
+          <span></span>
+        </button>
+      </header>
+
+      <footer class="transaction-editor__dialog-footer">
+        <span></span>
+        <div class="transaction-editor__dialog-actions">
+          <button type="button" class="btn btn-outline-secondary" (click)="cancelTransactionTypeChange()">Cancel</button>
+          <button
+            *ngIf="pendingTypeChange.alternateLabel"
+            type="button"
+            class="btn btn-outline-secondary"
+            (click)="chooseNewTransferTransaction()"
+          >
+            {{ pendingTypeChange.alternateLabel }}
+          </button>
+          <button type="button" class="btn btn-primary" (click)="confirmTransactionTypeChange()">
+            {{ pendingTypeChange.confirmLabel || 'Confirm' }}
+          </button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <div class="transaction-editor__dialog-backdrop" *ngIf="deleteConfirmOpen">
+    <section class="transaction-editor__dialog transaction-editor__dialog--type-change" role="dialog" aria-modal="true">
+      <header class="transaction-editor__dialog-header">
+        <div>
+          <h3>Delete transaction?</h3>
+          <p>
+            This will permanently delete this transaction.
+            <ng-container *ngIf="transaction.transferredAccountId"> The linked transfer transaction will be deleted as well. </ng-container>
+          </p>
+        </div>
+        <button type="button" class="transaction-editor__close" aria-label="Close delete confirmation" (click)="cancelDeleteConfirmation()">
+          <span></span>
+          <span></span>
+        </button>
+      </header>
+
+      <footer class="transaction-editor__dialog-footer">
+        <span></span>
+        <div class="transaction-editor__dialog-actions">
+          <button type="button" class="btn btn-outline-secondary" (click)="cancelDeleteConfirmation()">Cancel</button>
+          <button type="button" class="btn btn-danger" (click)="confirmDeleteTransaction()">Delete</button>
         </div>
       </footer>
     </section>

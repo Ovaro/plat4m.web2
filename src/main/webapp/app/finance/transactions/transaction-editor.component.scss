@@ -51,6 +51,58 @@
   font-weight: 600;
 }
 
+.transaction-editor__actions-menu {
+  position: relative;
+}
+
+.transaction-editor__actions-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.transaction-editor__actions-dropdown {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  min-width: 10rem;
+  padding: 0.35rem;
+  border: 1px solid var(--app-colours-border-low-light);
+  border-radius: 0.8rem;
+  background: var(--app-colours-background-high-light);
+  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.16);
+  z-index: 5;
+}
+
+:host-context(.theme-dark) .transaction-editor__actions-dropdown {
+  border-color: var(--app-colours-border-low-dark);
+  background: var(--app-colours-background-high-dark);
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.3);
+}
+
+.transaction-editor__actions-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 2rem;
+  padding: 0.35rem 0.55rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: #b42318;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.transaction-editor__actions-item:hover {
+  background: rgba(220, 53, 69, 0.08);
+}
+
+:host-context(.theme-dark) .transaction-editor__actions-item:hover {
+  background: rgba(248, 113, 113, 0.12);
+}
+
 .transaction-editor__status {
   display: inline-flex;
   align-items: center;
@@ -553,6 +605,10 @@
 
 .transaction-editor__dialog--category {
   width: min(34rem, 100%);
+}
+
+.transaction-editor__dialog--type-change {
+  width: min(30rem, 100%);
 }
 
 :host-context(.theme-dark) .transaction-editor__dialog {

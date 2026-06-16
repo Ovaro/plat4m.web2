@@ -394,6 +394,24 @@ public class FinanceAccountResource {
         }
     }
 
+    @DeleteMapping("/account/{accountId}/transactions/{transactionId}")
+    public ResponseEntity<Void> deleteTransaction(
+        @PathVariable(name = "accountId") String accountId,
+        @PathVariable(name = "transactionId") UUID transactionId
+    ) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        try {
+            financeTransactionService.deleteTransaction(u.get(), accountId, transactionId);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
+    }
+
     private Optional<User> getCurrentUser() {
         String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
         return userService.getUserWithAuthoritiesByLogin(userLogin);

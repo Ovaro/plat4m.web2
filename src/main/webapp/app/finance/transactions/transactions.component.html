@@ -118,9 +118,11 @@
         [accounts]="transferAccountOptions"
         [readonlyReason]="getSelectedTransactionReadonlyReason()"
         [saving]="isSavingTransaction"
+        [initialTransactionType]="editorInitialTransactionType"
         (saveTransaction)="saveTransaction($event)"
-        (newTransaction)="openAddTransaction()"
+        (newTransaction)="openAddTransaction($event)"
         (editTransaction)="openEditMode()"
+        (deleteTransaction)="deleteSelectedTransaction()"
         (cancelEditor)="closeEditor()"
       ></jhi-transaction-editor>
     </aside>

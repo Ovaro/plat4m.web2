@@ -32,6 +32,7 @@ import ovaro.plat4m.domain.FinanceTransaction;
 import ovaro.plat4m.domain.FinanceTransactionTag;
 import ovaro.plat4m.domain.FinanceTransferLink;
 import ovaro.plat4m.domain.IFinanceMonthlySummary;
+import ovaro.plat4m.domain.SourceLink;
 import ovaro.plat4m.domain.User;
 import ovaro.plat4m.repository.FinanceAccountRepository;
 import ovaro.plat4m.repository.FinanceCategoryRepository;
@@ -40,6 +41,7 @@ import ovaro.plat4m.repository.FinanceTagRepository;
 import ovaro.plat4m.repository.FinanceTransactionRepository;
 import ovaro.plat4m.repository.FinanceTransactionTagRepository;
 import ovaro.plat4m.repository.FinanceTransferLinkRepository;
+import ovaro.plat4m.repository.SourceLinkRepository;
 import ovaro.plat4m.service.dto.FinanceInvestmentTransactionDTO;
 import ovaro.plat4m.service.dto.FinanceManageCategoryDTO;
 import ovaro.plat4m.service.dto.FinanceManageCategoryUpdateDTO;
@@ -63,6 +65,7 @@ public class FinanceTransactionService {
     private FinancePayeeRepository payeeRepository;
     private FinanceTagRepository tagRepository;
     private FinanceTransactionTagRepository transactionTagRepository;
+    private SourceLinkRepository sourceLinkRepository;
     private FinanceTransactionEditorLookupCacheService editorLookupCacheService;
 
     public FinanceTransactionService(
@@ -73,6 +76,7 @@ public class FinanceTransactionService {
         FinancePayeeRepository payeeRepository,
         FinanceTagRepository tagRepository,
         FinanceTransactionTagRepository transactionTagRepository,
+        SourceLinkRepository sourceLinkRepository,
         FinanceTransactionEditorLookupCacheService editorLookupCacheService
     ) {
         this.transactionRepository = transactionRepository;
@@ -82,6 +86,7 @@ public class FinanceTransactionService {
         this.payeeRepository = payeeRepository;
         this.tagRepository = tagRepository;
         this.transactionTagRepository = transactionTagRepository;
+        this.sourceLinkRepository = sourceLinkRepository;
         this.editorLookupCacheService = editorLookupCacheService;
     }
 
@@ -346,6 +351,9 @@ public class FinanceTransactionService {
         if (update.getDate() == null || update.getAmount() == null) {
             throw new IllegalArgumentException("Date and amount are required");
         }
+        if (Boolean.TRUE.equals(update.getReplaceWithTransfer())) {
+            return replaceTransactionWithTransfer(user, accountId, transactionId, transaction, update);
+        }
 
         applyTransactionUpdate(user, accountId, transaction, update);
         FinanceTransaction saved = this.transactionRepository.save(transaction);
@@ -353,6 +361,24 @@ public class FinanceTransactionService {
         syncTransferTransaction(user, saved);
         syncTransactionTags(user, saved, update.getTags());
         return getTransactionRow(user, accountId, saved.getId());
+    }
+
+    private FinanceTransactionRowDTO replaceTransactionWithTransfer(
+        User user,
+        String accountId,
+        UUID transactionId,
+        FinanceTransaction existingTransaction,
+        FinanceTransactionUpdateDTO update
+    ) {
+        if (trimToNull(update.getTransferredAccountId()) == null) {
+            throw new IllegalArgumentException("Transfer account is required when converting a transaction to a transfer");
+        }
+        if (existingTransaction.isTransfer()) {
+            throw new IllegalStateException("Transfer transactions cannot be replaced with another transfer");
+        }
+
+        deleteTransaction(user, accountId, transactionId);
+        return createTransaction(user, accountId, update);
     }
 
     @Transactional
@@ -389,6 +415,46 @@ public class FinanceTransactionService {
         syncTransferTransaction(user, saved);
         syncTransactionTags(user, saved, update.getTags());
         return getTransactionRow(user, accountId, saved.getId());
+    }
+
+    @Transactional
+    public void deleteTransaction(User user, String accountId, UUID transactionId) {
+        FinanceTransaction transaction = this.transactionRepository
+            .findByIdAndUserGuid(transactionId, user.getGuid().toString())
+            .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
+
+        if (!accountId.equals(transaction.getAccountId())) {
+            throw new IllegalArgumentException("Transaction does not belong to the selected account");
+        }
+        if (transaction.isSplitChild()) {
+            throw new IllegalStateException("Split child transactions cannot be edited directly");
+        }
+
+        List<UUID> transactionIdsToDelete = new ArrayList<>();
+        transactionIdsToDelete.add(transaction.getId());
+
+        if (transaction.isSplitParent()) {
+            transactionIdsToDelete.addAll(
+                this.transactionRepository
+                    .findAllByUserGuidAndParentIdOrderByNumberAscDateAscIdAsc(user.getGuid().toString(), transaction.getId())
+                    .stream()
+                    .map(FinanceTransaction::getId)
+                    .toList()
+            );
+        }
+
+        findTransferLink(user, transaction.getId()).ifPresent(transferLink -> {
+            UUID counterpartId = transferLink.getFromId().equals(transaction.getId()) ? transferLink.getLinkId() : transferLink.getFromId();
+            if (!transactionIdsToDelete.contains(counterpartId)) {
+                transactionIdsToDelete.add(counterpartId);
+            }
+            deleteSourceLinksForLocalIds(user, List.of(transferLink.getId()));
+            this.transferLinkRepository.delete(transferLink);
+        });
+
+        deleteSourceLinksForLocalIds(user, transactionIdsToDelete);
+        transactionIdsToDelete.forEach(this.transactionTagRepository::deleteAllByTransaction_Id);
+        this.transactionRepository.deleteAllById(transactionIdsToDelete);
     }
 
     @Transactional(readOnly = true)
@@ -656,9 +722,26 @@ public class FinanceTransactionService {
 
         FinanceTransferLink transferLink = existingLink.get();
         UUID counterpartId = transferLink.getFromId().equals(transactionId) ? transferLink.getLinkId() : transferLink.getFromId();
+        deleteSourceLinksForLocalIds(transferLink.getUserGuid(), List.of(counterpartId, transferLink.getId()));
         this.transferLinkRepository.delete(transferLink);
         this.transactionTagRepository.deleteAllByTransaction_Id(counterpartId);
         this.transactionRepository.deleteById(counterpartId);
+    }
+
+    private void deleteSourceLinksForLocalIds(User user, List<UUID> localIds) {
+        deleteSourceLinksForLocalIds(user.getGuid().toString(), localIds);
+    }
+
+    private void deleteSourceLinksForLocalIds(String userGuid, List<UUID> localIds) {
+        List<String> normalizedIds = localIds.stream().filter(Objects::nonNull).map(UUID::toString).distinct().toList();
+        if (normalizedIds.isEmpty()) {
+            return;
+        }
+
+        List<SourceLink> sourceLinks = this.sourceLinkRepository.findByUserGuidAndLocalIdIn(userGuid, normalizedIds);
+        if (!sourceLinks.isEmpty()) {
+            this.sourceLinkRepository.deleteAll(sourceLinks);
+        }
     }
 
     private FinanceAccount findUserAccount(User user, String accountId) {

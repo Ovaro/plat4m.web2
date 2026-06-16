@@ -34,6 +34,8 @@ export interface TransactionSplitUpdate {
   amount: number;
 }
 
+export type TransactionEditorSelectableType = 'withdrawal' | 'deposit' | 'transfer';
+
 export interface TransactionUpdate {
   date: string;
   amount: number;
@@ -46,6 +48,16 @@ export interface TransactionUpdate {
   memo: string | null;
   cleared: boolean;
   splits?: TransactionSplitUpdate[] | null;
+  replaceWithTransfer?: boolean | null;
+}
+
+export interface TransactionEditorDraftRequest {
+  initialTransactionType?: TransactionEditorSelectableType | null;
+  date?: string;
+  amount?: number | null;
+  memo?: string | null;
+  cleared?: boolean;
+  tags?: string[];
 }
 
 export interface TransactionGridQuery {

@@ -16,6 +16,7 @@ public interface SourceLinkRepository extends JpaRepository<SourceLink, Long> {
     //Page<Transaction> findTransactions(Pageable pageable);
     List<SourceLink> findByUserGuidAndSourceEntityAndSourceTypeId(String userGuid, String sourceEntity, String sourceTypeId);
     SourceLink findByUserGuidAndSourceEntityAndSourceId(String userGuid, String sourceEntity, String sourceId);
+    List<SourceLink> findByUserGuidAndLocalIdIn(String userGuid, List<String> localIds);
 
     Optional<SourceLink> findByUserGuidAndSourceIdAndSourceEntityAndSourceTypeId(
         String userGuid,

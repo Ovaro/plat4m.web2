@@ -1,5 +1,6 @@
 package ovaro.plat4m.repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,4 +18,8 @@ public interface FinanceTransferLinkRepository extends JpaRepository<FinanceTran
         @Param("userGuid") String userGuid,
         @Param("transactionId") UUID transactionId
     );
+
+    Optional<FinanceTransferLink> findByUserGuidAndFromIdAndLinkId(String userGuid, UUID fromId, UUID linkId);
+
+    List<FinanceTransferLink> findAllByUserGuid(String userGuid);
 }

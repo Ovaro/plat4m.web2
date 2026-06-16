@@ -24,7 +24,14 @@ import { AgGridThemeName, AgGridThemeService } from 'app/shared/ag-grid/ag-grid-
 import SharedModule from 'app/shared/shared.module';
 import { NgApexchartsModule } from 'ng-apexcharts';
 import { TransactionEditorComponent } from './transaction-editor.component';
-import { TransactionEditorMode, TransactionGridQuery, TransactionOption, TransactionUpdate } from './transactions.types';
+import {
+  TransactionEditorDraftRequest,
+  TransactionEditorMode,
+  TransactionEditorSelectableType,
+  TransactionGridQuery,
+  TransactionOption,
+  TransactionUpdate,
+} from './transactions.types';
 
 interface TransactionColumnOption {
   id: string;
@@ -63,6 +70,7 @@ export class TransactionsComponent implements OnInit {
   saveTransactionError: string | null = null;
   showFilterRow = false;
   editorMode: TransactionEditorMode = 'view';
+  editorInitialTransactionType: TransactionEditorSelectableType | null = null;
   selectedTransactionId: string | null = null;
   selectedTransaction: FinancialTransaction | null = null;
   readonly columnToggleOptions: TransactionColumnOption[] = [
@@ -271,7 +279,7 @@ export class TransactionsComponent implements OnInit {
     this.keepSelectedRowVisible(e.node.rowIndex ?? null);
   }
 
-  openAddTransaction(): void {
+  openAddTransaction(request?: TransactionEditorDraftRequest | void): void {
     if (!this.accountId || !this.account) {
       return;
     }
@@ -279,8 +287,9 @@ export class TransactionsComponent implements OnInit {
     this.saveTransactionError = null;
     this.isEditorOpen = true;
     this.editorMode = 'add';
+    this.editorInitialTransactionType = request?.initialTransactionType ?? null;
     this.selectedTransactionId = null;
-    this.selectedTransaction = this.createDraftTransaction();
+    this.selectedTransaction = this.createDraftTransaction(request);
     this.agGrid?.api.deselectAll();
   }
 
@@ -290,11 +299,13 @@ export class TransactionsComponent implements OnInit {
     }
 
     this.editorMode = 'edit';
+    this.editorInitialTransactionType = null;
   }
 
   closeEditor(): void {
     this.isEditorOpen = false;
     this.editorMode = 'view';
+    this.editorInitialTransactionType = null;
     this.saveTransactionError = null;
     this.selectedTransactionId = null;
     this.selectedTransaction = null;
@@ -319,6 +330,7 @@ export class TransactionsComponent implements OnInit {
       next: transaction => {
         this.isSavingTransaction = false;
         this.editorMode = 'view';
+        this.editorInitialTransactionType = null;
         this.selectedTransactionId = transaction.id;
         this.selectedTransaction = this.processTransaction({ ...transaction });
         this.refreshSelectedRow(this.selectedTransaction);
@@ -334,6 +346,35 @@ export class TransactionsComponent implements OnInit {
           accountId: this.accountId,
           selectedTransactionId: this.selectedTransactionId,
           update,
+          error,
+        });
+      },
+    });
+  }
+
+  deleteSelectedTransaction(): void {
+    if (!this.accountId || !this.selectedTransactionId || this.editorMode === 'add') {
+      return;
+    }
+
+    const deletedAmount = this.selectedTransaction?.amount ?? 0;
+    this.saveTransactionError = null;
+    this.isSavingTransaction = true;
+    this.transactionService.delete(this.accountId, this.selectedTransactionId).subscribe({
+      next: () => {
+        this.isSavingTransaction = false;
+        if (this.balance !== -1) {
+          this.balance -= deletedAmount;
+        }
+        this.closeEditor();
+        this.agGrid?.api.refreshInfiniteCache();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isSavingTransaction = false;
+        this.saveTransactionError = this.getSaveTransactionErrorMessage(error);
+        console.error('Transaction delete failed', {
+          accountId: this.accountId,
+          selectedTransactionId: this.selectedTransactionId,
           error,
         });
       },
@@ -539,19 +580,20 @@ export class TransactionsComponent implements OnInit {
     return element;
   }
 
-  private createDraftTransaction(): FinancialTransaction {
+  private createDraftTransaction(request?: TransactionEditorDraftRequest | void): FinancialTransaction {
     const today = new Date();
     const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const requestedAmount = Math.abs(request?.amount ?? 0);
 
     return {
       id: '',
-      date: localDate,
+      date: request?.date ?? localDate,
       name: '',
       type: 0,
       payeeName: '',
       payeeId: '',
-      memo: null,
-      amount: 0,
+      memo: request?.memo ?? null,
+      amount: requestedAmount,
       runningBalance: this.balance !== -1 ? this.balance : (this.account?.startingBalance ?? 0),
       categoryId: '',
       categoryName: '',
@@ -560,14 +602,14 @@ export class TransactionsComponent implements OnInit {
       splitParent: false,
       splitChild: false,
       transferredAccountId: '',
-      cleared: false,
+      cleared: request?.cleared ?? false,
       voided: false,
       number: 0,
       payment: 0,
       deposit: 0,
       displayCategory: '',
-      tags: [],
-      tagsDisplay: '',
+      tags: request?.tags ?? [],
+      tagsDisplay: (request?.tags ?? []).join(', '),
       whoId: null,
       whoName: null,
     };

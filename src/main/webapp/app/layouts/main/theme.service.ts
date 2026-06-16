@@ -24,6 +24,8 @@ export class ThemeService {
       this.currentTheme = savedThemePreference;
     }
 
+    this.syncDocumentTheme(this.currentTheme === 'auto' ? this.getOSTheme() : this.currentTheme);
+
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const ptr = this;
 

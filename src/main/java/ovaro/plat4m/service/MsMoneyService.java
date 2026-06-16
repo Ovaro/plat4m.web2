@@ -11,6 +11,7 @@ import com.le.sunriise.mnyobject.FinancialInstitution;
 import com.le.sunriise.mnyobject.InvestmentTransaction;
 import com.le.sunriise.mnyobject.Security;
 import com.le.sunriise.mnyobject.TransactionSplit;
+import com.le.sunriise.mnyobject.TransferLink;
 import com.le.sunriise.mnyobject.impl.CategoryImplUtil;
 import com.le.sunriise.mnyobject.impl.CurrencyImplUtil;
 import com.le.sunriise.mnyobject.impl.FinancialInstitutionImplUtil;
@@ -18,6 +19,7 @@ import com.le.sunriise.mnyobject.impl.InvestmentTransactionImplUtil;
 import com.le.sunriise.mnyobject.impl.PayeeImplUtil;
 import com.le.sunriise.mnyobject.impl.SecurityImplUtil;
 import com.le.sunriise.mnyobject.impl.TransactionImplUtil;
+import com.le.sunriise.mnyobject.impl.TransferLinkImplUtil;
 import com.le.sunriise.viewer.OpenedDb;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -52,6 +54,7 @@ import ovaro.plat4m.domain.FinanceSecurity;
 import ovaro.plat4m.domain.FinanceSecurityPrice;
 import ovaro.plat4m.domain.FinanceSecurityType;
 import ovaro.plat4m.domain.FinanceTransaction;
+import ovaro.plat4m.domain.FinanceTransferLink;
 import ovaro.plat4m.domain.FinanceUserSecurity;
 import ovaro.plat4m.domain.Source;
 import ovaro.plat4m.domain.SourceLink;
@@ -66,6 +69,7 @@ import ovaro.plat4m.repository.FinancePayeeRepository;
 import ovaro.plat4m.repository.FinanceSecurityPriceRepository;
 import ovaro.plat4m.repository.FinanceSecurityRepository;
 import ovaro.plat4m.repository.FinanceTransactionRepository;
+import ovaro.plat4m.repository.FinanceTransferLinkRepository;
 import ovaro.plat4m.repository.FinanceUserSecurityRepository;
 import ovaro.plat4m.repository.SourceLinkRepository;
 import ovaro.plat4m.repository.SourceRepository;
@@ -87,6 +91,7 @@ public class MsMoneyService {
     private FinanceSecurityRepository securityRepository;
     private FinanceSecurityPriceRepository securityPriceRepository;
     private FinanceInstitutionRepository fiRepository;
+    private FinanceTransferLinkRepository transferLinkRepository;
 
     private FinanceSecurityService securityService;
     private FinanceTransactionEditorLookupCacheService editorLookupCacheService;
@@ -100,6 +105,7 @@ public class MsMoneyService {
     public static final String TABLE_SECURITY = "SEC";
     public static final String TABLE_SECURITY_PRICE = "SP";
     public static final String TABLE_FI = "FI";
+    public static final String TABLE_XFER = "fin_xfer";
 
     // STOMP for import status websocket
     private final SimpMessageSendingOperations messagingTemplate;
@@ -119,6 +125,7 @@ public class MsMoneyService {
         FinanceSecurityRepository securityRepository,
         FinanceSecurityPriceRepository securityPriceRepository,
         FinanceInstitutionRepository fiRepository,
+        FinanceTransferLinkRepository transferLinkRepository,
         FinanceSecurityService securityService,
         FinanceTransactionEditorLookupCacheService editorLookupCacheService,
         SimpMessageSendingOperations messagingTemplate
@@ -135,6 +142,7 @@ public class MsMoneyService {
         this.securityRepository = securityRepository;
         this.securityPriceRepository = securityPriceRepository;
         this.fiRepository = fiRepository;
+        this.transferLinkRepository = transferLinkRepository;
         this.securityService = securityService;
         this.editorLookupCacheService = editorLookupCacheService;
         this.messagingTemplate = messagingTemplate;
@@ -1343,6 +1351,111 @@ public class MsMoneyService {
         return sourceLinkCacheOut;
     }
 
+    private void syncTransferLinks(User user, OpenedDb oDB, Source source) throws IOException {
+        List<TransferLink> sourceTransferLinks = TransferLinkImplUtil.getTransferLinks(oDB.getDb());
+        Map<String, SourceLink> transactionSourceLinks = getSourceLinksForType(user, source, TABLE_TRN);
+        Map<String, SourceLink> transferSourceLinks = getSourceLinksForType(user, source, TABLE_XFER);
+
+        List<SourceLink> newTransferSourceLinks = new ArrayList<>();
+        List<String> seenTransferSourceIds = new ArrayList<>();
+
+        for (TransferLink sourceTransferLink : sourceTransferLinks) {
+            String sourceTransferId = buildTransferSourceId(sourceTransferLink.getFromId(), sourceTransferLink.getLinkId());
+            seenTransferSourceIds.add(sourceTransferId);
+
+            SourceLink fromTransactionLink = transactionSourceLinks.get(sourceTransferLink.getFromId().toString());
+            SourceLink linkedTransactionLink = transactionSourceLinks.get(sourceTransferLink.getLinkId().toString());
+            if (fromTransactionLink == null || linkedTransactionLink == null) {
+                log.warn(
+                    "Skipping transfer link {} because one of the transactions was not mapped locally. from={}, link={}",
+                    sourceTransferId,
+                    fromTransactionLink,
+                    linkedTransactionLink
+                );
+                continue;
+            }
+
+            UUID fromId = UUID.fromString(fromTransactionLink.getLocalId());
+            UUID linkId = UUID.fromString(linkedTransactionLink.getLocalId());
+            FinanceTransferLink transferLink = resolveExistingTransferLink(user, transferSourceLinks.get(sourceTransferId), fromId, linkId);
+            transferLink.setUserGuid(user.getGuid().toString());
+            transferLink.setFromId(fromId);
+            transferLink.setLinkId(linkId);
+            FinanceTransferLink savedTransferLink = this.transferLinkRepository.save(transferLink);
+
+            if (!transferSourceLinks.containsKey(sourceTransferId)) {
+                newTransferSourceLinks.add(
+                    createSourceLink(user, source, savedTransferLink.getId().toString(), sourceTransferId, null, TABLE_XFER, true)
+                );
+            }
+        }
+
+        if (!newTransferSourceLinks.isEmpty()) {
+            this.sourceLinkRepository.saveAll(newTransferSourceLinks);
+        }
+
+        for (SourceLink existingTransferSourceLink : transferSourceLinks.values()) {
+            if (seenTransferSourceIds.contains(existingTransferSourceLink.getSourceId())) {
+                continue;
+            }
+
+            this.transferLinkRepository
+                .findById(UUID.fromString(existingTransferSourceLink.getLocalId()))
+                .ifPresent(this.transferLinkRepository::delete);
+            this.sourceLinkRepository.delete(existingTransferSourceLink);
+        }
+    }
+
+    private FinanceTransferLink resolveExistingTransferLink(User user, SourceLink existingTransferSourceLink, UUID fromId, UUID linkId) {
+        if (existingTransferSourceLink != null) {
+            Optional<FinanceTransferLink> persistedTransferLink = this.transferLinkRepository.findById(
+                UUID.fromString(existingTransferSourceLink.getLocalId())
+            );
+            if (persistedTransferLink.isPresent()) {
+                return persistedTransferLink.get();
+            }
+        }
+
+        return this.transferLinkRepository
+            .findByUserGuidAndFromIdAndLinkId(user.getGuid().toString(), fromId, linkId)
+            .or(() -> this.transferLinkRepository.findByUserGuidAndTransactionId(user.getGuid().toString(), fromId))
+            .or(() -> this.transferLinkRepository.findByUserGuidAndTransactionId(user.getGuid().toString(), linkId))
+            .orElseGet(FinanceTransferLink::new);
+    }
+
+    private String buildTransferSourceId(Integer fromId, Integer linkId) {
+        return fromId + ":" + linkId;
+    }
+
+    private void deleteTransferLinksForTransactions(User user, List<UUID> transactionIds) {
+        if (transactionIds.isEmpty()) {
+            return;
+        }
+
+        List<UUID> transferLinkIdsToDelete = new ArrayList<>();
+        for (UUID transactionId : transactionIds) {
+            this.transferLinkRepository.findByUserGuidAndTransactionId(user.getGuid().toString(), transactionId).ifPresent(transferLink -> {
+                if (!transferLinkIdsToDelete.contains(transferLink.getId())) {
+                    transferLinkIdsToDelete.add(transferLink.getId());
+                }
+            });
+        }
+
+        if (transferLinkIdsToDelete.isEmpty()) {
+            return;
+        }
+
+        List<String> transferLinkLocalIds = transferLinkIdsToDelete.stream().map(UUID::toString).toList();
+        List<SourceLink> transferLinkSourceLinks = this.sourceLinkRepository.findByUserGuidAndLocalIdIn(
+            user.getGuid().toString(),
+            transferLinkLocalIds
+        );
+        if (!transferLinkSourceLinks.isEmpty()) {
+            this.sourceLinkRepository.deleteAll(transferLinkSourceLinks);
+        }
+        this.transferLinkRepository.deleteAllById(transferLinkIdsToDelete);
+    }
+
     private SourceLink saveSourceLink(
         User user,
         Source source,
@@ -1488,6 +1601,7 @@ public class MsMoneyService {
         }
 
         fixPendingSplits(user, pendingSplits);
+        syncTransferLinks(user, oDB, source);
 
         sw.stop();
         fiStatus.setDuration(sw.getLastTaskTimeMillis());
@@ -1560,6 +1674,7 @@ public class MsMoneyService {
                 slIds.add(sl.getId());
             }
 
+            deleteTransferLinksForTransactions(user, ids);
             transactionRepository.deleteAllById(ids);
             sourceLinkRepository.deleteAllById(slIds);
         }
