@@ -31,6 +31,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1740,9 +1741,33 @@ public class MsMoneyService {
         Map<String, SourceLink> transferSourceLinks = getSourceLinksForType(user, source, TABLE_XFER);
         sw.stop();
         sw.start("Process Txn Sync #" + ITERATION + ". Processing Txns[" + originalTxns.size() + "]");
+        Map<Integer, com.le.sunriise.mnyobject.Transaction> originalTxnsById = new HashMap<
+            Integer,
+            com.le.sunriise.mnyobject.Transaction
+        >();
+        Map<Integer, com.le.sunriise.mnyobject.Transaction> splitParentsByChildId = new HashMap<
+            Integer,
+            com.le.sunriise.mnyobject.Transaction
+        >();
+        for (com.le.sunriise.mnyobject.Transaction originalTxn : originalTxns) {
+            originalTxnsById.put(originalTxn.getId(), originalTxn);
+            if (originalTxn.getSplits() != null) {
+                for (TransactionSplit split : originalTxn.getSplits()) {
+                    if (split.getTransaction() != null) {
+                        splitParentsByChildId.put(split.getTransaction().getId(), originalTxn);
+                    }
+                }
+            }
+        }
+
         List<ImportedTransactionItem> importedItems = new ArrayList<ImportedTransactionItem>(originalTxns.size() * 2);
         List<ImportedTransferLinkItem> importedTransferLinks = new ArrayList<>();
-        List<Integer> skippedSourceTxnIds = new ArrayList<>();
+        Set<Integer> skippedSourceTxnIds = identifyLoanTransferCounterpartsToSkip(
+            originalTxnsById,
+            splitParentsByChildId,
+            transferLinksByFromId,
+            accountSourceLinks
+        );
         for (com.le.sunriise.mnyobject.Transaction originalTxn : originalTxns) {
             ImportedBatchItem importedBatchItem = processTransactionSyncBatchItem(
                 user,
@@ -1759,6 +1784,7 @@ public class MsMoneyService {
                 currencies,
                 pendingSplits,
                 transferLinksByFromId,
+                splitParentsByChildId,
                 skippedSourceTxnIds
             );
             importedItems.addAll(importedBatchItem.transactions);
@@ -1869,7 +1895,8 @@ public class MsMoneyService {
         Map<Integer, Currency> currencies,
         Map<Integer, Integer> pendingSplits,
         Map<Integer, Integer> transferLinksByFromId,
-        List<Integer> skippedSourceTxnIds
+        Map<Integer, com.le.sunriise.mnyobject.Transaction> splitParentsByChildId,
+        Set<Integer> skippedSourceTxnIds
     ) {
         if (skippedSourceTxnIds.contains(originalTxn.getId())) {
             return new ImportedBatchItem(List.of(), List.of());
@@ -1889,7 +1916,8 @@ public class MsMoneyService {
             oDB,
             currencies,
             pendingSplits,
-            transferLinksByFromId
+            transferLinksByFromId,
+            splitParentsByChildId
         );
         if (loanImportResult != null) {
             skippedSourceTxnIds.addAll(loanImportResult.sourceTxnIdsToSkip);
@@ -2125,9 +2153,10 @@ public class MsMoneyService {
         OpenedDb oDB,
         Map<Integer, Currency> currencies,
         Map<Integer, Integer> pendingSplits,
-        Map<Integer, Integer> transferLinksByFromId
+        Map<Integer, Integer> transferLinksByFromId,
+        Map<Integer, com.le.sunriise.mnyobject.Transaction> splitParentsByChildId
     ) {
-        LoanSplitComponents loanSplit = identifyLoanSplit(originalTxn, accountCache, transferLinksByFromId);
+        LoanSplitComponents loanSplit = identifyLoanSplit(originalTxn, accountCache, transferLinksByFromId, splitParentsByChildId);
         if (loanSplit == null) {
             return null;
         }
@@ -2163,7 +2192,6 @@ public class MsMoneyService {
         transferTxn.setSplitParent(false);
         transferTxn.setParentId(null);
         transferTxn.setPrincipalAmount(loanSplit.principalAmount);
-        transferTxn.setMemo(appendMemoNote(transferTxn.getMemo(), "transferTxn: " + transferTxn.getId()));
 
         FinanceTransaction loanCounterpartTxn = resolveImportedTransaction(
             user,
@@ -2174,7 +2202,6 @@ public class MsMoneyService {
         configureImportedLoanTransferCounterpart(loanCounterpartTxn, transferTxn, loanSplit.loanAccountId);
         loanCounterpartTxn.setMasterGuid(buildDerivedTransactionSourceGuid(baseGuid, "loan-counterpart"));
         loanCounterpartTxn.setPrincipalAmount(null);
-        loanCounterpartTxn.setMemo(appendMemoNote(loanCounterpartTxn.getMemo(), "loanCounterpartTxn: " + loanCounterpartTxn.getId()));
 
         FinanceTransaction interestTxn = resolveImportedTransaction(user, sourceLinkCache.get(interestSourceId), interestGuid, fiStatus);
         updateTransaction(
@@ -2201,7 +2228,6 @@ public class MsMoneyService {
             interestTxn.setMemo(appendMemoNote(interestTxn.getMemo(), loanSplit.interestAdjustmentNote));
         }
         interestTxn.setPrincipalAmount(null);
-        interestTxn.setMemo(appendMemoNote(interestTxn.getMemo(), "interestTxn: " + interestTxn.getId()));
 
         String transferLinkSourceId = buildTransferSourceId(loanSplit.principalSourceId, loanSplit.loanCounterpartSourceId);
         return new LoanImportResult(
@@ -2316,7 +2342,8 @@ public class MsMoneyService {
     private LoanSplitComponents identifyLoanSplit(
         com.le.sunriise.mnyobject.Transaction originalTxn,
         Map<String, SourceLink> accountCache,
-        Map<Integer, Integer> transferLinksByFromId
+        Map<Integer, Integer> transferLinksByFromId,
+        Map<Integer, com.le.sunriise.mnyobject.Transaction> splitParentsByChildId
     ) {
         if (originalTxn.getSplits() == null || originalTxn.getSplits().size() != 2) {
             return null;
@@ -2364,23 +2391,13 @@ public class MsMoneyService {
             return null;
         }
 
-        //Integer loanCounterpartSourceId = resolveLoanCounterpartSourceId(principalTransaction, transferLinksByFromId);
-        boolean loanCounterpartSourceReverseDirection = false;
-        Integer loanCounterpartSourceId = transferLinksByFromId.get(principalTransaction.getId());
+        Integer loanCounterpartSourceId = resolveLoanCounterpartSourceId(principalTransaction, transferLinksByFromId);
         if (loanCounterpartSourceId == null) {
-            // log.warn("Loan split principal transaction {} does not have a transfer link counterpart", principalTransaction.getId());
-            // return null;
-
-            loanCounterpartSourceId = resolveLoanCounterpartSourceId(principalTransaction, transferLinksByFromId);
-            if (loanCounterpartSourceId != null) {
-                loanCounterpartSourceReverseDirection = true;
-            } else {
-                log.warn(
-                    "Loan split principal transaction {} does not have a transfer link counterpart in either direction",
-                    principalTransaction.getId()
-                );
-                return null;
-            }
+            log.warn(
+                "Loan split principal transaction {} does not have a transfer link counterpart in either direction",
+                principalTransaction.getId()
+            );
+            return null;
         }
 
         BigDecimal principalAbs = principalAmount.abs();
@@ -2416,9 +2433,37 @@ public class MsMoneyService {
             interestTransaction,
             principalTransaction.getId(),
             interestTransaction.getId(),
-            loanCounterpartSourceId,
-            loanCounterpartSourceReverseDirection
+            loanCounterpartSourceId
         );
+    }
+
+    private Set<Integer> identifyLoanTransferCounterpartsToSkip(
+        Map<Integer, com.le.sunriise.mnyobject.Transaction> originalTxnsById,
+        Map<Integer, com.le.sunriise.mnyobject.Transaction> splitParentsByChildId,
+        Map<Integer, Integer> transferLinksByFromId,
+        Map<String, SourceLink> accountCache
+    ) {
+        Set<Integer> skippedSourceTxnIds = new HashSet<>();
+        for (Map.Entry<Integer, Integer> transferLinkEntry : transferLinksByFromId.entrySet()) {
+            Integer fromId = transferLinkEntry.getKey();
+            Integer linkId = transferLinkEntry.getValue();
+
+            com.le.sunriise.mnyobject.Transaction linkedTransaction = originalTxnsById.get(linkId);
+            if (linkedTransaction == null || !"Principal".equals(linkedTransaction.getMemo())) {
+                continue;
+            }
+
+            com.le.sunriise.mnyobject.Transaction splitParent = splitParentsByChildId.get(linkId);
+            if (splitParent == null) {
+                continue;
+            }
+
+            LoanSplitComponents loanSplit = identifyLoanSplit(splitParent, accountCache, transferLinksByFromId, splitParentsByChildId);
+            if (loanSplit != null) {
+                skippedSourceTxnIds.add(fromId);
+            }
+        }
+        return skippedSourceTxnIds;
     }
 
     private boolean isLoanAccount(String localAccountId) {
@@ -2483,7 +2528,6 @@ public class MsMoneyService {
         private final Integer principalSourceId;
         private final Integer interestSourceId;
         private final Integer loanCounterpartSourceId;
-        private final boolean loanCounterpartSourceReverseDirection;
 
         private LoanSplitComponents(
             String loanAccountId,
@@ -2494,8 +2538,7 @@ public class MsMoneyService {
             com.le.sunriise.mnyobject.Transaction interestTransaction,
             Integer principalSourceId,
             Integer interestSourceId,
-            Integer loanCounterpartSourceId,
-            boolean loanCounterpartSourceReverseDirection
+            Integer loanCounterpartSourceId
         ) {
             this.loanAccountId = loanAccountId;
             this.principalAmount = principalAmount;
@@ -2506,7 +2549,6 @@ public class MsMoneyService {
             this.principalSourceId = principalSourceId;
             this.interestSourceId = interestSourceId;
             this.loanCounterpartSourceId = loanCounterpartSourceId;
-            this.loanCounterpartSourceReverseDirection = loanCounterpartSourceReverseDirection;
         }
     }
 
