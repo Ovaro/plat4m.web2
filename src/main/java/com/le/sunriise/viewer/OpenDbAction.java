@@ -50,6 +50,11 @@ public abstract class OpenDbAction implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent event) {
         Component locationRelativeTo = getLocationRelativeTo();
+        log.info(
+            "OpenDbAction.actionPerformed: thread={}, locationRelativeToClass={}",
+            Thread.currentThread().getName(),
+            locationRelativeTo == null ? null : locationRelativeTo.getClass().getName()
+        );
         openDb(locationRelativeTo);
     }
 
@@ -63,6 +68,12 @@ public abstract class OpenDbAction implements ActionListener {
 
     private void openDb(Component locationRelativeTo) {
         List<String> recentOpenFileNames = OpenDbDialog.getRecentOpenFileNames(prefs);
+        log.info(
+            "OpenDbAction.openDb: recentFiles={}, disableReadOnlyCheckBox={}, pluginPresent={}",
+            recentOpenFileNames == null ? null : recentOpenFileNames.size(),
+            disableReadOnlyCheckBox,
+            plugin != null
+        );
 
         OpenDbDialog dialog = OpenDbDialog.showDialog(
             openedDb,
@@ -71,10 +82,12 @@ public abstract class OpenDbAction implements ActionListener {
             disableReadOnlyCheckBox,
             getPlugin()
         );
+        log.info("OpenDbAction.openDb: dialog returned, cancel={}", dialog.isCancel());
         if (!dialog.isCancel()) {
             // setDb(dialog.getDb());
             // dbFile = dialog.getDbFile();
             openedDb = dialog.getOpenedDb();
+            log.info("OpenDbAction.openDb: openedDb assigned, dbFile={}", openedDb == null ? null : openedDb.getDbFile());
 
             dbFileOpened(openedDb, dialog);
 

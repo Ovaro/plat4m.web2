@@ -72,9 +72,51 @@ public class TransactionInfoImpl implements TransactionInfo {
         return (flag & mask) == mask;
     }
 
+    public boolean isBit9() {
+        // bit 1 == transfer
+        int mask = (1 << 9);
+        return (flag & mask) == mask;
+    }
+
+    public boolean isBit10() {
+        // bit 1 == transfer
+        int mask = (1 << 10);
+        return (flag & mask) == mask;
+    }
+
+    public boolean isBit11() {
+        // bit 1 == transfer
+        int mask = (1 << 11);
+        return (flag & mask) == mask;
+    }
+
+    public boolean isBit12() {
+        // bit 1 == transfer
+        int mask = (1 << 12);
+        return (flag & mask) == mask;
+    }
+
+    public boolean isBit13() {
+        // bit 1 == transfer
+        int mask = (1 << 13);
+        return (flag & mask) == mask;
+    }
+
     public boolean isBit14() {
         // bit 1 == transfer
         int mask = (1 << 14);
+        return (flag & mask) == mask;
+    }
+
+    public boolean isBit15() {
+        // bit 1 == transfer
+        int mask = (1 << 15);
+        return (flag & mask) == mask;
+    }
+
+    public boolean isBit16() {
+        // bit 1 == transfer
+        int mask = (1 << 16);
         return (flag & mask) == mask;
     }
 
@@ -142,31 +184,49 @@ public class TransactionInfoImpl implements TransactionInfo {
     @Override
     public String toString() {
         return (
-            "[flag=" +
+            "TransactionInfoImpl [flag=" +
             flag +
-            ", isVoid:" +
-            this.isVoid() +
-            ", isInvestment:" +
-            this.isInvestment() +
-            ", isSplitChild:" +
-            this.isSplitChild() +
-            ", isSplitParent:" +
-            this.isSplitParent() +
-            ", isTransfer:" +
-            this.isTransfer() +
-            ", isTransferTo:" +
-            this.isTransferTo() +
-            ", isBit3:" +
-            this.isBit3() +
-            ", isBit7:" +
-            this.isBit7() +
-            "] "
+            ", getFlag()=" +
+            getFlag() +
+            ", isTransfer()=" +
+            isTransfer() +
+            ", isBit3()=" +
+            isBit3() +
+            ", isBit7()=" +
+            isBit7() +
+            ", isBit9()=" +
+            isBit9() +
+            ", isBit10()=" +
+            isBit10() +
+            ", isBit11()=" +
+            isBit11() +
+            ", isBit12()=" +
+            isBit12() +
+            ", isBit13()=" +
+            isBit13() +
+            ", isBit14()=" +
+            isBit14() +
+            ", isBit15()=" +
+            isBit15() +
+            ", isBit16()=" +
+            isBit16() +
+            ", isTransferTo()=" +
+            isTransferTo() +
+            ", isInvestment()=" +
+            isInvestment() +
+            ", isSplitParent()=" +
+            isSplitParent() +
+            ", isSplitChild()=" +
+            isSplitChild() +
+            ", isVoid()=" +
+            isVoid() +
+            "]"
         );
     }
 
     public static void main(String[] args) {
         TransactionInfoImpl transactionInfo = new TransactionInfoImpl();
-        transactionInfo.setFlag(134);
+        transactionInfo.setFlag(2097184);
         System.out.println(transactionInfo.toString());
     }
 }

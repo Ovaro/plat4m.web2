@@ -1545,6 +1545,7 @@ public class MsMoneyService {
         Map<Integer, Integer> transferLinksByFromId = new HashMap<Integer, Integer>();
         for (TransferLink transferLink : TransferLinkImplUtil.getTransferLinks(oDB.getDb())) {
             transferLinksByFromId.put(transferLink.getFromId(), transferLink.getLinkId());
+            //transferLinksByFromId.put(transferLink.getLinkId(), transferLink.getFromId());
         }
 
         Instant instant = null;
@@ -2162,6 +2163,7 @@ public class MsMoneyService {
         transferTxn.setSplitParent(false);
         transferTxn.setParentId(null);
         transferTxn.setPrincipalAmount(loanSplit.principalAmount);
+        transferTxn.setMemo(appendMemoNote(transferTxn.getMemo(), "transferTxn: " + transferTxn.getId()));
 
         FinanceTransaction loanCounterpartTxn = resolveImportedTransaction(
             user,
@@ -2172,6 +2174,7 @@ public class MsMoneyService {
         configureImportedLoanTransferCounterpart(loanCounterpartTxn, transferTxn, loanSplit.loanAccountId);
         loanCounterpartTxn.setMasterGuid(buildDerivedTransactionSourceGuid(baseGuid, "loan-counterpart"));
         loanCounterpartTxn.setPrincipalAmount(null);
+        loanCounterpartTxn.setMemo(appendMemoNote(loanCounterpartTxn.getMemo(), "loanCounterpartTxn: " + loanCounterpartTxn.getId()));
 
         FinanceTransaction interestTxn = resolveImportedTransaction(user, sourceLinkCache.get(interestSourceId), interestGuid, fiStatus);
         updateTransaction(
@@ -2198,6 +2201,7 @@ public class MsMoneyService {
             interestTxn.setMemo(appendMemoNote(interestTxn.getMemo(), loanSplit.interestAdjustmentNote));
         }
         interestTxn.setPrincipalAmount(null);
+        interestTxn.setMemo(appendMemoNote(interestTxn.getMemo(), "interestTxn: " + interestTxn.getId()));
 
         String transferLinkSourceId = buildTransferSourceId(loanSplit.principalSourceId, loanSplit.loanCounterpartSourceId);
         return new LoanImportResult(
@@ -2318,6 +2322,10 @@ public class MsMoneyService {
             return null;
         }
 
+        if (originalTxn.isDefPmt()) {
+            return null;
+        }
+
         com.le.sunriise.mnyobject.Transaction principalTransaction = null;
         com.le.sunriise.mnyobject.Transaction interestTransaction = null;
         String loanAccountId = null;
@@ -2339,7 +2347,7 @@ public class MsMoneyService {
             } else if (
                 "Interest".equals(splitTransaction.getMemo()) &&
                 splitTransaction.getAmount() != null &&
-                splitTransaction.getAmount().signum() < 0
+                splitTransaction.getAmount().signum() <= 0
             ) {
                 interestTransaction = splitTransaction;
                 interestAmount = splitTransaction.getAmount();
@@ -2356,10 +2364,23 @@ public class MsMoneyService {
             return null;
         }
 
+        //Integer loanCounterpartSourceId = resolveLoanCounterpartSourceId(principalTransaction, transferLinksByFromId);
+        boolean loanCounterpartSourceReverseDirection = false;
         Integer loanCounterpartSourceId = transferLinksByFromId.get(principalTransaction.getId());
         if (loanCounterpartSourceId == null) {
-            log.warn("Loan split principal transaction {} does not have a transfer link counterpart", principalTransaction.getId());
-            return null;
+            // log.warn("Loan split principal transaction {} does not have a transfer link counterpart", principalTransaction.getId());
+            // return null;
+
+            loanCounterpartSourceId = resolveLoanCounterpartSourceId(principalTransaction, transferLinksByFromId);
+            if (loanCounterpartSourceId != null) {
+                loanCounterpartSourceReverseDirection = true;
+            } else {
+                log.warn(
+                    "Loan split principal transaction {} does not have a transfer link counterpart in either direction",
+                    principalTransaction.getId()
+                );
+                return null;
+            }
         }
 
         BigDecimal principalAbs = principalAmount.abs();
@@ -2395,7 +2416,8 @@ public class MsMoneyService {
             interestTransaction,
             principalTransaction.getId(),
             interestTransaction.getId(),
-            loanCounterpartSourceId
+            loanCounterpartSourceId,
+            loanCounterpartSourceReverseDirection
         );
     }
 
@@ -2433,6 +2455,23 @@ public class MsMoneyService {
         return memo + " [" + note + "]";
     }
 
+    private Integer resolveLoanCounterpartSourceId(
+        com.le.sunriise.mnyobject.Transaction principalTransaction,
+        Map<Integer, Integer> transferLinksByFromId
+    ) {
+        boolean transferTo = principalTransaction.getTransactionInfo() != null && principalTransaction.getTransactionInfo().isTransferTo();
+        if (transferTo) {
+            return transferLinksByFromId.get(principalTransaction.getId());
+        }
+
+        for (Map.Entry<Integer, Integer> entry : transferLinksByFromId.entrySet()) {
+            if (principalTransaction.getId().equals(entry.getValue())) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
     private static class LoanSplitComponents {
 
         private final String loanAccountId;
@@ -2444,6 +2483,7 @@ public class MsMoneyService {
         private final Integer principalSourceId;
         private final Integer interestSourceId;
         private final Integer loanCounterpartSourceId;
+        private final boolean loanCounterpartSourceReverseDirection;
 
         private LoanSplitComponents(
             String loanAccountId,
@@ -2454,7 +2494,8 @@ public class MsMoneyService {
             com.le.sunriise.mnyobject.Transaction interestTransaction,
             Integer principalSourceId,
             Integer interestSourceId,
-            Integer loanCounterpartSourceId
+            Integer loanCounterpartSourceId,
+            boolean loanCounterpartSourceReverseDirection
         ) {
             this.loanAccountId = loanAccountId;
             this.principalAmount = principalAmount;
@@ -2465,6 +2506,7 @@ public class MsMoneyService {
             this.principalSourceId = principalSourceId;
             this.interestSourceId = interestSourceId;
             this.loanCounterpartSourceId = loanCounterpartSourceId;
+            this.loanCounterpartSourceReverseDirection = loanCounterpartSourceReverseDirection;
         }
     }
 

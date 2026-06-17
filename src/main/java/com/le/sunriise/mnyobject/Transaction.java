@@ -150,4 +150,8 @@ public interface Transaction {
     public abstract void setWhoId(Integer whoId);
 
     public abstract Integer getWhoId();
+
+    public abstract boolean isDefPmt();
+
+    public abstract void setDefPmt(boolean defPmt);
 }

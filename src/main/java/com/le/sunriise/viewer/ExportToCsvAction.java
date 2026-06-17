@@ -63,7 +63,7 @@ public class ExportToCsvAction implements ActionListener {
 
         @Override
         public void run() {
-            Exception exception = null;
+            Throwable exception = null;
             try {
                 ExportToCsv exporter = new ExportToCsv() {
                     private int maxTables = 0;
@@ -125,11 +125,11 @@ public class ExportToCsvAction implements ActionListener {
                 };
                 exporter.setOpenedDb(ExportToCsvAction.this.mnyViewer.getOpenedDb());
                 exporter.writeToDir(dir);
-            } catch (IOException e) {
-                log.error("" + e);
+            } catch (Throwable e) {
+                log.error("Export to CSV failed", e);
                 exception = e;
             } finally {
-                final Exception exception2 = exception;
+                final Throwable exception2 = exception;
                 Runnable swingRun = new Runnable() {
                     @Override
                     public void run() {

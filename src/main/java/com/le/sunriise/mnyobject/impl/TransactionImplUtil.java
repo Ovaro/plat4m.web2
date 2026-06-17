@@ -28,6 +28,7 @@ public class TransactionImplUtil {
     public static final String COL_ID = "htrn";
     private static final String COL_USER_CURRENCY_ID = "lHcrncUser";
     public static final String COL_WHO_ID = "lHcls1";
+    public static final String COL_DEF_PMT = "fDefPmt";
 
     public static boolean addTransactionFromRow(
         Database db,
@@ -107,6 +108,11 @@ public class TransactionImplUtil {
 
         Integer cs = (Integer) row.get(COL_CLEARED_STATE);
         transaction.setClearedState(cs);
+
+        Boolean defPmt = (Boolean) row.get(COL_DEF_PMT);
+        transaction.setDefPmt(defPmt != null && defPmt);
+
+        //return (clearedState != null) && (clearedState == 1);
 
         // flags? we are currently using this to figure out which transaction to
         // skip/void

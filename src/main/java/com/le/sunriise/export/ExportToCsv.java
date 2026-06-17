@@ -49,10 +49,8 @@ public class ExportToCsv {
         try {
             File file = new File(outDir, "db.txt");
             writer = new PrintWriter(new BufferedWriter(new FileWriter(file)));
-            // writer.println("file=" + dbFile);
-            // writer.println("fileFormat: " + db.getFileFormat());
             Database db = openedDb.getDb();
-            writer.println(db.toString());
+            writeDatabaseInfo(writer, db);
 
             writer.println("");
             List<Query> queries = db.getQueries();
@@ -113,7 +111,7 @@ public class ExportToCsv {
         PrintWriter writer = null;
         try {
             writer = new PrintWriter(new BufferedWriter(new FileWriter(file)));
-            writer.println(table.toString());
+            writeTableSummary(writer, table);
         } finally {
             if (writer != null) {
                 writer.close();
@@ -164,13 +162,49 @@ public class ExportToCsv {
         PrintWriter writer = null;
         try {
             writer = new PrintWriter(new BufferedWriter(new FileWriter(file)));
-            writer.println(column.toString());
+            writeColumnSummary(writer, column);
         } finally {
             if (writer != null) {
                 writer.close();
                 writer = null;
             }
         }
+    }
+
+    private static void writeDatabaseInfo(PrintWriter writer, Database db) throws IOException {
+        if (db == null) {
+            writer.println("database=null");
+            return;
+        }
+
+        writer.println("database.fileFormat=" + db.getFileFormat());
+        writer.println("database.tableCount=" + db.getTableNames().size());
+    }
+
+    private static void writeTableSummary(PrintWriter writer, Table table) throws IOException {
+        if (table == null) {
+            writer.println("table=null");
+            return;
+        }
+
+        writer.println("table.name=" + table.getName());
+        writer.println("table.columnCount=" + table.getColumnCount());
+        writer.println("table.rowCount=" + table.getRowCount());
+        writer.println("table.indexCount=" + table.getIndexes().size());
+    }
+
+    private static void writeColumnSummary(PrintWriter writer, Column column) throws IOException {
+        if (column == null) {
+            writer.println("column=null");
+            return;
+        }
+
+        writer.println("column.name=" + column.getName());
+        writer.println("column.type=" + column.getType());
+        writer.println("column.columnIndex=" + column.getColumnIndex());
+        writer.println("column.length=" + column.getLength());
+        writer.println("column.variableLength=" + column.isVariableLength());
+        writer.println("column.autoNumber=" + column.isAutoNumber());
     }
 
     private static void writeRowsInfo(Database db, Table table, File dir) throws IOException {

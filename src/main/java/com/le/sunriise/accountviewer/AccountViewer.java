@@ -79,6 +79,7 @@ import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
+import javax.swing.ListModel;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ListSelectionEvent;
@@ -146,12 +147,20 @@ public class AccountViewer {
 
         @Override
         public void dbFileOpened(OpenedDb newOpenedDb, OpenDbDialog dialog) {
+            log.info(
+                "dbFileOpened: start, thread={}, isEdt={}, newOpenedDbNull={}, dialogCancel={}",
+                Thread.currentThread().getName(),
+                SwingUtilities.isEventDispatchThread(),
+                newOpenedDb == null,
+                dialog == null ? null : dialog.isCancel()
+            );
             if (newOpenedDb != null) {
                 AccountViewer.this.openedDb = newOpenedDb;
             }
 
             File dbFile = openedDb.getDbFile();
             if (dbFile != null) {
+                log.info("dbFileOpened: using dbFile={}", dbFile.getAbsolutePath());
                 getFrame().setTitle(dbFile.getAbsolutePath());
                 // String dbUrl = UcanaccessDriver.URL_PREFIX +
                 // dbFile.getAbsolutePath() +
@@ -167,13 +176,30 @@ public class AccountViewer {
             }
 
             try {
+                StopWatch stopWatch = new StopWatch();
                 final List<Account> accounts = AccountUtil.initMnyContext(openedDb, mnyContext);
+                log.info(
+                    "dbFileOpened: initMnyContext returned {} accounts in {} ms, thread={}, isEdt={}",
+                    accounts == null ? null : accounts.size(),
+                    stopWatch.click(),
+                    Thread.currentThread().getName(),
+                    SwingUtilities.isEventDispatchThread()
+                );
 
                 AccountViewer.this.dataModel.setAccounts(accounts);
+                log.info("dbFileOpened: dataModel accounts updated");
 
                 Runnable doRun = new Runnable() {
                     @Override
                     public void run() {
+                        log.info(
+                            "dbFileOpened.invokeLater: start, thread={}, isEdt={}, accountListModelSizeBefore={}",
+                            Thread.currentThread().getName(),
+                            SwingUtilities.isEventDispatchThread(),
+                            getListModelSize(accountList.getModel())
+                        );
+                        refreshAccountsList(accounts);
+                        refreshTransactionsTable(dataModel.getTableModel());
                         Account account = null;
                         // clear out currently select account, if any
                         try {
@@ -181,11 +207,17 @@ public class AccountViewer {
                         } catch (IOException e) {
                             log.warn("" + e);
                         }
+                        getFrame().revalidate();
+                        getFrame().repaint();
+                        log.info(
+                            "dbFileOpened.invokeLater: complete, accountListModelSizeAfter={}",
+                            getListModelSize(accountList.getModel())
+                        );
                     }
                 };
                 SwingUtilities.invokeLater(doRun);
             } catch (IOException e) {
-                log.warn("" + e);
+                log.error("dbFileOpened: failed to initialize account context", e);
             }
         }
     }
@@ -206,25 +238,24 @@ public class AccountViewer {
         // frame.setBounds(100, 100, 450, 300);
         getFrame().setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        getFrame()
-            .addWindowListener(
-                new WindowAdapter() {
-                    @Override
-                    public void windowClosing(WindowEvent e) {
-                        super.windowClosing(e);
-                        log.info("> windowClosing");
-                        if (openedDb != null) {
-                            appClosed();
-                        }
-                    }
-
-                    @Override
-                    public void windowClosed(WindowEvent e) {
-                        super.windowClosed(e);
-                        log.info("> windowClosed");
+        getFrame().addWindowListener(
+            new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    super.windowClosing(e);
+                    log.info("> windowClosing");
+                    if (openedDb != null) {
+                        appClosed();
                     }
                 }
-            );
+
+                @Override
+                public void windowClosed(WindowEvent e) {
+                    super.windowClosed(e);
+                    log.info("> windowClosed");
+                }
+            }
+        );
 
         initMainMenuBar();
 
@@ -305,6 +336,12 @@ public class AccountViewer {
                         return;
                     }
                     final Account account = (Account) accountList.getSelectedValue();
+                    log.info(
+                        "accountList selection changed: selected={}, thread={}, isEdt={}",
+                        account == null ? null : account.getName(),
+                        Thread.currentThread().getName(),
+                        SwingUtilities.isEventDispatchThread()
+                    );
                     if (account != null) {
                         try {
                             accountSelected(account);
@@ -439,36 +476,34 @@ public class AccountViewer {
             }
         );
         // table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-        table
-            .getSelectionModel()
-            .addListSelectionListener(
-                new ListSelectionListener() {
-                    @Override
-                    public void valueChanged(ListSelectionEvent event) {
-                        if (event.getValueIsAdjusting()) {
-                            return;
-                        }
-                        if (log.isDebugEnabled()) {
-                            log.debug("Rows:");
-                            for (int r : table.getSelectedRows()) {
-                                if (log.isDebugEnabled()) {
-                                    log.debug(String.format(" %d", r));
-                                }
-                            }
-                            log.info(". Columns:");
-                            for (int c : table.getSelectedColumns()) {
-                                if (log.isDebugEnabled()) {
-                                    log.debug(String.format(" %d", c));
-                                }
-                            }
-                        }
-
+        table.getSelectionModel().addListSelectionListener(
+            new ListSelectionListener() {
+                @Override
+                public void valueChanged(ListSelectionEvent event) {
+                    if (event.getValueIsAdjusting()) {
+                        return;
+                    }
+                    if (log.isDebugEnabled()) {
+                        log.debug("Rows:");
                         for (int r : table.getSelectedRows()) {
-                            rowSelected(r);
+                            if (log.isDebugEnabled()) {
+                                log.debug(String.format(" %d", r));
+                            }
+                        }
+                        log.info(". Columns:");
+                        for (int c : table.getSelectedColumns()) {
+                            if (log.isDebugEnabled()) {
+                                log.debug(String.format(" %d", c));
+                            }
                         }
                     }
+
+                    for (int r : table.getSelectedRows()) {
+                        rowSelected(r);
+                    }
                 }
-            );
+            }
+        );
         scrollPane.setViewportView(table);
 
         JPanel bottomStatusView = new JPanel();
@@ -547,7 +582,8 @@ public class AccountViewer {
         cursor = Cursor.createCursor(table);
         Map<String, Object> rowPattern = new HashMap<String, Object>();
         rowPattern.put("htrn", id);
-        if (cursor.findRow(rowPattern)) { //JMK:First
+        if (cursor.findRow(rowPattern)) {
+            //JMK:First
             row = cursor.getCurrentRow();
         }
         return row;
@@ -582,6 +618,7 @@ public class AccountViewer {
     }
 
     protected void initDataBindings() {
+        log.info("initDataBindings: start");
         BeanProperty<AccountViewerDataModel, List<Account>> accountViewerDataModelBeanProperty = BeanProperty.create("accounts");
         JListBinding<Account, AccountViewerDataModel, JList> jListBinding = SwingBindings.createJListBinding(
             UpdateStrategy.READ,
@@ -601,6 +638,7 @@ public class AccountViewer {
             jTableEvalutionProperty
         );
         autoBinding.bind();
+        log.info("initDataBindings: complete");
     }
 
     private static void dump(ResultSet rs, String exName) throws SQLException {
@@ -622,7 +660,12 @@ public class AccountViewer {
 
     protected void accountSelected(final Account account) throws IOException {
         StopWatch stopWatch = new StopWatch();
-        log.info("> accountSelected");
+        log.info(
+            "> accountSelected, account={}, thread={}, isEdt={}",
+            account == null ? null : account.getName(),
+            Thread.currentThread().getName(),
+            SwingUtilities.isEventDispatchThread()
+        );
         selectedAccount = account;
 
         try {
@@ -631,6 +674,11 @@ public class AccountViewer {
                 Database db = openedDb.getDb();
 
                 AccountUtil.retrieveTransactions(db, account);
+                log.info(
+                    "accountSelected: retrieved {} transactions for {}",
+                    account.getTransactions() == null ? null : account.getTransactions().size(),
+                    account.getName()
+                );
 
                 jdbcDump();
 
@@ -639,16 +687,16 @@ public class AccountViewer {
                 if (log.isDebugEnabled()) {
                     log.debug(
                         account.getName() +
-                        ", " +
-                        account.getAccountType() +
-                        ", " +
-                        AccountUtil.getCurrencyName(account.getCurrencyId(), mnyContext.getCurrencies()) +
-                        ", " +
-                        account.getStartingBalance() +
-                        ", " +
-                        currentBalance +
-                        ", " +
-                        account.getAmountLimit()
+                            ", " +
+                            account.getAccountType() +
+                            ", " +
+                            AccountUtil.getCurrencyName(account.getCurrencyId(), mnyContext.getCurrencies()) +
+                            ", " +
+                            account.getStartingBalance() +
+                            ", " +
+                            currentBalance +
+                            ", " +
+                            account.getAmountLimit()
                     );
                 }
 
@@ -690,6 +738,8 @@ public class AccountViewer {
             tableModel.setMnyContext(mnyContext);
 
             dataModel.setTableModel(tableModel);
+            refreshTransactionsTable(tableModel);
+            log.info("accountSelected: table model set to {}, rows={}", tableModel.getClass().getName(), tableModel.getRowCount());
 
             updateAccountInfoPane(account);
             updateAccountJsonPane(account);
@@ -702,6 +752,34 @@ public class AccountViewer {
             long delta = stopWatch.click();
             log.info("< accountSelected, delta=" + delta);
         }
+    }
+
+    private void refreshAccountsList(final List<Account> accounts) {
+        if (accountList == null) {
+            log.warn("refreshAccountsList: accountList is null");
+            return;
+        }
+        Object[] values = accounts == null ? new Object[0] : accounts.toArray();
+        accountList.setListData(values);
+        accountList.revalidate();
+        accountList.repaint();
+        log.info("refreshAccountsList: applied manual list refresh with {} entries", values.length);
+    }
+
+    private void refreshTransactionsTable(final TableModel tableModel) {
+        if (table == null) {
+            log.warn("refreshTransactionsTable: table is null");
+            return;
+        }
+        TableModel model = tableModel == null ? new javax.swing.table.DefaultTableModel() : tableModel;
+        table.setModel(model);
+        table.revalidate();
+        table.repaint();
+        log.info("refreshTransactionsTable: applied manual table refresh with model={}", model.getClass().getName());
+    }
+
+    private int getListModelSize(ListModel model) {
+        return model == null ? -1 : model.getSize();
     }
 
     protected void jdbcDump() {
@@ -915,7 +993,8 @@ public class AccountViewer {
                     }
                 } catch (IOException e) {
                     log.warn("" + e);
-                } finally {}
+                } finally {
+                }
             }
 
             private void logFlags(final Integer id) {

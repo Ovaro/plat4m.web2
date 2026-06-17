@@ -92,6 +92,7 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.JViewport;
+import javax.swing.ListModel;
 import javax.swing.ListSelectionModel;
 import javax.swing.RowFilter;
 import javax.swing.RowSorter;
@@ -189,12 +190,20 @@ public class MynViewer {
 
         @Override
         public void dbFileOpened(OpenedDb newOpenedDb, OpenDbDialog dialog) {
+            log.info(
+                "MynViewer.dbFileOpened: start, thread={}, isEdt={}, newOpenedDbNull={}, dialogCancel={}",
+                Thread.currentThread().getName(),
+                SwingUtilities.isEventDispatchThread(),
+                newOpenedDb == null,
+                dialog == null ? null : dialog.isCancel()
+            );
             if (newOpenedDb != null) {
                 MynViewer.this.openedDb = newOpenedDb;
             }
 
             File dbFile = openedDb.getDbFile();
             if (dbFile != null) {
+                log.info("MynViewer.dbFileOpened: using dbFile={}", dbFile.getAbsolutePath());
                 getFrame().setTitle(dbFile.getAbsolutePath());
             } else {
                 getFrame().setTitle(TITLE_NO_OPENED_DB);
@@ -202,6 +211,7 @@ public class MynViewer {
 
             List<TableListItem> tables = new ArrayList<TableListItem>();
             try {
+                StopWatch stopWatch = new StopWatch();
                 Database db = getDb();
 
                 DatabaseUtils.logDbInfo(db);
@@ -228,10 +238,15 @@ public class MynViewer {
                     }
                 }
             } catch (IOException e) {
-                log.warn("" + e);
+                log.error("MynViewer.dbFileOpened: failed loading tables", e);
             }
 
-            log.info("Found " + tables.size() + " tables.");
+            log.info(
+                "MynViewer.dbFileOpened: found {} tables, thread={}, isEdt={}",
+                tables.size(),
+                Thread.currentThread().getName(),
+                SwingUtilities.isEventDispatchThread()
+            );
 
             dbReadOnly = dialog.getReadOnlyCheckBox().isSelected();
 
@@ -243,6 +258,16 @@ public class MynViewer {
             }
             MynViewer.this.dataModel.setTables(tables);
             clearDataModel(MynViewer.this.dataModel);
+            refreshTableList(tables);
+            refreshMainTable(dataModel.getTableModel());
+            refreshTextField(textField, dataModel.getTableName(), "tableName");
+            refreshTextArea(textArea, dataModel.getTableMetaData(), "tableMetaData");
+            refreshTextArea(headerTextArea, dataModel.getHeaderInfo(), "headerInfo");
+            refreshTextArea(keyInfoTextArea, dataModel.getKeyInfo(), "keyInfo");
+            refreshTextArea(indexInfoTextArea, dataModel.getIndexInfo(), "indexInfo");
+            getFrame().revalidate();
+            getFrame().repaint();
+            log.info("MynViewer.dbFileOpened: UI refresh complete, listModelSize={}", getListModelSize(list.getModel()));
         }
     }
 
@@ -374,25 +399,24 @@ public class MynViewer {
         setFrame(new JFrame());
         // getFrame().setBounds(100, 100, 800, 600);
         getFrame().setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        getFrame()
-            .addWindowListener(
-                new WindowAdapter() {
-                    @Override
-                    public void windowClosing(WindowEvent e) {
-                        super.windowClosing(e);
-                        log.info("> windowClosing");
-                        if (openedDb != null) {
-                            appClosed();
-                        }
-                    }
-
-                    @Override
-                    public void windowClosed(WindowEvent e) {
-                        super.windowClosed(e);
-                        log.info("> windowClosed");
+        getFrame().addWindowListener(
+            new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    super.windowClosing(e);
+                    log.info("> windowClosing");
+                    if (openedDb != null) {
+                        appClosed();
                     }
                 }
-            );
+
+                @Override
+                public void windowClosed(WindowEvent e) {
+                    super.windowClosed(e);
+                    log.info("> windowClosed");
+                }
+            }
+        );
 
         JMenuBar menuBar = new JMenuBar();
         getFrame().setJMenuBar(menuBar);
@@ -498,6 +522,12 @@ public class MynViewer {
                     }
                     try {
                         TableListItem item = (TableListItem) list.getSelectedValue();
+                        log.info(
+                            "MynViewer list selection changed: item={}, thread={}, isEdt={}",
+                            item == null || item.getTable() == null ? null : item.getTable().getName(),
+                            Thread.currentThread().getName(),
+                            SwingUtilities.isEventDispatchThread()
+                        );
                         if (item != null) {
                             tableSelected(item);
                         }
@@ -1015,7 +1045,6 @@ public class MynViewer {
         );
         dataModel.setTableName("");
         // dataModel.setTables(null);
-
     }
 
     protected void copyColumn(int rowIndex, int columnIndex) {
@@ -1113,6 +1142,7 @@ public class MynViewer {
     }
 
     protected void initDataBindings() {
+        log.info("MynViewer.initDataBindings: start");
         BeanProperty<MnyViewerDataModel, List<TableListItem>> listOfTablesBeanProperty = BeanProperty.create("tables");
         JListBinding<TableListItem, MnyViewerDataModel, JList> jListBinding = SwingBindings.createJListBinding(
             UpdateStrategy.READ,
@@ -1187,6 +1217,7 @@ public class MynViewer {
             jTextAreaBeanProperty_3
         );
         autoBinding_5.bind();
+        log.info("MynViewer.initDataBindings: complete");
     }
 
     private TableRowSorter<TableModel> createTableRowSorter(final MnyTableModel tableModel) {
@@ -1343,7 +1374,12 @@ public class MynViewer {
     private void tableSelected(TableListItem item) throws IOException {
         final Table jackcessTable = item.getTable();
         String tableName = jackcessTable.getName();
-        log.info("> new table is selected, table=" + tableName);
+        log.info(
+            "> new table is selected, table={}, thread={}, isEdt={}",
+            tableName,
+            Thread.currentThread().getName(),
+            SwingUtilities.isEventDispatchThread()
+        );
 
         dataModel.setTable(jackcessTable);
         dataModel.setTableName(tableName);
@@ -1378,11 +1414,71 @@ public class MynViewer {
             log.debug("setting new tableModel ...");
         }
         dataModel.setTableModel(tableModel);
+        refreshMainTable(tableModel);
+        refreshTextField(textField, dataModel.getTableName(), "tableName");
+        refreshTextArea(textArea, dataModel.getTableMetaData(), "tableMetaData");
+        refreshTextArea(headerTextArea, dataModel.getHeaderInfo(), "headerInfo");
+        refreshTextArea(keyInfoTextArea, dataModel.getKeyInfo(), "keyInfo");
+        refreshTextArea(indexInfoTextArea, dataModel.getIndexInfo(), "indexInfo");
+        getFrame().revalidate();
+        getFrame().repaint();
+        log.info("tableSelected: manual UI refresh complete, rowCount={}", tableModel.getRowCount());
 
         updateGotoColumnMenu();
         setLabelColumnIndex(jackcessTable);
 
         rightStatusLabel.setText("open table=" + jackcessTable.getName());
+    }
+
+    private void refreshTableList(final List<TableListItem> tables) {
+        if (list == null) {
+            log.warn("refreshTableList: list is null");
+            return;
+        }
+        Object[] values = tables == null ? new Object[0] : tables.toArray();
+        list.setListData(values);
+        list.revalidate();
+        list.repaint();
+        log.info("refreshTableList: applied manual list refresh with {} entries", values.length);
+    }
+
+    private void refreshMainTable(final TableModel model) {
+        if (table == null) {
+            log.warn("refreshMainTable: table is null");
+            return;
+        }
+        TableModel safeModel = model == null ? new javax.swing.table.DefaultTableModel() : model;
+        table.setModel(safeModel);
+        table.revalidate();
+        table.repaint();
+        log.info("refreshMainTable: applied manual table refresh with model={}", safeModel.getClass().getName());
+    }
+
+    private void refreshTextField(JTextField field, String value, String name) {
+        if (field == null) {
+            log.warn("refreshTextField: {} field is null", name);
+            return;
+        }
+        field.setText(value == null ? "" : value);
+        field.revalidate();
+        field.repaint();
+        log.info("refreshTextField: updated {}", name);
+    }
+
+    private void refreshTextArea(JTextArea area, String value, String name) {
+        if (area == null) {
+            log.warn("refreshTextArea: {} area is null", name);
+            return;
+        }
+        area.setText(value == null ? "" : value);
+        area.setCaretPosition(0);
+        area.revalidate();
+        area.repaint();
+        log.info("refreshTextArea: updated {}", name);
+    }
+
+    private int getListModelSize(ListModel model) {
+        return model == null ? -1 : model.getSize();
     }
 
     private void setLabelColumnIndex(Table jackcessTable) {

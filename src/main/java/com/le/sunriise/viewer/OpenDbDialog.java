@@ -104,6 +104,13 @@ public class OpenDbDialog extends JDialog {
         @Override
         public void actionPerformed(ActionEvent event) {
             String dbFileName = (String) dbFileNames.getSelectedItem();
+            log.info(
+                "OpenDbDialog.OkAction: start, dbFileName={}, readOnly={}, encrypted={}, thread={}",
+                dbFileName,
+                readOnlyCheckBox.isSelected(),
+                encryptedCheckBox.isSelected(),
+                Thread.currentThread().getName()
+            );
             if ((dbFileName == null) || (dbFileName.length() <= 0)) {
                 JOptionPane.showMessageDialog(
                     dbFileNames,
@@ -134,6 +141,7 @@ public class OpenDbDialog extends JDialog {
             }
             try {
                 if (OpenDbDialog.this.openedDb != null) {
+                    log.info("OpenDbDialog.OkAction: closing previously opened db");
                     OpenDbDialog.this.openedDb.close();
                 }
 
@@ -142,6 +150,11 @@ public class OpenDbDialog extends JDialog {
                     passwordField.getPassword(),
                     readOnlyCheckBox.isSelected(),
                     encryptedCheckBox.isSelected()
+                );
+                log.info(
+                    "OpenDbDialog.OkAction: openDb succeeded, dbFile={}, memoryMapped={}",
+                    OpenDbDialog.this.openedDb == null ? null : OpenDbDialog.this.openedDb.getDbFile(),
+                    OpenDbDialog.this.openedDb == null ? null : OpenDbDialog.this.openedDb.isMemoryMapped()
                 );
 
                 dbOpenedCallback();
@@ -205,6 +218,7 @@ public class OpenDbDialog extends JDialog {
     protected void dbOpenedCallback() {
         log.info("Opened dbFile=" + openedDb.getDbFile());
         log.info("    isMemoryMapped=" + openedDb.isMemoryMapped());
+        log.info("    thread={}, isDisplayable={}", Thread.currentThread().getName(), isDisplayable());
 
         Database db = openedDb.getDb();
         if ((db != null) && (db.getSystemCatalog() == null)) {
@@ -337,7 +351,8 @@ public class OpenDbDialog extends JDialog {
                                 } else {
                                     encryptedCheckBox.setSelected(false);
                                 }
-                            } else {}
+                            } else {
+                            }
                         }
                     }
                 );

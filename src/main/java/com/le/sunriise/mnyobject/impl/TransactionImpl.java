@@ -91,6 +91,8 @@ public class TransactionImpl extends MnyObject implements Comparable<Transaction
 
     private Double rateToBase;
 
+    private boolean defPmt = false;
+
     @JsonIgnore
     private TransactionState state = TransactionState.UNRECONCILED;
 
@@ -786,5 +788,17 @@ public class TransactionImpl extends MnyObject implements Comparable<Transaction
 
     public void setWhoId(Integer whoId) {
         this.whoId = whoId;
+    }
+
+    public Boolean getDefPmt() {
+        return defPmt;
+    }
+
+    public boolean isDefPmt() {
+        return defPmt;
+    }
+
+    public void setDefPmt(boolean defPmt) {
+        this.defPmt = defPmt;
     }
 }
