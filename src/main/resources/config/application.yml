@@ -231,4 +231,11 @@ jhipster:
 # https://www.jhipster.tech/common-application-properties/
 # ===================================================================
 
-# application:
+application:
+  market-data:
+    enabled: true
+    twelve-data:
+      api-key: 25c01f0ca5064bdf9e8e7328c702d348
+    quote-refresh:
+      cron: '0 0 8 * * MON-FRI'
+      zone: 'Australia/Brisbane'

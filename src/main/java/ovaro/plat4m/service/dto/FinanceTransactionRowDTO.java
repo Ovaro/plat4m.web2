@@ -34,6 +34,7 @@ public class FinanceTransactionRowDTO {
     private Boolean splitChild;
     private Boolean splitParent;
     private String statementId;
+    private String importId;
     private Integer statusFlag;
     private Boolean transfer;
     private Boolean transferTo;
@@ -297,6 +298,14 @@ public class FinanceTransactionRowDTO {
 
     public void setStatementId(String statementId) {
         this.statementId = statementId;
+    }
+
+    public String getImportId() {
+        return importId;
+    }
+
+    public void setImportId(String importId) {
+        this.importId = importId;
     }
 
     public Integer getStatusFlag() {

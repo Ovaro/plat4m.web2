@@ -3,6 +3,7 @@ package ovaro.plat4m.web.rest;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +21,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import ovaro.plat4m.domain.FinanceFX;
+import ovaro.plat4m.domain.User;
+import ovaro.plat4m.security.SecurityUtils;
 import ovaro.plat4m.service.FinanceFXService;
+import ovaro.plat4m.service.UserService;
+import ovaro.plat4m.service.dto.FinanceFXFavouriteUpdateDTO;
 import ovaro.plat4m.service.dto.FinanceFXImportRequestDTO;
 import ovaro.plat4m.service.dto.FinanceFXImportResultDTO;
 import ovaro.plat4m.service.dto.FinanceFXUpdateDTO;
@@ -33,15 +38,17 @@ public class FinanceFXResource {
     private String applicationName;
 
     private final Logger log = LoggerFactory.getLogger(FinanceFXResource.class);
-    private FinanceFXService financeFXService;
+    private final FinanceFXService financeFXService;
+    private final UserService userService;
 
-    public FinanceFXResource(FinanceFXService financeFXService) {
+    public FinanceFXResource(FinanceFXService financeFXService, UserService userService) {
         this.financeFXService = financeFXService;
+        this.userService = userService;
     }
 
     @GetMapping("/fx")
     public ResponseEntity<List<FinanceFX>> listFX() throws IOException {
-        List<FinanceFX> fxs = this.financeFXService.getLatestFXAll();
+        List<FinanceFX> fxs = this.financeFXService.getLatestFXAll(getCurrentUser().get());
 
         return new ResponseEntity<>(fxs, HttpStatus.OK);
     }
@@ -74,6 +81,18 @@ public class FinanceFXResource {
         }
     }
 
+    @PutMapping("/fx/{fxId}/favourite")
+    public ResponseEntity<FinanceFX> updateFavourite(
+        @PathVariable(name = "fxId") UUID fxId,
+        @RequestBody FinanceFXFavouriteUpdateDTO update
+    ) throws IOException {
+        try {
+            return new ResponseEntity<>(this.financeFXService.updateFavourite(getCurrentUser().get(), fxId, update), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
     @DeleteMapping("/fx/{fxId}")
     public ResponseEntity<Void> deleteFX(@PathVariable(name = "fxId") UUID fxId) throws IOException {
         try {
@@ -101,5 +120,10 @@ public class FinanceFXResource {
         FinanceFX fx = this.financeFXService.getLatestFX(from, to, LocalDate.now());
 
         return new ResponseEntity<>(fx, HttpStatus.OK);
+    }
+
+    private Optional<User> getCurrentUser() {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+        return userService.getUserWithAuthoritiesByLogin(userLogin);
     }
 }

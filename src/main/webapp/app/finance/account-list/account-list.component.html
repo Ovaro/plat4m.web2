@@ -57,6 +57,9 @@
               <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                 {{ account.institution?.name }}
               </div>
+              <button type="button" class="account-favourite-button" [title]="favouriteTitle(account)" (click)="toggleFavourite(account)">
+                {{ account.favourite ? '★' : '☆' }}
+              </button>
               <div role="gridcell" class="" style="flex-grow: 1">
                 <a routerLink="/transactions/{{ account.id }}">{{ account.name }}</a>
               </div>
@@ -107,6 +110,9 @@
                 <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
                 </div>
+                <button type="button" class="account-favourite-button" [title]="favouriteTitle(account)" (click)="toggleFavourite(account)">
+                  {{ account.favourite ? '★' : '☆' }}
+                </button>
                 <div role="gridcell" class="" style="flex-grow: 1">
                   <a routerLink="/transactions/{{ account.id }}">{{ account.name }}</a>
                 </div>
@@ -157,6 +163,9 @@
                 <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
                 </div>
+                <button type="button" class="account-favourite-button" [title]="favouriteTitle(account)" (click)="toggleFavourite(account)">
+                  {{ account.favourite ? '★' : '☆' }}
+                </button>
                 <div role="gridcell" class="" style="flex-grow: 1">
                   <a routerLink="/transactions/{{ account.id }}">{{ account.name }}</a>
                 </div>
@@ -210,6 +219,9 @@
                 <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
                 </div>
+                <button type="button" class="account-favourite-button" [title]="favouriteTitle(account)" (click)="toggleFavourite(account)">
+                  {{ account.favourite ? '★' : '☆' }}
+                </button>
                 <div role="gridcell" class="" style="flex-grow: 1">
                   <a routerLink="/portfolio/{{ account.id }}">{{ account.name }}</a>
                 </div>
@@ -264,6 +276,9 @@
                 <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
                 </div>
+                <button type="button" class="account-favourite-button" [title]="favouriteTitle(account)" (click)="toggleFavourite(account)">
+                  {{ account.favourite ? '★' : '☆' }}
+                </button>
                 <div role="gridcell" class="" style="flex-grow: 1">
                   <a routerLink="/transactions/{{ account.id }}">{{ account.name }}</a>
                 </div>

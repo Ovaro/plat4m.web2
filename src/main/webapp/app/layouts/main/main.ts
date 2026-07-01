@@ -11,12 +11,13 @@ import { CookieModule, CookieService } from 'ngx-cookie';
 import { CommonModule } from '@angular/common';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { SidenavComponent } from '../sidenav/sidenav.component';
+import { Alert as AlertComponent } from 'app/shared/alert/alert';
 
 @Component({
   selector: 'jhi-main',
   standalone: true,
   templateUrl: './main.html',
-  imports: [CommonModule, RouterModule, FontAwesomeModule, SidenavComponent, CookieModule],
+  imports: [CommonModule, RouterModule, FontAwesomeModule, SidenavComponent, CookieModule, AlertComponent],
   styleUrls: ['./main.component.scss'],
 })
 export default class MainComponent implements OnInit {

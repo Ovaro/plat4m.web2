@@ -26,6 +26,105 @@
   width: 300px;
 }
 
+.investment-refresh-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 10.5rem;
+  justify-content: center;
+  border-color: var(--ps-surface-border-subtle, #cbd5e1);
+  background-color: var(--ps-surface-raised, #fff);
+  color: var(--ps-text-primary, #334155);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.investment-refresh-button:hover:not(:disabled),
+.investment-refresh-button:focus-visible:not(:disabled) {
+  background-color: var(--ps-surface-hover, #f8fafc);
+  color: var(--ps-text-primary, #1f2937);
+  border-color: var(--ps-surface-border-strong, #94a3b8);
+}
+
+.investment-refresh-button:disabled {
+  opacity: 0.8;
+}
+
+.investment-refresh-button__spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.investment-refresh-message {
+  padding-top: 6px;
+  font-size: 0.9rem;
+  color: var(--ps-text-secondary, #64748b);
+}
+
+.investment-refresh-dialog__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.investment-refresh-dialog__summary {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+  color: var(--ps-text-secondary, #64748b);
+}
+
+.investment-refresh-dialog__table-wrap {
+  overflow-x: auto;
+}
+
+.investment-refresh-dialog__table {
+  margin-bottom: 0;
+}
+
+.investment-refresh-dialog__table th,
+.investment-refresh-dialog__table td {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.investment-refresh-dialog__table td:last-child {
+  white-space: normal;
+  min-width: 18rem;
+}
+
+.refresh-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 5.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.refresh-status--success {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.refresh-status--skipped {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+}
+
+.refresh-status--failed {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
+
+:host ::ng-deep .investment-refresh-dialog .p-dialog-content {
+  padding-top: 0.5rem;
+}
+
 // .apexcharts-tooltip-marker {
 //     width: 12px;
 //     height: 12px;

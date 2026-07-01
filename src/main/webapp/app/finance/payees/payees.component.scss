@@ -1,84 +1,107 @@
 @use '../manage-data/manage-data';
+@use '../transaction-history-dialog' as transaction-history-dialog;
 
 .manage-table--payees .manage-table__row {
-  grid-template-columns: minmax(260px, 2fr) minmax(180px, 1fr) 100px 96px;
+  grid-template-columns: minmax(260px, 2fr) 100px 96px;
 }
 
-.manage-table__row--clickable,
-.manage-table__row--button {
-  cursor: pointer;
+.payee-variants {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-.manage-table__row--clickable:hover,
-.manage-table__row--button:hover {
-  background: color-mix(in srgb, var(--app-colours-primary) 8%, transparent);
+.payee-variants__header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
 }
 
-:host-context(.theme-dark) .manage-table__row--clickable:hover,
-:host-context(.theme-dark) .manage-table__row--button:hover {
-  background: color-mix(in srgb, var(--app-colours-primary) 16%, var(--ps-colors-background-dark-2));
-}
-
-.manage-table__row--button {
-  width: 100%;
-  border-right: 0;
-  border-bottom: 0;
-  border-left: 0;
-  color: inherit;
-  text-align: left;
-  background: transparent;
-}
-
-.manage-toolbar--dialog {
-  margin-bottom: 10px;
-}
-
-.manage-card--dialog {
-  max-height: min(32rem, 62vh);
-  overflow: auto;
-}
-
-.manage-table--category-transactions .manage-table__row {
-  grid-template-columns: 92px minmax(130px, 0.9fr) minmax(150px, 1fr) minmax(200px, 1.4fr) minmax(160px, 1.1fr) 110px;
-  min-width: 920px;
-  align-items: center;
-}
-
-.manage-table__amount {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.manage-amount {
+.payee-variants__title {
+  font-size: 0.95rem;
   font-weight: 600;
 }
 
-.manage-amount--positive {
-  color: #027a48;
+.payee-variants__list {
+  display: grid;
+  gap: 8px;
 }
 
-.manage-amount--negative {
-  color: #b42318;
+.payee-variants__row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--app-colours-border, rgba(15, 23, 42, 0.12));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-colours-background, white) 92%, var(--app-colours-primary) 8%);
 }
 
-:host-context(.theme-dark) .manage-amount--positive {
-  color: #6ce9a6;
+.payee-variants__actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
-:host-context(.theme-dark) .manage-amount--negative {
-  color: #fda29b;
+.payee-checkbox-row {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
 }
 
-:host ::ng-deep .manage-transactions-dialog .p-dialog-content {
-  overflow: hidden;
+.payee-checkbox-label {
+  font-size: 0.72rem;
+  cursor: pointer;
 }
 
-:host ::ng-deep .manage-transaction-editor-dialog .p-dialog-content {
-  padding: 0;
+:host ::ng-deep .payee-checkbox-row .p-checkbox {
+  display: inline-flex;
+  align-items: center;
 }
 
-:host ::ng-deep .manage-transaction-editor-dialog .transaction-editor {
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+:host ::ng-deep .payee-checkbox-row .p-checkbox-box {
+  margin-top: 0;
 }
+
+:host ::ng-deep .payee-checkbox-row .p-checkbox-input {
+  cursor: pointer;
+}
+
+:host ::ng-deep .payee-checkbox-row .p-checkbox-checked .p-checkbox-box {
+  border-color: var(--app-colours-primary);
+  background: var(--app-colours-primary);
+}
+
+:host-context(.theme-dark) ::ng-deep .payee-checkbox-row .p-checkbox-box {
+  border-color: color-mix(in srgb, var(--ps-colors-text-icon-high-on-dark) 20%, transparent);
+  background: var(--ps-colors-background-dark-2);
+  color: var(--ps-colors-text-icon-high-on-dark);
+}
+
+:host-context(.theme-dark) ::ng-deep .payee-checkbox-row .p-checkbox-checked .p-checkbox-box {
+  border-color: var(--app-colours-primary);
+  background: var(--app-colours-primary);
+}
+
+:host-context(.theme-dark) ::ng-deep .payee-checkbox-row .p-checkbox:not(.p-disabled):hover .p-checkbox-box {
+  border-color: var(--app-colours-primary);
+}
+
+:host-context(.theme-dark) .payee-checkbox-label {
+  color: var(--ps-colors-text-icon-high-on-dark);
+}
+
+.manage-form .payee-checkbox-label {
+  display: inline-flex;
+  gap: 0;
+  align-items: center;
+}
+
+:host-context(.theme-dark) .payee-variants__row {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--ps-colors-background-dark-2) 90%, var(--app-colours-primary) 10%);
+}
+
+@include transaction-history-dialog.styles;

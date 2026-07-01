@@ -37,6 +37,9 @@ public interface FinanceSecurityInvestmentSummary {
     String getExchangeName();
     void setExchangeName(String exchangeName);
 
+    String getExchangeMic();
+    void setExchangeMic(String exchangeMic);
+
     Integer getSecurityType();
     void setSecurityType(Integer securityType);
 }

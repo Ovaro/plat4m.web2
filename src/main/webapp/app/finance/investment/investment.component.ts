@@ -1,4 +1,6 @@
 import { Component, Inject, LOCALE_ID, ViewChild, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { InvestmentTransactions } from './investment.service';
@@ -6,6 +8,7 @@ import {
   FinanceInvestmentSnapshotDetails,
   FinanceResourceSnapshots,
   FinanceSecurityHolding,
+  FinanceSecurityStoredPrice,
   InvestmentTransaction,
 } from '../finance.model';
 import { formatCurrency, formatDate } from '@angular/common';
@@ -28,6 +31,7 @@ import {
   XAxisAnnotations,
 } from 'ng-apexcharts';
 import SharedModule from 'app/shared/shared.module';
+import { DialogModule } from 'primeng/dialog';
 
 interface GroupData {
   [name: string]: FinanceSecurityHolding[] | null;
@@ -55,7 +59,7 @@ export type AreaChartOptions = {
   selector: 'jhi-investment',
   templateUrl: './investment.component.html',
   styleUrls: ['./investment.component.scss'],
-  imports: [SharedModule, NgApexchartsModule],
+  imports: [SharedModule, NgApexchartsModule, DialogModule, ReactiveFormsModule],
 })
 export class InvestmentComponent {
   // implements OnInit
@@ -64,6 +68,7 @@ export class InvestmentComponent {
   private readonly _isLoading = signal(false);
   private readonly _isSummaryLoading = signal(false);
   private readonly _isLoadingHistory = signal(false);
+  private readonly _isRefreshingQuotes = signal(false);
   private readonly _securityId = signal<string | null>(null);
   private readonly _holding = signal<FinanceSecurityHolding | null>(null);
   private readonly _includeClosedPositions = signal(false);
@@ -74,6 +79,20 @@ export class InvestmentComponent {
   private readonly _portfolioValueHistoryItems = signal<FinanceResourceSnapshots[] | null>(null);
   private readonly _showAnnotations = signal(false);
   private readonly _showHistoryChart = signal(false);
+  private readonly _quoteRefreshMessage = signal<string | null>(null);
+  protected actionsMenuOpen = false;
+  protected priceDialogVisible = false;
+  protected priceDeleteDialogVisible = false;
+  protected isPricesLoading = false;
+  protected isPriceSaving = false;
+  protected priceErrorMessage: string | null = null;
+  protected storedPrices: FinanceSecurityStoredPrice[] = [];
+  protected editingStoredPrice: FinanceSecurityStoredPrice | null = null;
+  protected deleteStoredPriceCandidate: FinanceSecurityStoredPrice | null = null;
+  protected readonly priceForm = new FormGroup({
+    date: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    price: new FormControl<number | null>(null, { validators: [Validators.required, Validators.min(0)] }),
+  });
 
   //public investmen2!: InvestmentDetails | null;
   @ViewChild('historyChart', { static: false }) historyChart!: ChartComponent;
@@ -118,6 +137,14 @@ export class InvestmentComponent {
 
   set isLoadingHistory(value: boolean) {
     this._isLoadingHistory.set(value);
+  }
+
+  get isRefreshingQuotes(): boolean {
+    return this._isRefreshingQuotes();
+  }
+
+  set isRefreshingQuotes(value: boolean) {
+    this._isRefreshingQuotes.set(value);
   }
 
   get securityId(): string | null {
@@ -198,6 +225,14 @@ export class InvestmentComponent {
 
   set showHistoryChart(value: boolean) {
     this._showHistoryChart.set(value);
+  }
+
+  get quoteRefreshMessage(): string | null {
+    return this._quoteRefreshMessage();
+  }
+
+  set quoteRefreshMessage(value: string | null) {
+    this._quoteRefreshMessage.set(value);
   }
 
   constructor(
@@ -461,6 +496,182 @@ export class InvestmentComponent {
       },
       error: () => (this.isSummaryLoading = false),
     });
+  }
+
+  refreshQuotes(): void {
+    if (this.isRefreshingQuotes || this.securityId == null) {
+      return;
+    }
+
+    this.isRefreshingQuotes = true;
+    this.quoteRefreshMessage = null;
+    this.investmentTransactions.refreshQuotes(this.securityId).subscribe({
+      next: result => {
+        this.isRefreshingQuotes = false;
+        this.quoteRefreshMessage = `Updated ${result.refreshedCount} holding${result.refreshedCount === 1 ? '' : 's'}.`;
+        this.load();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isRefreshingQuotes = false;
+        this.quoteRefreshMessage = this.getQuoteRefreshErrorMessage(error);
+      },
+    });
+  }
+
+  openPriceDialog(): void {
+    if (!this.securityId) {
+      return;
+    }
+    this.actionsMenuOpen = false;
+    this.priceDialogVisible = true;
+    this.resetStoredPriceForm();
+    this.loadStoredPrices();
+  }
+
+  toggleActionsMenu(): void {
+    this.actionsMenuOpen = !this.actionsMenuOpen;
+  }
+
+  refreshQuotesFromActionsMenu(): void {
+    this.actionsMenuOpen = false;
+    this.refreshQuotes();
+  }
+
+  resetStoredPriceForm(): void {
+    this.editingStoredPrice = null;
+    this.priceErrorMessage = null;
+    this.priceForm.reset({
+      date: formatDate(new Date(), 'yyyy-MM-dd', this.locale),
+      price: null,
+    });
+  }
+
+  startAddingStoredPrice(): void {
+    this.resetStoredPriceForm();
+  }
+
+  selectStoredPrice(price: FinanceSecurityStoredPrice): void {
+    this.editingStoredPrice = price;
+    this.priceErrorMessage = null;
+    this.priceForm.reset({
+      date: price.date.slice(0, 10),
+      price: price.price,
+    });
+  }
+
+  confirmDeleteStoredPrice(price: FinanceSecurityStoredPrice): void {
+    this.deleteStoredPriceCandidate = price;
+    this.priceDeleteDialogVisible = true;
+  }
+
+  saveStoredPrice(): void {
+    if (!this.securityId || this.priceForm.invalid) {
+      this.priceForm.markAllAsTouched();
+      return;
+    }
+
+    const updateExisting = this.editingStoredPrice !== null;
+    const update = {
+      date: this.priceForm.controls.date.value,
+      price: this.priceForm.controls.price.value!,
+      comment: updateExisting ? (this.editingStoredPrice?.comment ?? null) : null,
+    };
+
+    this.isPriceSaving = true;
+    this.priceErrorMessage = null;
+    const request =
+      updateExisting && this.editingStoredPrice
+        ? this.investmentTransactions.updateStoredPrice(this.securityId, this.editingStoredPrice.id, update)
+        : this.investmentTransactions.createStoredPrice(this.securityId, update);
+
+    request.subscribe({
+      next: savedPrice => {
+        this.isPriceSaving = false;
+        this.selectStoredPrice(savedPrice);
+        this.loadStoredPrices();
+        this.reloadAfterStoredPriceChange();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isPriceSaving = false;
+        this.priceErrorMessage = this.getQuoteRefreshErrorMessage(error);
+      },
+    });
+  }
+
+  deleteStoredPrice(): void {
+    if (!this.securityId || !this.deleteStoredPriceCandidate) {
+      return;
+    }
+
+    const deletedPriceId = this.deleteStoredPriceCandidate.id;
+    this.isPriceSaving = true;
+    this.priceErrorMessage = null;
+    this.investmentTransactions.deleteStoredPrice(this.securityId, this.deleteStoredPriceCandidate.id).subscribe({
+      next: () => {
+        this.isPriceSaving = false;
+        if (this.editingStoredPrice?.id === deletedPriceId) {
+          this.resetStoredPriceForm();
+        }
+        this.deleteStoredPriceCandidate = null;
+        this.priceDeleteDialogVisible = false;
+        this.loadStoredPrices();
+        this.reloadAfterStoredPriceChange();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isPriceSaving = false;
+        this.priceErrorMessage = this.getQuoteRefreshErrorMessage(error);
+      },
+    });
+  }
+
+  private loadStoredPrices(): void {
+    if (!this.securityId) {
+      return;
+    }
+    this.isPricesLoading = true;
+    this.priceErrorMessage = null;
+    this.investmentTransactions.getStoredPrices(this.securityId).subscribe({
+      next: prices => {
+        this.storedPrices = prices;
+        this.isPricesLoading = false;
+      },
+      error: (error: HttpErrorResponse) => {
+        this.priceErrorMessage = this.getQuoteRefreshErrorMessage(error);
+        this.isPricesLoading = false;
+      },
+    });
+  }
+
+  private reloadAfterStoredPriceChange(): void {
+    if (!this.securityId) {
+      return;
+    }
+    this.loadSummary(this.securityId);
+    this.loadHistory();
+  }
+
+  private getQuoteRefreshErrorMessage(error: HttpErrorResponse): string {
+    if (typeof error.error === 'string' && error.error.trim().length > 0) {
+      return error.error;
+    }
+
+    if (error.error && typeof error.error === 'object') {
+      if (typeof error.error.detail === 'string' && error.error.detail.trim().length > 0) {
+        return error.error.detail;
+      }
+      if (typeof error.error.message === 'string' && error.error.message.trim().length > 0) {
+        return error.error.message;
+      }
+      if (typeof error.error.title === 'string' && error.error.title.trim().length > 0) {
+        return error.error.title;
+      }
+    }
+
+    if (error.message && error.message.trim().length > 0) {
+      return error.message;
+    }
+
+    return 'Refreshing quotes failed.';
   }
 
   total(allHoldings: FinanceSecurityHolding[] | null): number {

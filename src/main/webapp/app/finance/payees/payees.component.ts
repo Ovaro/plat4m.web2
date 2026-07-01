@@ -1,12 +1,27 @@
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DEFAULT_CURRENCY_CODE, Inject, LOCALE_ID, OnInit, inject } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
+import { ApexAxisChartSeries, NgApexchartsModule } from 'ng-apexcharts';
+import { forkJoin, of } from 'rxjs';
 
 import SharedModule from 'app/shared/shared.module';
 import { FinancialAccount, FinancialTransaction } from '../finance.model';
 import { AccountList } from '../account-list/account-list.service';
 import { FinanceManageDataService } from '../manage-data/finance-manage-data.service';
 import { ManagedPayee, ManagedPayeeUpdate } from '../manage-data/finance-manage-data.types';
+import {
+  TRANSACTION_HISTORY_RANGE_OPTIONS,
+  TransactionAmountChartOptions,
+  TransactionHistoryRange,
+  TransactionHistoryRangeOption,
+  buildTransactionPoints,
+  createTransactionChartOptions,
+  createTrendlineSeries,
+  filterTransactionsByRange,
+  formatCurrencyAmount,
+  inferTransactionCurrencyCode,
+} from '../transaction-history-dialog.utils';
 import { TransactionEditorComponent } from '../transactions/transaction-editor.component';
 import { TransactionOption } from '../transactions/transactions.types';
 
@@ -14,37 +29,57 @@ import { TransactionOption } from '../transactions/transactions.types';
   selector: 'jhi-payees',
   templateUrl: './payees.component.html',
   styleUrls: ['./payees.component.scss'],
-  imports: [SharedModule, ReactiveFormsModule, DialogModule, TransactionEditorComponent],
+  imports: [SharedModule, ReactiveFormsModule, DialogModule, CheckboxModule, NgApexchartsModule, TransactionEditorComponent],
 })
 export class PayeesComponent implements OnInit {
   protected payees: ManagedPayee[] = [];
+  protected dialogPayees: ManagedPayee[] = [];
   protected accounts: FinancialAccount[] = [];
   protected transferAccountOptions: TransactionOption[] = [];
   protected searchText = '';
   protected includeHidden = false;
   protected isLoading = false;
   protected transactionsLoading = false;
+  protected variantsLoading = false;
   protected isSaving = false;
   protected errorMessage: string | null = null;
   protected transactionsErrorMessage: string | null = null;
   protected editorVisible = false;
+  protected variantEditorVisible = false;
   protected deleteCandidate: ManagedPayee | null = null;
+  protected deleteCandidateMode: 'payee' | 'variant' = 'payee';
   protected editingPayee: ManagedPayee | null = null;
+  protected editingVariant: ManagedPayee | null = null;
   protected selectedTransactionPayee: ManagedPayee | null = null;
   protected payeeTransactions: FinancialTransaction[] = [];
   protected payeeTransactionsFilter = '';
+  protected payeeTransactionsRange: TransactionHistoryRange = 'all';
+  protected payeeTrendlineVisible = false;
   protected selectedPayeeTransaction: FinancialTransaction | null = null;
   protected transactionEditorVisible = false;
+  protected readonly payeeTransactionRangeOptions: TransactionHistoryRangeOption[] = TRANSACTION_HISTORY_RANGE_OPTIONS;
+  protected readonly transactionAmountChartOptions: TransactionAmountChartOptions = createTransactionChartOptions(value =>
+    this.formatTransactionAmount(value),
+  );
 
   protected readonly form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    parentId: new FormControl<string | null>(null),
+    hidden: new FormControl(false, { nonNullable: true }),
+  });
+
+  protected readonly variantForm = new FormGroup({
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     hidden: new FormControl(false, { nonNullable: true }),
   });
 
   private readonly manageDataService = inject(FinanceManageDataService);
   private readonly accountListService = inject(AccountList);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
+
+  constructor(
+    @Inject(LOCALE_ID) private readonly locale: string,
+    @Inject(DEFAULT_CURRENCY_CODE) private readonly defaultCurrencyCode: string,
+  ) {}
 
   ngOnInit(): void {
     this.load();
@@ -53,14 +88,15 @@ export class PayeesComponent implements OnInit {
 
   get filteredPayees(): ManagedPayee[] {
     const query = this.searchText.trim().toLowerCase();
-    return this.payees.filter(payee => {
-      const parentName = this.getParentName(payee.parentId);
-      return !query || payee.name.toLowerCase().includes(query) || parentName.toLowerCase().includes(query);
-    });
+    return this.payees.filter(payee => payee.parentId == null).filter(payee => !query || this.matchesPayeeSearch(payee, query));
   }
 
-  get parentOptions(): ManagedPayee[] {
-    return this.payees.filter(payee => payee.id !== this.editingPayee?.id && !payee.hidden);
+  get dialogVariants(): ManagedPayee[] {
+    if (!this.editingPayee) {
+      return [];
+    }
+
+    return this.getChildren(this.editingPayee.id, this.dialogPayees);
   }
 
   get deleteDialogVisible(): boolean {
@@ -70,6 +106,7 @@ export class PayeesComponent implements OnInit {
   set deleteDialogVisible(visible: boolean) {
     if (!visible) {
       this.deleteCandidate = null;
+      this.deleteCandidateMode = 'payee';
     }
   }
 
@@ -82,17 +119,21 @@ export class PayeesComponent implements OnInit {
       this.selectedTransactionPayee = null;
       this.payeeTransactions = [];
       this.payeeTransactionsFilter = '';
+      this.payeeTransactionsRange = 'all';
+      this.payeeTrendlineVisible = false;
       this.transactionsErrorMessage = null;
+      this.closeTransactionEditor();
     }
   }
 
   get filteredPayeeTransactions(): FinancialTransaction[] {
+    const durationFilteredTransactions = this.filterTransactionsByRange(this.payeeTransactions, this.payeeTransactionsRange);
     const query = this.payeeTransactionsFilter.trim().toLowerCase();
     if (!query) {
-      return this.payeeTransactions;
+      return durationFilteredTransactions;
     }
 
-    return this.payeeTransactions.filter(transaction =>
+    return durationFilteredTransactions.filter(transaction =>
       [
         transaction.date,
         transaction.payeeName,
@@ -107,6 +148,49 @@ export class PayeesComponent implements OnInit {
         .filter(Boolean)
         .some(value => String(value).toLowerCase().includes(query)),
     );
+  }
+
+  get payeeTransactionsSum(): number {
+    return this.filteredPayeeTransactions.reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0);
+  }
+
+  get payeeTransactionsAverage(): number {
+    if (this.filteredPayeeTransactions.length === 0) {
+      return 0;
+    }
+    return this.payeeTransactionsSum / this.filteredPayeeTransactions.length;
+  }
+
+  get payeeTransactionSeries(): ApexAxisChartSeries {
+    const transactionSeries = buildTransactionPoints(this.filteredPayeeTransactions);
+
+    const series: ApexAxisChartSeries = [
+      {
+        name: 'Transaction amount',
+        data: transactionSeries,
+      },
+    ];
+
+    if (this.payeeTrendlineVisible) {
+      const trendlineSeries = createTrendlineSeries(transactionSeries);
+      if (trendlineSeries) {
+        series.push(trendlineSeries.series);
+      }
+    }
+
+    return series;
+  }
+
+  get payeeTransactionsCurrencyCode(): string {
+    return inferTransactionCurrencyCode(
+      this.filteredPayeeTransactions,
+      accountId => this.getAccountCurrency(accountId),
+      this.defaultCurrencyCode,
+    );
+  }
+
+  get deleteDialogTitle(): string {
+    return this.deleteCandidateMode === 'variant' ? 'Hide variant?' : 'Hide payee?';
   }
 
   load(): void {
@@ -144,7 +228,8 @@ export class PayeesComponent implements OnInit {
   openAddDialog(): void {
     this.editingPayee = null;
     this.errorMessage = null;
-    this.form.reset({ name: '', parentId: null, hidden: false });
+    this.dialogPayees = [];
+    this.form.reset({ name: '', hidden: false });
     this.editorVisible = true;
   }
 
@@ -153,16 +238,51 @@ export class PayeesComponent implements OnInit {
     this.errorMessage = null;
     this.form.reset({
       name: payee.name,
-      parentId: payee.parentId,
       hidden: Boolean(payee.hidden),
     });
     this.editorVisible = true;
+    this.loadDialogPayees(payee.id);
+  }
+
+  closeEditor(): void {
+    this.editorVisible = false;
+    this.editingPayee = null;
+    this.dialogPayees = [];
+    this.variantsLoading = false;
+    this.closeVariantEditor();
+  }
+
+  openAddVariantDialog(): void {
+    if (!this.editingPayee) {
+      return;
+    }
+
+    this.editingVariant = null;
+    this.variantForm.reset({ name: '', hidden: false });
+    this.variantEditorVisible = true;
+  }
+
+  openEditVariantDialog(variant: ManagedPayee): void {
+    this.editingVariant = variant;
+    this.variantForm.reset({
+      name: variant.name,
+      hidden: Boolean(variant.hidden),
+    });
+    this.variantEditorVisible = true;
+  }
+
+  closeVariantEditor(): void {
+    this.variantEditorVisible = false;
+    this.editingVariant = null;
+    this.variantForm.reset({ name: '', hidden: false });
   }
 
   openPayeeTransactions(payee: ManagedPayee): void {
     this.selectedTransactionPayee = payee;
     this.payeeTransactions = [];
     this.payeeTransactionsFilter = '';
+    this.payeeTransactionsRange = 'all';
+    this.payeeTrendlineVisible = false;
     this.transactionsErrorMessage = null;
     this.transactionsLoading = true;
     this.manageDataService.getPayeeTransactions(payee.id).subscribe({
@@ -199,7 +319,7 @@ export class PayeesComponent implements OnInit {
     this.errorMessage = null;
     const update: ManagedPayeeUpdate = {
       name: this.form.controls.name.value.trim(),
-      parentId: this.form.controls.parentId.value ?? null,
+      parentId: null,
       hidden: this.form.controls.hidden.value,
     };
     const request = this.editingPayee
@@ -208,7 +328,7 @@ export class PayeesComponent implements OnInit {
     request.subscribe({
       next: () => {
         this.isSaving = false;
-        this.editorVisible = false;
+        this.closeEditor();
         this.changeDetectorRef.markForCheck();
         this.load();
       },
@@ -220,8 +340,43 @@ export class PayeesComponent implements OnInit {
     });
   }
 
-  confirmDelete(payee: ManagedPayee): void {
+  saveVariant(): void {
+    if (!this.editingPayee) {
+      return;
+    }
+
+    if (this.variantForm.invalid) {
+      this.variantForm.markAllAsTouched();
+      return;
+    }
+
+    this.isSaving = true;
+    this.errorMessage = null;
+    const update: ManagedPayeeUpdate = {
+      name: this.variantForm.controls.name.value.trim(),
+      parentId: this.editingPayee.id,
+      hidden: this.variantForm.controls.hidden.value,
+    };
+    const request = this.editingVariant
+      ? this.manageDataService.updatePayee(this.editingVariant.id, update)
+      : this.manageDataService.createPayee(update);
+    request.subscribe({
+      next: () => {
+        this.isSaving = false;
+        this.closeVariantEditor();
+        this.refreshPayeesForEditor(this.editingPayee?.id ?? null);
+      },
+      error: error => {
+        this.errorMessage = this.getErrorMessage(error, 'Saving the variant failed.');
+        this.isSaving = false;
+        this.changeDetectorRef.markForCheck();
+      },
+    });
+  }
+
+  confirmDelete(payee: ManagedPayee, mode: 'payee' | 'variant' = 'payee'): void {
     this.deleteCandidate = payee;
+    this.deleteCandidateMode = mode;
     this.errorMessage = null;
   }
 
@@ -230,29 +385,54 @@ export class PayeesComponent implements OnInit {
       return;
     }
 
+    const deletedPayeeId = this.deleteCandidate.id;
+    const parentId = this.deleteCandidateMode === 'variant' ? (this.editingPayee?.id ?? null) : null;
     this.isSaving = true;
     this.manageDataService.deletePayee(this.deleteCandidate.id).subscribe({
       next: () => {
         this.isSaving = false;
         this.deleteCandidate = null;
-        this.changeDetectorRef.markForCheck();
-        this.load();
+        this.deleteCandidateMode = 'payee';
+        if (deletedPayeeId === this.selectedTransactionPayee?.id) {
+          this.payeeTransactionsDialogVisible = false;
+        }
+        if (parentId) {
+          this.refreshPayeesForEditor(parentId);
+        } else {
+          this.changeDetectorRef.markForCheck();
+          this.load();
+        }
       },
       error: error => {
         this.errorMessage = this.getErrorMessage(error, 'Deleting the payee failed.');
         this.isSaving = false;
         this.deleteCandidate = null;
+        this.deleteCandidateMode = 'payee';
         this.changeDetectorRef.markForCheck();
       },
     });
   }
 
-  getParentName(parentId: string | null): string {
-    if (!parentId) {
-      return 'None';
+  getVariantSummary(payee: ManagedPayee): string {
+    if (payee.childCount === 0) {
+      return 'No variants';
     }
 
-    return this.payees.find(payee => payee.id === parentId)?.name ?? 'Unknown';
+    if (payee.childNames.length === 0) {
+      return `${payee.childCount} variant${payee.childCount === 1 ? '' : 's'}`;
+    }
+
+    const remaining = payee.childCount - payee.childNames.length;
+    const suffix = remaining > 0 ? ` +${remaining} more` : '';
+    return `${payee.childNames.join(', ')}${suffix}`;
+  }
+
+  getVariantCountLabel(payee: ManagedPayee): string {
+    if (payee.childCount === 0) {
+      return 'No variants';
+    }
+
+    return `${payee.childCount} variant${payee.childCount === 1 ? '' : 's'}`;
   }
 
   getAccountName(accountId: string | null | undefined): string {
@@ -267,8 +447,88 @@ export class PayeesComponent implements OnInit {
     return transaction.amount >= 0 ? 'manage-amount manage-amount--positive' : 'manage-amount manage-amount--negative';
   }
 
+  setPayeeTransactionsRange(range: TransactionHistoryRange): void {
+    this.payeeTransactionsRange = range;
+  }
+
+  isPayeeTransactionsRangeSelected(range: TransactionHistoryRange): boolean {
+    return this.payeeTransactionsRange === range;
+  }
+
+  togglePayeeTrendline(): void {
+    this.payeeTrendlineVisible = !this.payeeTrendlineVisible;
+  }
+
+  formatTransactionAmount(value: number | null | undefined): string {
+    return formatCurrencyAmount(Number(value ?? 0), this.locale, this.payeeTransactionsCurrencyCode);
+  }
+
   noopEditorAction(): void {
     // Dialog drill-down is read-only; editing continues to live in the account register.
+  }
+
+  private loadDialogPayees(payeeId: string): void {
+    this.variantsLoading = true;
+    const request = this.includeHidden ? of(this.payees) : this.manageDataService.getPayees(true);
+    request.subscribe({
+      next: payees => {
+        this.dialogPayees = payees;
+        this.editingPayee = payees.find(candidate => candidate.id === payeeId) ?? this.editingPayee;
+        this.variantsLoading = false;
+        this.changeDetectorRef.markForCheck();
+      },
+      error: error => {
+        this.errorMessage = this.getErrorMessage(error, 'Loading payee variants failed.');
+        this.dialogPayees = this.payees;
+        this.variantsLoading = false;
+        this.changeDetectorRef.markForCheck();
+      },
+    });
+  }
+
+  private refreshPayeesForEditor(payeeId: string | null): void {
+    const dialogRequest = payeeId
+      ? this.includeHidden
+        ? of<ManagedPayee[]>([])
+        : this.manageDataService.getPayees(true)
+      : of<ManagedPayee[]>([]);
+    forkJoin({
+      pagePayees: this.manageDataService.getPayees(this.includeHidden),
+      dialogPayees: dialogRequest,
+    }).subscribe({
+      next: ({ pagePayees, dialogPayees }) => {
+        this.payees = pagePayees;
+        this.dialogPayees = payeeId ? (this.includeHidden ? pagePayees : dialogPayees) : [];
+        if (payeeId) {
+          this.editingPayee =
+            this.dialogPayees.find(candidate => candidate.id === payeeId) ??
+            this.payees.find(candidate => candidate.id === payeeId) ??
+            null;
+          if (!this.editingPayee) {
+            this.closeEditor();
+          }
+        }
+        this.changeDetectorRef.markForCheck();
+      },
+      error: error => {
+        this.errorMessage = this.getErrorMessage(error, 'Refreshing payees failed.');
+        this.changeDetectorRef.markForCheck();
+      },
+    });
+  }
+
+  private getChildren(parentId: string, source: ManagedPayee[]): ManagedPayee[] {
+    return source
+      .filter(payee => payee.parentId === parentId)
+      .sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }));
+  }
+
+  private matchesPayeeSearch(payee: ManagedPayee, query: string): boolean {
+    if (payee.name.toLowerCase().includes(query)) {
+      return true;
+    }
+
+    return this.getChildren(payee.id, this.payees).some(child => child.name.toLowerCase().includes(query));
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {
@@ -303,5 +563,9 @@ export class PayeesComponent implements OnInit {
     }
 
     return transaction.parentCategoryName ? `${transaction.parentCategoryName}: ${transaction.categoryName}` : transaction.categoryName;
+  }
+
+  private filterTransactionsByRange(transactions: FinancialTransaction[], range: TransactionHistoryRange): FinancialTransaction[] {
+    return filterTransactionsByRange(transactions, range);
   }
 }

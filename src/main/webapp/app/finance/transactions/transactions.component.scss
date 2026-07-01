@@ -77,7 +77,7 @@ jhi-transactions {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 35px;
+  min-width: 35px;
   height: 35px;
   margin-top: 6px;
   border-radius: 8px;
@@ -99,11 +99,42 @@ jhi-transactions {
   font-size: 0.85rem;
 }
 
+.transactions-closed-toggle,
+.transactions-favourite-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 35px;
+  margin-top: 6px;
+  border-color: var(--app-colours-border-low-light);
+  background-color: var(--app-colours-background-high-light);
+  color: var(--ps-colors-text-icon-low-on-light);
+  padding: 0 0.8rem;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .transactions-add-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
+  height: 35px;
+  margin-top: 6px;
+  border-color: var(--app-colours-border-low-light);
+  background-color: var(--app-colours-background-high-light);
+  color: var(--ps-colors-text-icon-low-on-light);
+  padding: 0 0.8rem;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.transactions-import-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 35px;
   margin-top: 6px;
   border-color: var(--app-colours-border-low-light);
@@ -177,7 +208,18 @@ jhi-transactions {
 }
 
 .transactions-add-button:hover,
-.transactions-add-button:focus {
+.transactions-add-button:focus,
+.transactions-import-button:hover,
+.transactions-import-button:focus {
+  border-color: var(--app-colours-primary);
+  color: var(--app-colours-primary);
+  background-color: var(--app-colours-background-med-light);
+}
+
+.transactions-closed-toggle:hover,
+.transactions-closed-toggle:focus,
+.transactions-favourite-toggle:hover,
+.transactions-favourite-toggle:focus {
   border-color: var(--app-colours-primary);
   color: var(--app-colours-primary);
   background-color: var(--app-colours-background-med-light);
@@ -186,6 +228,532 @@ jhi-transactions {
 .transactions-add-button__icon {
   font-size: 0.8rem;
   line-height: 1;
+}
+
+.import-dialog {
+  display: grid;
+  gap: 1rem;
+}
+
+.import-dialog__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.import-dialog__meta {
+  color: #5f6b7a;
+  font-size: 0.9rem;
+}
+
+.import-dialog__tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.import-dialog__textarea {
+  min-height: 14rem;
+}
+
+.import-dialog__balance {
+  max-width: 18rem;
+}
+
+.import-dialog__label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  margin-top: 0.8rem;
+}
+
+.import-dialog__summary {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.import-dialog__correlation {
+  margin: 0;
+  color: #4a5565;
+}
+
+.import-dialog__resolved-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.9rem;
+  background: rgba(46, 160, 67, 0.08);
+  border: 1px solid rgba(46, 160, 67, 0.18);
+  color: #245c31;
+}
+
+.import-dialog__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.3rem;
+  margin-bottom: 0.35rem;
+}
+
+.import-dialog__table-wrapper {
+  overflow-x: auto;
+}
+
+.import-dialog__table {
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.import-dialog__table th {
+  padding: 0.4rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.import-dialog__table th,
+.import-dialog__table td {
+  vertical-align: top;
+  padding: 0.38rem 0.45rem;
+}
+
+.import-dialog__row--primary td {
+  border-bottom: 0;
+}
+
+.import-dialog__row--secondary td {
+  border-top: 0;
+  padding-top: 0.2rem;
+  padding-bottom: 0.55rem;
+}
+
+.import-dialog__row--ok {
+  background: rgba(46, 160, 67, 0.08);
+}
+
+.import-dialog__row--warning {
+  background: rgba(255, 227, 186, 0.45);
+}
+
+.import-dialog__row--duplicate {
+  background: rgba(255, 209, 220, 0.42);
+}
+
+.import-dialog__row--transfer {
+  background: rgba(194, 234, 255, 0.38);
+}
+
+.import-dialog__status-badge {
+  width: 1.6rem;
+  height: 1.6rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.72rem;
+}
+
+.import-dialog__status-badge[data-state='ok'] {
+  color: #167a2f;
+  background: rgba(46, 160, 67, 0.12);
+  border-color: rgba(46, 160, 67, 0.2);
+}
+
+.import-dialog__status-badge[data-state='warning'] {
+  color: #9a5d00;
+  background: rgba(255, 193, 7, 0.14);
+  border-color: rgba(255, 193, 7, 0.28);
+}
+
+.import-dialog__status-badge[data-state='duplicate'] {
+  color: #b4235f;
+  background: rgba(214, 51, 132, 0.12);
+  border-color: rgba(214, 51, 132, 0.22);
+}
+
+.import-dialog__status-badge[data-state='transfer'] {
+  color: #0a5c87;
+  background: rgba(13, 148, 211, 0.12);
+  border-color: rgba(13, 148, 211, 0.24);
+}
+
+.import-dialog__review-message {
+  margin-top: 0.2rem;
+  color: #c62828;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.import-dialog__review-message--transfer {
+  color: #0a5c87;
+}
+
+.import-dialog__subfield-label {
+  display: block;
+  margin-bottom: 0.18rem;
+  color: #5f6b7a;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.import-dialog__field {
+  width: 100%;
+}
+
+.import-dialog__field--transfer {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.import-dialog__field-message {
+  margin-top: 0.18rem;
+  color: #c62828;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.import-dialog__field-message--warning {
+  color: #b26a00;
+}
+
+.import-dialog__transfer-note {
+  min-height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #0a5c87;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.import-dialog__transfer-note--primary {
+  margin-bottom: 0.14rem;
+}
+
+.import-dialog__transfer-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.import-dialog__transfer-caption {
+  margin-top: 0.14rem;
+  color: #5f6b7a;
+  font-size: 0.66rem;
+  line-height: 1.2;
+}
+
+.import-dialog__duplicate-target {
+  margin-top: 0.2rem;
+  color: #5f6b7a;
+  font-size: 0.72rem;
+}
+
+.import-dialog__duplicate-action {
+  margin-top: 0.2rem;
+  margin-right: 0.25rem;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.68rem;
+  line-height: 1.15;
+}
+
+.import-dialog__duplicate-action[disabled] {
+  opacity: 0.6;
+}
+
+.import-dialog__duplicate-help {
+  margin-top: 0.15rem;
+  color: #7a6270;
+  font-size: 0.66rem;
+}
+
+.import-dialog__duplicate-loading {
+  padding: 1rem 0.25rem;
+  color: #5f6b7a;
+}
+
+.import-dialog__duplicate-preview {
+  min-height: 8rem;
+}
+
+.import-dialog__review-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 5.5rem;
+}
+
+:host ::ng-deep .import-dialog__table .transaction-editor__select,
+:host ::ng-deep .import-dialog__table .transaction-editor__category-select {
+  width: 100%;
+  min-width: 10.5rem;
+}
+
+:host ::ng-deep .import-dialog__table .transaction-editor__select .p-autocomplete,
+:host ::ng-deep .import-dialog__table .transaction-editor__select .p-autocomplete-input {
+  width: 100%;
+}
+
+:host ::ng-deep .import-dialog__table .transaction-editor__select .p-autocomplete-input,
+:host ::ng-deep .import-dialog__table .transaction-editor__select .p-treeselect-label {
+  padding-inline-end: 2rem;
+}
+
+:host ::ng-deep .import-dialog__field--error .transaction-editor__category-select .p-treeselect {
+  border-color: #dc3545;
+  background: rgba(220, 53, 69, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(220, 53, 69, 0.22);
+}
+
+:host ::ng-deep .import-dialog__field--error .transaction-editor__category-select .p-treeselect:not(.p-disabled):hover {
+  border-color: #dc3545;
+}
+
+:host ::ng-deep .import-dialog__field--error .transaction-editor__category-select .p-treeselect:not(.p-disabled).p-focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.18);
+}
+
+:host ::ng-deep .import-dialog__field--warning .transaction-editor__category-select .p-treeselect {
+  border-color: #d98a00;
+  background: rgba(255, 193, 7, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(217, 138, 0, 0.18);
+}
+
+:host ::ng-deep .import-dialog__field--warning .transaction-editor__category-select .p-treeselect:not(.p-disabled):hover {
+  border-color: #d98a00;
+}
+
+:host ::ng-deep .import-dialog__field--warning .transaction-editor__category-select .p-treeselect:not(.p-disabled).p-focus {
+  border-color: #d98a00;
+  box-shadow: 0 0 0 0.2rem rgba(217, 138, 0, 0.16);
+}
+
+:host ::ng-deep .import-dialog__table .transaction-editor__category-value {
+  display: block;
+  min-height: 1rem;
+}
+
+:host ::ng-deep .import-dialog__table .transaction-editor__category-value--placeholder {
+  color: #6c757d;
+}
+
+:host ::ng-deep .import-dialog__table .transaction-editor__select {
+  min-height: 1.75rem;
+  border-radius: 0.6rem;
+}
+
+:host ::ng-deep .import-dialog__table .transaction-editor__select .p-select-label,
+:host ::ng-deep .import-dialog__table .transaction-editor__select .p-treeselect-label,
+:host ::ng-deep .import-dialog__table .transaction-editor__select input {
+  padding: 0.18rem 0.45rem;
+  font-size: 0.68rem;
+}
+
+:host ::ng-deep .import-dialog__table .transaction-editor__select .p-select-dropdown,
+:host ::ng-deep .import-dialog__table .transaction-editor__select .p-treeselect-dropdown {
+  width: 1.7rem;
+}
+
+:host ::ng-deep .import-dialog__table .transaction-editor__select .p-autocomplete-input {
+  min-height: 1.75rem;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.68rem;
+}
+
+:host ::ng-deep .import-dialog__table .transaction-editor__select .p-treeselect-label {
+  min-height: 1.75rem;
+}
+
+.import-dialog__table .form-control,
+.import-dialog__table .btn {
+  font-size: 0.68rem;
+}
+
+.import-dialog__table .form-control {
+  min-height: 1.75rem;
+  padding: 0.18rem 0.42rem;
+  border-radius: 0.45rem;
+}
+
+.import-dialog__table .btn {
+  padding: 0.18rem 0.45rem;
+  line-height: 1.15;
+}
+
+.import-dialog__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+}
+
+.import-dialog__suggestion {
+  border: 1px solid #cad3df;
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.import-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.import-dialog__commit-error {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.import-dialog__processing {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 1.25rem;
+  margin-top: 1rem;
+  padding: 1.25rem;
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at top left, rgba(255, 196, 87, 0.28), transparent 40%),
+    linear-gradient(135deg, rgba(12, 91, 171, 0.1), rgba(17, 153, 142, 0.12));
+  border: 1px solid rgba(12, 91, 171, 0.18);
+}
+
+.import-dialog__processing--solo {
+  margin-top: 0;
+}
+
+.import-dialog__processing-visual {
+  position: relative;
+  width: 9rem;
+  height: 9rem;
+  display: grid;
+  place-items: center;
+}
+
+.import-dialog__pulse {
+  position: absolute;
+  width: 3.8rem;
+  height: 3.8rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0b5cab, #18a999);
+  opacity: 0.75;
+  animation: import-pulse 2.8s ease-in-out infinite;
+}
+
+.import-dialog__pulse--two {
+  width: 2.8rem;
+  height: 2.8rem;
+  animation-delay: 0.35s;
+}
+
+.import-dialog__pulse--three {
+  width: 1.8rem;
+  height: 1.8rem;
+  animation-delay: 0.7s;
+}
+
+.import-dialog__orbital-ring {
+  position: absolute;
+  width: 7.5rem;
+  height: 7.5rem;
+  border-radius: 50%;
+  border: 1px dashed rgba(11, 92, 171, 0.35);
+  animation: import-spin 5s linear infinite;
+}
+
+.import-dialog__orbital-dot {
+  position: absolute;
+  top: -0.3rem;
+  left: calc(50% - 0.3rem);
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: #ffc857;
+  box-shadow: 0 0 16px rgba(255, 200, 87, 0.75);
+}
+
+.import-dialog__processing-copy {
+  display: grid;
+  align-content: center;
+  gap: 0.5rem;
+}
+
+.import-dialog__processing-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #12324b;
+}
+
+.import-dialog__processing-message {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #27516d;
+}
+
+.import-dialog__processing-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.import-dialog__processing-step {
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  color: #466176;
+  font-size: 0.78rem;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.import-dialog__processing-step--active {
+  background: #0b5cab;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+@keyframes import-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes import-pulse {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.45;
+  }
+
+  50% {
+    transform: scale(1.08);
+    opacity: 0.95;
+  }
 }
 
 :host ::ng-deep .transactions-account-select {
@@ -224,6 +792,13 @@ jhi-transactions {
   color: var(--ps-colors-text-icon-low-on-dark);
 }
 
+:host-context(.theme-dark) .transactions-closed-toggle,
+:host-context(.theme-dark) .transactions-favourite-toggle {
+  border-color: var(--app-colours-border-low-dark);
+  background-color: var(--app-colours-background-high-dark);
+  color: var(--ps-colors-text-icon-low-on-dark);
+}
+
 :host-context(.theme-dark) .transactions-columns-toggle {
   border-color: var(--app-colours-border-low-dark);
   background-color: var(--app-colours-background-high-dark);
@@ -232,6 +807,10 @@ jhi-transactions {
 
 :host-context(.theme-dark) .transactions-add-button:hover,
 :host-context(.theme-dark) .transactions-add-button:focus,
+:host-context(.theme-dark) .transactions-closed-toggle:hover,
+:host-context(.theme-dark) .transactions-closed-toggle:focus,
+:host-context(.theme-dark) .transactions-favourite-toggle:hover,
+:host-context(.theme-dark) .transactions-favourite-toggle:focus,
 :host-context(.theme-dark) .transactions-columns-toggle:hover,
 :host-context(.theme-dark) .transactions-columns-toggle:focus,
 :host-context(.theme-dark) .transactions-columns-toggle.show {
@@ -307,6 +886,15 @@ jhi-transactions {
   font-size: 0.72rem !important;
 }
 
+:host ::ng-deep .transactions-account-select-panel .p-select-option-group {
+  color: var(--app-colours-primary-text-light) !important;
+  background-color: var(--app-colours-background-med-light) !important;
+  font-size: 0.68rem !important;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 :host ::ng-deep .transactions-account-select-panel .p-select-option:hover,
 :host ::ng-deep .transactions-account-select-panel .p-select-option.p-focus {
   background-color: var(--app-colours-background-med-light) !important;
@@ -338,6 +926,11 @@ jhi-transactions {
   color: var(--app-colours-primary-text-dark) !important;
 }
 
+:host-context(.theme-dark) ::ng-deep .transactions-account-select-panel .p-select-option-group {
+  color: var(--app-colours-primary-text-dark) !important;
+  background-color: var(--app-colours-background-med-dark) !important;
+}
+
 :host-context(.theme-dark) ::ng-deep .transactions-account-select-panel .p-select-option:hover,
 :host-context(.theme-dark) ::ng-deep .transactions-account-select-panel .p-select-option.p-focus {
   background-color: var(--app-colours-background-med-dark) !important;
@@ -346,6 +939,26 @@ jhi-transactions {
 :host-context(.theme-dark) ::ng-deep .transactions-account-select-panel .p-select-option.p-select-option-selected {
   background-color: var(--app-colours-background-med-dark) !important;
   color: var(--app-colours-primary) !important;
+}
+
+.transactions-account-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.transactions-account-option__name {
+  flex: 1;
+}
+
+.transactions-account-option__meta {
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.transactions-account-group-label {
+  font-weight: 700;
 }
 
 @media (max-width: 991px) {

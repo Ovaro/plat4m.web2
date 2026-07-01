@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +90,17 @@ public class FinanceAccountService {
         log.info(sw.prettyPrint());
         this.processFinanceAccountDTOs(user, accountDTOs);
         return accountDTOs;
+    }
+
+    public FinanceAccountDTO updateFavourite(User user, UUID accountId, boolean favourite) {
+        FinanceAccount account = accountRepository
+            .findByIdAndUserGuid(accountId, user.getGuid().toString())
+            .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+        account.setFavourite(favourite);
+        FinanceAccount saved = accountRepository.save(account);
+        FinanceAccountDTO dto = financeAccountMapper.financeAccountsToFinanceAccountsDTO(saved);
+        processFinanceAccountDTOs(user, Collections.singletonList(dto));
+        return dto;
     }
 
     private void processFinanceAccountDTOs(User user, List<FinanceAccountDTO> accountDTOs) {

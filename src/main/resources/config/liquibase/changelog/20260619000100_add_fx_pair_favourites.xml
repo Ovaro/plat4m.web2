@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260619000100-1" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="fin_fx_favourite_pair"/>
+            </not>
+        </preConditions>
+        <createTable tableName="fin_fx_favourite_pair">
+            <column name="id" type="uuid">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_fx_favourite_pair_pk"/>
+            </column>
+            <column name="user_guid" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="from_iso_code" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="to_iso_code" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260619000100-2" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="fin_fx_favourite_pair" indexName="idx_fin_fx_favourite_pair_user_pair"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="fin_fx_favourite_pair" indexName="idx_fin_fx_favourite_pair_user_pair" unique="true">
+            <column name="user_guid"/>
+            <column name="from_iso_code"/>
+            <column name="to_iso_code"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

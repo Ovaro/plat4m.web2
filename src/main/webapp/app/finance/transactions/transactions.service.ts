@@ -33,6 +33,18 @@ export class Transactions {
     );
   }
 
+  getById(accountId: string, transactionId: string): Observable<FinancialTransaction> {
+    return this.http.get<FinancialTransaction>(
+      this.applicationConfigService.getEndpointFor(`api/account/${accountId}/transactions/${transactionId}`),
+    );
+  }
+
+  getLinkedTransfer(accountId: string, transactionId: string): Observable<FinancialTransaction> {
+    return this.http.get<FinancialTransaction>(
+      this.applicationConfigService.getEndpointFor(`api/account/${accountId}/transactions/${transactionId}/linked-transfer`),
+    );
+  }
+
   getCategoryOptions(req: TransactionLookupQuery): Observable<HttpResponse<TransactionOption[]>> {
     const options = createRequestOption(req);
     return this.http.get<TransactionOption[]>(this.applicationConfigService.getEndpointFor('api/transactions/editor-options/categories'), {
@@ -60,6 +72,15 @@ export class Transactions {
       params: options,
       observe: 'response',
     });
+  }
+
+  getLastCategoryForPayee(payeeId: string, transactionType: 'deposit' | 'withdrawal'): Observable<TransactionOption | null> {
+    return this.http.get<TransactionOption | null>(
+      this.applicationConfigService.getEndpointFor(`api/transactions/editor-options/payees/${payeeId}/last-category`),
+      {
+        params: { type: transactionType },
+      },
+    );
   }
 
   getWhoOptions(req: TransactionLookupQuery): Observable<HttpResponse<TransactionOption[]>> {

@@ -22,6 +22,7 @@ public interface FinanceAccountRepository extends JpaRepository<FinanceAccount, 
     List<FinanceAccount> findAllByUserGuidAndType(String userGuid, Integer type);
     List<FinanceAccount> findAllByUserGuidAndClosed(String userGuid, boolean closed);
     Optional<FinanceAccount> findById(UUID uuid);
+    Optional<FinanceAccount> findByIdAndUserGuid(UUID uuid, String userGuid);
 
     /*
      * Custom Queries
@@ -29,10 +30,10 @@ public interface FinanceAccountRepository extends JpaRepository<FinanceAccount, 
 
     @Query(
         value = "SELECT sum(amount) as amount, category_id as categoryId,  pc.id as parentCategoryID, pc2.id as parentParentCategoryId, c.name as categoryName, pc.name as parentCategoryName, pc2.name as parentParentCategoryName, transferred_account_id " +
-        "from fin_transaction f LEFT JOIN fin_category c ON uuid(c.id) = uuid(f.category_id) LEFT JOIN fin_category pc ON uuid(pc.id) = uuid(c.parent_category_id) LEFT JOIN fin_category pc2 ON uuid(pc2.id) = uuid(pc.parent_category_id) " +
-        "WHERE date <= :end_date AND date >= :start_date AND not voided and not split_parent and not recurring " +
-        "GROUP BY transferred_account_id, categoryId, parentCategoryID, parentParentCategoryID, categoryName, parentCategoryName, parentParentCategoryName " +
-        "order by amount;",
+            "from fin_transaction f LEFT JOIN fin_category c ON uuid(c.id) = uuid(f.category_id) LEFT JOIN fin_category pc ON uuid(pc.id) = uuid(c.parent_category_id) LEFT JOIN fin_category pc2 ON uuid(pc2.id) = uuid(pc.parent_category_id) " +
+            "WHERE date <= :end_date AND date >= :start_date AND not voided and not split_parent and not recurring " +
+            "GROUP BY transferred_account_id, categoryId, parentCategoryID, parentParentCategoryID, categoryName, parentCategoryName, parentParentCategoryName " +
+            "order by amount;",
         nativeQuery = true
     )
     List<IFinanceCategorisedIncomeExpenses> findIncomeExpensesForPeriod(

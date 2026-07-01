@@ -1,3 +1,5 @@
+@use '../manage-data/manage-data';
+
 .grand-total-container {
   padding-left: var(--ps-layout-spacing-medium);
   padding-right: var(--ps-layout-spacing-medium);
@@ -14,6 +16,158 @@
 .pc-return {
   padding-left: 10px;
   padding-right: 10px;
+}
+
+.investment-actions-menu {
+  position: relative;
+}
+
+.investment-actions-menu__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.85rem;
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.investment-actions-menu__dropdown {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  z-index: 20;
+  min-width: 12rem;
+  padding: 0.35rem;
+  border: 1px solid var(--app-colours-border-low-light);
+  border-radius: 0.8rem;
+  background: var(--app-colours-background-high-light);
+  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.16);
+}
+
+:host-context(.theme-dark) .investment-actions-menu__dropdown {
+  border-color: var(--app-colours-border-low-dark);
+  background: var(--app-colours-background-high-dark);
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.3);
+}
+
+.investment-actions-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.35rem 0.55rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.investment-actions-menu__item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--app-colours-primary) 9%, transparent);
+}
+
+.investment-refresh-button__spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.investment-refresh-message {
+  font-size: 0.9rem;
+  color: var(--ps-text-secondary, #64748b);
+}
+
+.investment-prices-dialog__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.investment-prices-editor {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(10rem, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  margin-bottom: 0.85rem;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-colours-primary) 5%, transparent);
+}
+
+.investment-prices-editor__field {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+.investment-prices-editor__field input {
+  width: 100%;
+  min-height: 35px;
+  padding: 7px 9px;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 7px;
+  background: var(--app-colours-background-high-light);
+  color: inherit;
+  font-size: 0.72rem;
+}
+
+:host-context(.theme-dark) .investment-prices-editor__field input {
+  border-color: color-mix(in srgb, var(--ps-colors-text-icon-high-on-dark) 20%, transparent);
+  background: var(--ps-colors-background-dark-2);
+}
+
+.investment-prices-editor__actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.investment-prices-dialog__history {
+  max-height: min(32rem, 55vh);
+  overflow: auto;
+}
+
+.manage-table--investment-prices .manage-table__row {
+  grid-template-columns: minmax(10rem, 1fr) minmax(10rem, 1fr) 44px;
+  min-width: 22rem;
+  text-align: left;
+}
+
+.manage-table__row--button {
+  width: 100%;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.manage-table__row--button:hover,
+.manage-table__row--selected {
+  background: color-mix(in srgb, var(--app-colours-primary) 10%, transparent);
+}
+
+:host-context(.theme-dark) .manage-table__row--selected {
+  background: color-mix(in srgb, var(--app-colours-primary) 22%, var(--ps-colors-background-dark-2));
+}
+
+@media screen and (max-width: 767px) {
+  .investment-prices-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .investment-prices-editor__actions {
+    flex-wrap: wrap;
+  }
 }
 // .theme-light .pc-return {
 //     border-left: 2px solid var(--app-colours-secondary-text-light);

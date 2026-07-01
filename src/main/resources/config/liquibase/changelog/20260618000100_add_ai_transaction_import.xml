@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260618000100-1" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="fin_transaction" columnName="import_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="fin_transaction">
+            <column name="import_id" type="uuid"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260618000100-2" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="fin_transaction_import"/>
+            </not>
+        </preConditions>
+        <createTable tableName="fin_transaction_import">
+            <column name="id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_guid" type="varchar(255)"/>
+            <column name="account_id" type="varchar(255)"/>
+            <column name="account_name" type="varchar(255)"/>
+            <column name="source_label" type="varchar(255)"/>
+            <column name="raw_content" type="clob"/>
+            <column name="status" type="varchar(50)"/>
+            <column name="total_rows" type="int"/>
+            <column name="flagged_rows" type="int"/>
+            <column name="correlation_status" type="varchar(100)"/>
+            <column name="correlation_message" type="varchar(2000)"/>
+            <column name="expected_ending_balance" type="numeric(19,2)"/>
+            <column name="created_date_time" type="timestamp"/>
+            <column name="imported_date_time" type="timestamp"/>
+            <column name="backed_out_date_time" type="timestamp"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260618000100-3" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="fin_transaction_import_row"/>
+            </not>
+        </preConditions>
+        <createTable tableName="fin_transaction_import_row">
+            <column name="id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_guid" type="varchar(255)"/>
+            <column name="import_id" type="uuid"/>
+            <column name="row_index" type="int"/>
+            <column name="date" type="date"/>
+            <column name="amount" type="numeric(19,2)"/>
+            <column name="payee_text" type="varchar(1000)"/>
+            <column name="memo" type="varchar(4000)"/>
+            <column name="running_balance" type="numeric(19,2)"/>
+            <column name="ai_category_guess" type="varchar(255)"/>
+            <column name="ai_confidence" type="double"/>
+            <column name="resolved_payee_id" type="varchar(255)"/>
+            <column name="resolved_payee_name" type="varchar(255)"/>
+            <column name="resolved_category_id" type="varchar(255)"/>
+            <column name="resolved_category_name" type="varchar(255)"/>
+            <column name="payee_needs_review" type="boolean" defaultValueBoolean="false"/>
+            <column name="category_needs_review" type="boolean" defaultValueBoolean="false"/>
+            <column name="date_needs_review" type="boolean" defaultValueBoolean="false"/>
+            <column name="amount_needs_review" type="boolean" defaultValueBoolean="false"/>
+            <column name="balance_mismatch" type="boolean" defaultValueBoolean="false"/>
+            <column name="duplicate_suspected" type="boolean" defaultValueBoolean="false"/>
+            <column name="accepted" type="boolean" defaultValueBoolean="false"/>
+        </createTable>
+        <addForeignKeyConstraint
+            baseTableName="fin_transaction_import_row"
+            baseColumnNames="import_id"
+            constraintName="fk_fin_transaction_import_row_import"
+            referencedTableName="fin_transaction_import"
+            referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="20260618000100-4" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="fin_transaction_import_memory"/>
+            </not>
+        </preConditions>
+        <createTable tableName="fin_transaction_import_memory">
+            <column name="id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_guid" type="varchar(255)"/>
+            <column name="account_id" type="varchar(255)"/>
+            <column name="normalized_payee_text" type="varchar(255)"/>
+            <column name="payee_id" type="varchar(255)"/>
+            <column name="category_id" type="varchar(255)"/>
+            <column name="usage_count" type="int"/>
+            <column name="created_date_time" type="timestamp"/>
+            <column name="last_used_date_time" type="timestamp"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260618000100-5" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="fin_transaction_import_row" columnName="duplicate_transaction_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="fin_transaction_import_row">
+            <column name="duplicate_transaction_id" type="varchar(255)"/>
+            <column name="duplicate_transaction_date" type="date"/>
+            <column name="duplicate_transaction_amount" type="numeric(19,2)"/>
+            <column name="duplicate_transaction_payee_name" type="varchar(255)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260618000100-6" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="fin_transaction_import_row" columnName="duplicate_confirmed"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="fin_transaction_import_row">
+            <column name="duplicate_confirmed" type="boolean" defaultValueBoolean="false"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260618000100-7" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="fin_transaction_import_row" columnName="ignored"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="fin_transaction_import_row">
+            <column name="ignored" type="boolean" defaultValueBoolean="false"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

@@ -73,6 +73,7 @@ public class FinanceTransaction implements Serializable {
 
     private boolean voided;
     private String statementId;
+    private UUID importId;
     private boolean cleared; // Cleared or Reconciled
     private boolean reconciled; // reconciled
     private String memo;
@@ -340,6 +341,14 @@ public class FinanceTransaction implements Serializable {
 
     public void setStatementId(String statementId) {
         this.statementId = statementId;
+    }
+
+    public UUID getImportId() {
+        return importId;
+    }
+
+    public void setImportId(UUID importId) {
+        this.importId = importId;
     }
 
     public Integer getNumber() {

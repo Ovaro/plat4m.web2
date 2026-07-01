@@ -22,6 +22,8 @@ export interface ManagedPayee {
   name: string;
   parentId: string | null;
   hidden: boolean | null;
+  childCount: number;
+  childNames: string[];
 }
 
 export interface ManagedPayeeUpdate {

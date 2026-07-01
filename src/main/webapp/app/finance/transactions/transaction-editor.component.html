@@ -56,13 +56,16 @@
   </div>
 
   <form class="transaction-editor__form" [formGroup]="form" (ngSubmit)="onSubmit()" (keydown)="onFormKeydown($event)">
-    <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--payee" *ngIf="!isTransferMode()">
+    <label
+      class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--payee"
+      *ngIf="!isSplitMode() && !isTransferMode()"
+    >
       <span class="transaction-editor__field-label">{{ getPayeeLabel() }}</span>
       <p-autocomplete
         formControlName="payee"
         [suggestions]="payeeSuggestions"
         optionLabel="name"
-        placeholder="No saved payee"
+        placeholder="Payee Name"
         [showClear]="true"
         [forceSelection]="false"
         [virtualScroll]="true"
@@ -77,21 +80,31 @@
 
     <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--payee" *ngIf="isTransferMode()">
       <span class="transaction-editor__field-label">Transfer account</span>
-      <p-autocomplete
-        formControlName="transferAccount"
-        [suggestions]="transferAccountSuggestions"
-        optionLabel="name"
-        placeholder="Choose destination account"
-        [showClear]="true"
-        [forceSelection]="true"
-        [virtualScroll]="true"
-        [virtualScrollItemSize]="40"
-        appendTo="body"
-        styleClass="transaction-editor__select"
-        panelStyleClass="transaction-editor__select-panel"
-        (completeMethod)="searchTransferAccounts($event)"
-        (onClear)="clearTransferAccount()"
-      ></p-autocomplete>
+      <div class="transaction-editor__category-picker">
+        <p-autocomplete
+          formControlName="transferAccount"
+          [suggestions]="transferAccountSuggestions"
+          optionLabel="name"
+          placeholder="Choose destination account"
+          [showClear]="true"
+          [forceSelection]="true"
+          [virtualScroll]="true"
+          [virtualScrollItemSize]="40"
+          appendTo="body"
+          styleClass="transaction-editor__select"
+          panelStyleClass="transaction-editor__select-panel"
+          (completeMethod)="searchTransferAccounts($event)"
+          (onClear)="clearTransferAccount()"
+        ></p-autocomplete>
+        <button
+          type="button"
+          class="btn btn-outline-secondary transaction-editor__field-action"
+          *ngIf="canOpenLinkedTransfer()"
+          (click)="requestOpenLinkedTransfer()"
+        >
+          Open linked
+        </button>
+      </div>
     </label>
 
     <label class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--tags">
@@ -124,6 +137,25 @@
     </label>
 
     <div class="transaction-editor__field-row transaction-editor__field-row--details">
+      <label class="transaction-editor__field transaction-editor__field--compact" *ngIf="isTransferMode()">
+        <span class="transaction-editor__field-label">{{ getPayeeLabel() }}</span>
+        <p-autocomplete
+          formControlName="payee"
+          [suggestions]="payeeSuggestions"
+          optionLabel="name"
+          placeholder="Payee Name"
+          [showClear]="true"
+          [forceSelection]="false"
+          [virtualScroll]="true"
+          [virtualScrollItemSize]="40"
+          appendTo="body"
+          styleClass="transaction-editor__select"
+          panelStyleClass="transaction-editor__select-panel"
+          (completeMethod)="searchPayees($event)"
+          (onClear)="clearPayee()"
+        ></p-autocomplete>
+      </label>
+
       <label class="transaction-editor__field transaction-editor__field--compact" *ngIf="!isTransferMode() && !isSplitMode()">
         <span class="transaction-editor__field-label">Category</span>
         <div class="transaction-editor__category-picker">
@@ -164,13 +196,6 @@
         </div>
       </label>
 
-      <div class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--summary" *ngIf="isTransferMode()">
-        <span class="transaction-editor__field-label">Transfer</span>
-        <div class="transaction-editor__summary">
-          {{ getTransferSummary() }}
-        </div>
-      </div>
-
       <div class="transaction-editor__field transaction-editor__field--compact transaction-editor__field--summary" *ngIf="isSplitMode()">
         <span class="transaction-editor__field-label">Split details</span>
         <button
@@ -185,10 +210,10 @@
 
       <div
         class="transaction-editor__field-cluster transaction-editor__field-cluster--tags"
-        [class.transaction-editor__field-cluster--who-only]="isViewMode()"
-        *ngIf="!isTransferMode() && !isSplitMode()"
+        [class.transaction-editor__field-cluster--who-only]="isViewMode() || isTransferMode()"
+        *ngIf="!isSplitMode()"
       >
-        <div class="transaction-editor__field transaction-editor__field--compact" *ngIf="!isViewMode()">
+        <div class="transaction-editor__field transaction-editor__field--compact" *ngIf="!isViewMode() && !isTransferMode()">
           <span class="transaction-editor__field-label">Split</span>
           <button
             type="button"
@@ -231,7 +256,7 @@
           mode="currency"
           [currency]="currencyCode"
           locale="en-AU"
-          [min]="0"
+          [min]="isTransferMode() ? undefined : 0"
           [minFractionDigits]="2"
           [maxFractionDigits]="2"
           inputStyleClass="transaction-editor__currency-input"

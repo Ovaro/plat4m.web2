@@ -48,19 +48,21 @@ export class AccountListComponent {
     this.title.set(this.getPageTitle(this.router.routerState.snapshot.root));
   }
 
-  readonly onlyBankAccounts = computed(
-    () => this.accounts()?.filter(x => (x.accountType === 'bank' && x.relatedToAccountId == null) || x.accountType === 'cash') ?? [],
+  readonly onlyBankAccounts = computed(() =>
+    this.sortAccounts(
+      this.accounts()?.filter(x => (x.accountType === 'bank' && x.relatedToAccountId == null) || x.accountType === 'cash') ?? [],
+    ),
   );
 
-  readonly onlyCreditAccounts = computed(() => this.accounts()?.filter(x => x.accountType === 'credit') ?? []);
+  readonly onlyCreditAccounts = computed(() => this.sortAccounts(this.accounts()?.filter(x => x.accountType === 'credit') ?? []));
 
-  readonly onlyLiabilityAccounts = computed(
-    () => this.accounts()?.filter(x => x.accountType === 'liability' || x.accountType === 'loan') ?? [],
+  readonly onlyLiabilityAccounts = computed(() =>
+    this.sortAccounts(this.accounts()?.filter(x => x.accountType === 'liability' || x.accountType === 'loan') ?? []),
   );
 
-  readonly onlyAssetAccounts = computed(() => this.accounts()?.filter(x => x.accountType === 'asset') ?? []);
+  readonly onlyAssetAccounts = computed(() => this.sortAccounts(this.accounts()?.filter(x => x.accountType === 'asset') ?? []));
 
-  readonly onlyInvestmentAccounts = computed(() => this.accounts()?.filter(x => x.accountType === 'investment') ?? []);
+  readonly onlyInvestmentAccounts = computed(() => this.sortAccounts(this.accounts()?.filter(x => x.accountType === 'investment') ?? []));
 
   readonly bankSum = computed(() => this.sumGroup(this.onlyBankAccounts()));
   readonly creditSum = computed(() => this.sumGroup(this.onlyCreditAccounts()));
@@ -153,6 +155,29 @@ export class AccountListComponent {
     this.expandedAssets.update(value => !value);
   }
 
+  toggleFavourite(account: FinancialAccount): void {
+    const previousFavourite = account.favourite;
+    account.favourite = !account.favourite;
+    this.accounts.update(accounts => (accounts ? [...accounts] : accounts));
+    this.accountListService.updateFavourite(account.id, account.favourite).subscribe({
+      next: updated => {
+        this.accounts.update(accounts =>
+          accounts
+            ? accounts.map(existing => (existing.id === updated.id ? { ...existing, favourite: updated.favourite } : existing))
+            : accounts,
+        );
+      },
+      error: () => {
+        account.favourite = previousFavourite;
+        this.accounts.update(accounts => (accounts ? [...accounts] : accounts));
+      },
+    });
+  }
+
+  favouriteTitle(account: FinancialAccount): string {
+    return account.favourite ? 'Remove from favourites' : 'Add to favourites';
+  }
+
   private getPageTitle(routeSnapshot: ActivatedRouteSnapshot): string {
     let title: string = routeSnapshot.data['pageTitle'] ? routeSnapshot.data['pageTitle'] : 'App';
     if (routeSnapshot.firstChild) {
@@ -164,5 +189,14 @@ export class AccountListComponent {
       // // console.log("Page Title (from FirstChild): " + title);
     }
     return title;
+  }
+
+  private sortAccounts(accounts: FinancialAccount[]): FinancialAccount[] {
+    return [...accounts].sort((left, right) => {
+      if (left.favourite !== right.favourite) {
+        return left.favourite ? -1 : 1;
+      }
+      return left.name.localeCompare(right.name);
+    });
   }
 }

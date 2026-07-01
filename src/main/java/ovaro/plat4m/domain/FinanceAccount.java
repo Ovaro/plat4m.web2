@@ -49,6 +49,7 @@ public class FinanceAccount implements Serializable {
     private Integer relatedToAccountSrcId;
     private String relatedToAccountId;
     private boolean closed;
+    private boolean favourite;
     private boolean retirement;
     private Integer investmentSubType;
     private BigDecimal amountLimit;
@@ -78,6 +79,7 @@ public class FinanceAccount implements Serializable {
         //this.currentBalance = toCopy.getCurrentBalance();
         this.relatedToAccountId = toCopy.getRelatedToAccountId();
         this.closed = toCopy.isClosed();
+        this.favourite = toCopy.isFavourite();
         this.retirement = toCopy.isRetirement();
         this.investmentSubType = toCopy.getInvestmentSubType();
         this.amountLimit = toCopy.getAmountLimit();
@@ -188,6 +190,14 @@ public class FinanceAccount implements Serializable {
 
     public void setClosed(boolean closed) {
         this.closed = closed;
+    }
+
+    public boolean isFavourite() {
+        return favourite;
+    }
+
+    public void setFavourite(boolean favourite) {
+        this.favourite = favourite;
     }
 
     public boolean isRetirement() {

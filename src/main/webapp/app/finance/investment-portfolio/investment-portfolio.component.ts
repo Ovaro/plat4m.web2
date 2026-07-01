@@ -1,4 +1,5 @@
-import { AfterViewInit, ChangeDetectorRef, Component, Inject, LOCALE_ID, NgZone, ViewChild, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, Inject, LOCALE_ID, NgZone, OnDestroy, ViewChild, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { InvestmentPortfolio } from './investment-portfolio.service';
@@ -11,7 +12,7 @@ import {
   Periods,
   PortfolioValueHistoryItem,
 } from '../finance.model';
-import { formatCurrency, formatDate } from '@angular/common';
+import { formatCurrency, formatDate, getCurrencySymbol } from '@angular/common';
 import { AccountList } from '../account-list/account-list.service';
 //import { CommonControllerServices } from 'app/core/util/common-controller.service';
 import { CookieService } from 'ngx-cookie';
@@ -35,7 +36,10 @@ import {
 } from 'ng-apexcharts';
 import SharedModule from 'app/shared/shared.module';
 import { SkeletonModule } from 'primeng/skeleton';
+import { DialogModule } from 'primeng/dialog';
 import { DeltaValueComponent } from 'app/shared/delta-value/delta-value.component';
+import { AlertService } from 'app/core/util/alert.service';
+import { FinanceSecurityPriceRefreshItem, FinanceSecurityPriceRefreshResult } from '../finance.model';
 
 interface GroupData {
   [name: string]: FinanceSecurityHolding[] | null;
@@ -93,9 +97,9 @@ export type TreeMapChartOptions = {
   selector: 'jhi-investment-portfolio',
   templateUrl: './investment-portfolio.component.html',
   styleUrls: ['./investment-portfolio.component.scss'],
-  imports: [SharedModule, RouterModule, NgApexchartsModule, SkeletonModule],
+  imports: [SharedModule, RouterModule, NgApexchartsModule, SkeletonModule, DialogModule],
 })
-export class InvestmentPortfolioComponent implements AfterViewInit {
+export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
   static COOKIE_SHOW_CLOSED = 'show-closed-state';
   static PERIOD_DEFAULT_COOKIE_ID = 'period-default';
 
@@ -109,6 +113,8 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
     balanceWarning: '',
     fxDateTime: null,
     relatedToAccountId: null,
+    closed: false,
+    favourite: false,
     institution: null,
     startingBalance: 0,
     fxRateToLocal: null,
@@ -119,9 +125,11 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
   private readonly _isLoading = signal(false);
   private readonly _isLoadingSummaries = signal(false);
   private readonly _isLoadingHistory = signal(false);
+  private readonly _isRefreshingQuotes = signal(false);
   private readonly _isHistoryLoaded = signal(false);
   private readonly _showHistoryChart = signal(false);
   private readonly _showPieChart = signal(true);
+  private readonly _isApplyingQuoteRefreshResults = signal(false);
 
   private readonly _accountId = signal<string | null>(null);
   private readonly _account = signal<FinancialAccount | null>(null);
@@ -158,6 +166,11 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
   private readonly _portfolioValueHistoryItems = signal<FinanceResourceSnapshots[] | null>(null);
 
   private readonly _comparisonPortfolio = signal<InvestmentPortfolioDetails | null>(null); // The period to compare against
+  private readonly _quoteRefreshMessage = signal<string | null>(null);
+  private readonly _quoteRefreshDialogVisible = signal(false);
+  private readonly _quoteRefreshResult = signal<FinanceSecurityPriceRefreshResult | null>(null);
+  private quoteRefreshPollHandle: ReturnType<typeof setTimeout> | null = null;
+  private completedRefreshJobId: string | null = null;
 
   /* Charts */
   @ViewChild('pieChart', { static: false }) pieChart!: ChartComponent;
@@ -212,6 +225,14 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
     this._isLoadingHistory.set(value);
   }
 
+  get isRefreshingQuotes(): boolean {
+    return this._isRefreshingQuotes();
+  }
+
+  set isRefreshingQuotes(value: boolean) {
+    this._isRefreshingQuotes.set(value);
+  }
+
   get isHistoryLoaded(): boolean {
     return this._isHistoryLoaded();
   }
@@ -234,6 +255,14 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
 
   set showPieChart(value: boolean) {
     this._showPieChart.set(value);
+  }
+
+  get isApplyingQuoteRefreshResults(): boolean {
+    return this._isApplyingQuoteRefreshResults();
+  }
+
+  set isApplyingQuoteRefreshResults(value: boolean) {
+    this._isApplyingQuoteRefreshResults.set(value);
   }
 
   get accountId(): string | null {
@@ -348,11 +377,64 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
     this._comparisonPortfolio.set(value);
   }
 
+  get quoteRefreshMessage(): string | null {
+    return this._quoteRefreshMessage();
+  }
+
+  set quoteRefreshMessage(value: string | null) {
+    this._quoteRefreshMessage.set(value);
+  }
+
+  get quoteRefreshDialogVisible(): boolean {
+    return this._quoteRefreshDialogVisible();
+  }
+
+  set quoteRefreshDialogVisible(value: boolean) {
+    this._quoteRefreshDialogVisible.set(value);
+  }
+
+  get quoteRefreshResult(): FinanceSecurityPriceRefreshResult | null {
+    return this._quoteRefreshResult();
+  }
+
+  set quoteRefreshResult(value: FinanceSecurityPriceRefreshResult | null) {
+    this._quoteRefreshResult.set(value);
+  }
+
+  get quoteRefreshDialogTitle(): string {
+    const result = this.quoteRefreshResult;
+    if (!result) {
+      return 'Price Refresh Results';
+    }
+
+    if (!result.complete) {
+      return `Refreshing prices: ${result.processedCount ?? 0} of ${result.requestedCount ?? 0} processed`;
+    }
+
+    const processedCount = result.requestedCount ?? 0;
+    const refreshedCount = result.refreshedCount ?? 0;
+    const skippedCount = result.skippedCount ?? 0;
+    const failedCount = result.failedCount ?? 0;
+    return `Processed ${processedCount} holding${processedCount === 1 ? '' : 's'}: ${refreshedCount} refreshed, ${skippedCount} skipped, ${failedCount} failed`;
+  }
+
+  get quoteRefreshItems(): FinanceSecurityPriceRefreshItem[] {
+    return this.quoteRefreshResult?.items ?? [];
+  }
+
+  get quoteRefreshApplyLabel(): string {
+    if (this.quoteRefreshResult?.applyRequested) {
+      return this.quoteRefreshResult.complete ? 'Applied' : 'Apply As Found';
+    }
+    return 'Apply';
+  }
+
   constructor(
     private investmentService: InvestmentPortfolio,
     private route: ActivatedRoute,
     private router: Router,
     private themeService: ThemeService,
+    private alertService: AlertService,
     private accountService: AccountList,
     private cookieService: CookieService,
     private zone: NgZone,
@@ -665,6 +747,7 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
       }
     }
 
+    this.resumeActiveQuoteRefresh();
     this.load();
     this.applyThemeToCharts();
   }
@@ -672,6 +755,10 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
   ngAfterViewInit(): void {
     this.applyThemeToCharts();
     this.syncPieChart();
+  }
+
+  ngOnDestroy(): void {
+    this.clearQuoteRefreshPoll();
   }
 
   navigateToInvestmentFromSeriesIndex(series: number, index: number): void {
@@ -859,6 +946,257 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
   onChangePositionsSwitch(event: any): void {
     this.saveCookie(InvestmentPortfolioComponent.COOKIE_SHOW_CLOSED, this.includeClosedPositions);
     this.load();
+  }
+
+  refreshQuotes(): void {
+    const activeRefreshResult = this.investmentService.getActiveQuoteRefreshResult();
+    if (activeRefreshResult && !activeRefreshResult.complete && activeRefreshResult.jobId) {
+      this.isRefreshingQuotes = true;
+      this.quoteRefreshResult = activeRefreshResult;
+      this.quoteRefreshDialogVisible = true;
+      this.scheduleQuoteRefreshPoll(activeRefreshResult.jobId);
+      this.investmentService.getRefreshQuoteStatus(activeRefreshResult.jobId).subscribe({
+        next: result => {
+          this.handleQuoteRefreshResult(result);
+          this.cdr.markForCheck();
+        },
+      });
+      return;
+    }
+
+    if (this.isRefreshingQuotes) {
+      this.quoteRefreshDialogVisible = true;
+      const activeJobId = this.quoteRefreshResult?.jobId;
+      if (activeJobId && !this.quoteRefreshResult?.complete) {
+        this.investmentService.getRefreshQuoteStatus(activeJobId).subscribe({
+          next: result => {
+            this.handleQuoteRefreshResult(result);
+            this.cdr.markForCheck();
+          },
+        });
+      }
+      return;
+    }
+
+    let acId = this.accountId;
+    if (acId === '') {
+      acId = null;
+    }
+
+    this.isRefreshingQuotes = true;
+    this.quoteRefreshMessage = null;
+    this.quoteRefreshResult = null;
+    this.quoteRefreshDialogVisible = false;
+    this.investmentService.refreshQuotes(acId).subscribe({
+      next: result => {
+        this.handleQuoteRefreshStarted(result);
+        this.cdr.markForCheck();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isRefreshingQuotes = false;
+        this.quoteRefreshMessage = this.getQuoteRefreshErrorMessage(error);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  private handleQuoteRefreshStarted(result: FinanceSecurityPriceRefreshResult): void {
+    this.isRefreshingQuotes = !result.complete;
+    this.isApplyingQuoteRefreshResults = false;
+    this.quoteRefreshResult = result;
+    this.investmentService.setActiveQuoteRefreshResult(result);
+    this.quoteRefreshDialogVisible = true;
+    this.quoteRefreshMessage = null;
+    this.completedRefreshJobId = null;
+    if (result.jobId) {
+      this.scheduleQuoteRefreshPoll(result.jobId);
+    }
+  }
+
+  private handleQuoteRefreshResult(result: FinanceSecurityPriceRefreshResult): void {
+    this.isRefreshingQuotes = !result.complete;
+    this.isApplyingQuoteRefreshResults = false;
+    this.quoteRefreshResult = result;
+    this.investmentService.setActiveQuoteRefreshResult(result);
+    if (!result.complete || !result.jobId) {
+      return;
+    }
+
+    this.clearQuoteRefreshPoll();
+    this.investmentService.clearActiveQuoteRefreshResult();
+    if (this.completedRefreshJobId === result.jobId) {
+      return;
+    }
+
+    this.completedRefreshJobId = result.jobId;
+    this.load();
+    this.alertService.addAlert({
+      type: result.status === 'completed' ? 'success' : 'warning',
+      message:
+        result.status === 'completed'
+          ? `Quote refresh completed: ${result.refreshedCount} refreshed, ${result.skippedCount} skipped, ${result.failedCount} failed.`
+          : `Quote refresh ended with issues: ${result.refreshedCount} refreshed, ${result.skippedCount} skipped, ${result.failedCount} failed.`,
+      toast: true,
+    });
+  }
+
+  private scheduleQuoteRefreshPoll(jobId: string): void {
+    this.clearQuoteRefreshPoll();
+    this.quoteRefreshPollHandle = setTimeout(() => {
+      this.investmentService.getRefreshQuoteStatus(jobId).subscribe({
+        next: result => {
+          this.handleQuoteRefreshResult(result);
+          if (!result.complete) {
+            this.scheduleQuoteRefreshPoll(jobId);
+          }
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.isRefreshingQuotes = false;
+          this.investmentService.clearActiveQuoteRefreshResult();
+          this.clearQuoteRefreshPoll();
+        },
+      });
+    }, 2000);
+  }
+
+  private clearQuoteRefreshPoll(): void {
+    if (this.quoteRefreshPollHandle !== null) {
+      clearTimeout(this.quoteRefreshPollHandle);
+      this.quoteRefreshPollHandle = null;
+    }
+  }
+
+  private resumeActiveQuoteRefresh(): void {
+    const activeRefreshResult = this.investmentService.getActiveQuoteRefreshResult();
+    if (!activeRefreshResult || activeRefreshResult.complete || !activeRefreshResult.jobId) {
+      return;
+    }
+
+    this.isRefreshingQuotes = true;
+    this.quoteRefreshResult = activeRefreshResult;
+    this.scheduleQuoteRefreshPoll(activeRefreshResult.jobId);
+    this.investmentService.getRefreshQuoteStatus(activeRefreshResult.jobId).subscribe({
+      next: result => {
+        this.handleQuoteRefreshResult(result);
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.isRefreshingQuotes = false;
+        this.investmentService.clearActiveQuoteRefreshResult();
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  protected quoteRefreshStatusClass(status: string | null | undefined): string {
+    switch (status) {
+      case 'refreshed':
+        return 'refresh-status refresh-status--success';
+      case 'failed':
+        return 'refresh-status refresh-status--failed';
+      case 'pending':
+        return 'refresh-status';
+      default:
+        return 'refresh-status refresh-status--skipped';
+    }
+  }
+
+  protected formatRefreshCurrency(value: number | null | undefined, currencyCode: string | null | undefined): string {
+    if (value === null || value === undefined) {
+      return '—';
+    }
+    const resolvedCurrencyCode = currencyCode ?? 'AUD';
+    return formatCurrency(value, this.locale, getCurrencySymbol(resolvedCurrencyCode, 'narrow'), resolvedCurrencyCode);
+  }
+
+  protected formatRefreshPercent(value: number | null | undefined): string {
+    if (value === null || value === undefined) {
+      return '—';
+    }
+    return `${(value / 100).toLocaleString(this.locale, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  private getQuoteRefreshErrorMessage(error: HttpErrorResponse): string {
+    if (typeof error.error === 'string' && error.error.trim().length > 0) {
+      return error.error;
+    }
+
+    if (error.error && typeof error.error === 'object') {
+      if (typeof error.error.detail === 'string' && error.error.detail.trim().length > 0) {
+        return error.error.detail;
+      }
+      if (typeof error.error.message === 'string' && error.error.message.trim().length > 0) {
+        return error.error.message;
+      }
+      if (typeof error.error.title === 'string' && error.error.title.trim().length > 0) {
+        return error.error.title;
+      }
+    }
+
+    if (error.message && error.message.trim().length > 0) {
+      return error.message;
+    }
+
+    return 'Refreshing quotes failed.';
+  }
+
+  protected canApplyQuoteRefreshResults(): boolean {
+    const result = this.quoteRefreshResult;
+    if (!result || !result.jobId || this.isApplyingQuoteRefreshResults) {
+      return false;
+    }
+    return result.items.some(item => item.selected && item.canApply && !item.applied);
+  }
+
+  protected onQuoteRefreshSelectionChanged(item: FinanceSecurityPriceRefreshItem, selected: boolean): void {
+    const result = this.quoteRefreshResult;
+    if (!result?.jobId || !item.userSecurityId) {
+      return;
+    }
+
+    item.selected = selected;
+    if (!selected && !item.applied) {
+      item.canApply = false;
+      item.status = item.status === 'pending' ? 'skipped' : item.status;
+      item.message = 'Skipped by user.';
+    }
+    this.investmentService.setActiveQuoteRefreshResult(result);
+    this.investmentService.updateRefreshQuoteSelection(result.jobId, item.userSecurityId, selected).subscribe({
+      next: updatedResult => {
+        this.handleQuoteRefreshResult(updatedResult);
+        this.cdr.markForCheck();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.quoteRefreshMessage = this.getQuoteRefreshErrorMessage(error);
+        this.investmentService.getRefreshQuoteStatus(result.jobId!).subscribe({
+          next: refreshedResult => {
+            this.handleQuoteRefreshResult(refreshedResult);
+            this.cdr.markForCheck();
+          },
+        });
+      },
+    });
+  }
+
+  protected applyQuoteRefreshResults(): void {
+    const jobId = this.quoteRefreshResult?.jobId;
+    if (!jobId || this.isApplyingQuoteRefreshResults) {
+      return;
+    }
+
+    this.isApplyingQuoteRefreshResults = true;
+    this.investmentService.applyRefreshQuotes(jobId).subscribe({
+      next: result => {
+        this.handleQuoteRefreshResult(result);
+        this.cdr.markForCheck();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isApplyingQuoteRefreshResults = false;
+        this.quoteRefreshMessage = this.getQuoteRefreshErrorMessage(error);
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   onChangeAnnotationsSwitch(event: any): void {
@@ -1663,7 +2001,7 @@ export class InvestmentPortfolioComponent implements AfterViewInit {
 
     this.pieChartOptions = {
       ...this.pieChartOptions,
-      chart: this.withChartSurface(this.pieChartOptions.chart, chartTheme),
+      chart: this.withChartSurface(this.pieChartOptions.chart, { ...chartTheme, background: 'transparent' }),
       theme: {
         ...(this.pieChartOptions.theme ?? {}),
         mode: this.theme as 'light' | 'dark',

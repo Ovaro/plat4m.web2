@@ -956,6 +956,8 @@ public class MsMoneyService {
         if (security == null) {
             security = this.securityService.handleUserSecurity(user, d, c.getIsoCode(), FETCH_SECUIRTY_INFO_FROM_WEB);
             if (security != null) {
+                applyAustralianExchangeDefaults(security);
+                security = securityRepository.save(security);
                 securityCache.put(security.getSymbol(), security);
             }
         }
@@ -980,6 +982,7 @@ public class MsMoneyService {
                 security.setSymbol(user.getGuid() + ":" + o.getId());
                 security.setName(o.getName());
                 security.setCurrencyCode(c.getIsoCode());
+                applyAustralianExchangeDefaults(security);
                 securityRepository.save(security);
             }
             securityCache.put(security.getSymbol(), security);
@@ -997,6 +1000,33 @@ public class MsMoneyService {
         }
 
         return d;
+    }
+
+    private void applyAustralianExchangeDefaults(FinanceSecurity security) {
+        if (security == null) {
+            return;
+        }
+        if (
+            !isAustralianSecurity(security.getCountry(), security.getCurrencyCode()) ||
+            (security.getExchangeMic() != null && !security.getExchangeMic().isBlank())
+        ) {
+            return;
+        }
+        security.setExchangeMic("XASX");
+        if (security.getExchangeName() == null || security.getExchangeName().isBlank()) {
+            security.setExchangeName("ASX");
+        }
+        if (security.getExchangeSuffix() == null || security.getExchangeSuffix().isBlank()) {
+            security.setExchangeSuffix("AX");
+        }
+    }
+
+    private boolean isAustraliaCountry(String country) {
+        return country != null && "AUSTRALIA".equalsIgnoreCase(country.trim());
+    }
+
+    private boolean isAustralianSecurity(String country, String currencyCode) {
+        return isAustraliaCountry(country) || (currencyCode != null && "AUD".equalsIgnoreCase(currencyCode.trim()));
     }
 
     public FinanceAccount convertAccount(
@@ -2268,8 +2298,8 @@ public class MsMoneyService {
         counterpartTxn.setMemo(sourceTransferTxn.getMemo());
         counterpartTxn.setCategory(null);
         counterpartTxn.setWho(null);
-        counterpartTxn.setPayeeId(null);
-        counterpartTxn.setPayeeName(null);
+        counterpartTxn.setPayeeId(sourceTransferTxn.getPayeeId());
+        counterpartTxn.setPayeeName(sourceTransferTxn.getPayeeName());
         counterpartTxn.setStatementId(null);
         counterpartTxn.setNumber(sourceTransferTxn.getNumber());
         counterpartTxn.setCurrencyCode(

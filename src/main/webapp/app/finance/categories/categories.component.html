@@ -134,7 +134,8 @@
   [(visible)]="categoryTransactionsDialogVisible"
   [modal]="true"
   [draggable]="false"
-  [style]="{ width: 'min(82rem, 96vw)' }"
+  [maximizable]="true"
+  [style]="{ width: 'min(92rem, 96vw)' }"
   styleClass="manage-transactions-dialog"
 >
   <div class="manage-toolbar manage-toolbar--dialog">
@@ -153,41 +154,86 @@
     </button>
   </div>
 
+  <div class="manage-quick-filters">
+    <button
+      *ngFor="let option of categoryTransactionRangeOptions"
+      type="button"
+      class="manage-quick-filter"
+      [class.manage-quick-filter--active]="isCategoryTransactionsRangeSelected(option.value)"
+      (click)="setCategoryTransactionsRange(option.value)"
+    >
+      {{ option.label }}
+    </button>
+  </div>
+
   <div *ngIf="transactionsErrorMessage" class="manage-alert">{{ transactionsErrorMessage }}</div>
 
-  <div class="manage-card manage-card--dialog">
-    <div class="manage-table manage-table--category-transactions">
-      <div class="manage-table__row manage-table__row--header">
-        <div>Date</div>
-        <div>Account</div>
-        <div>Payee</div>
-        <div>Category / Who</div>
-        <div>Memo</div>
-        <div class="manage-table__amount">Amount</div>
+  <div class="manage-transactions-overview" *ngIf="!transactionsLoading && !transactionsErrorMessage">
+    <div class="manage-summary-card">
+      <div class="manage-summary-card__label">Transactions</div>
+      <div class="manage-summary-card__value">{{ filteredCategoryTransactions.length }}</div>
+    </div>
+    <div class="manage-summary-card">
+      <div class="manage-summary-card__label">Total sum</div>
+      <div class="manage-summary-card__value" [class.manage-summary-card__value--negative]="categoryTransactionsSum < 0">
+        {{ formatTransactionAmount(categoryTransactionsSum) }}
       </div>
-      <div *ngIf="transactionsLoading" class="manage-empty">Loading transactions...</div>
-      <div *ngIf="!transactionsLoading && filteredCategoryTransactions.length === 0" class="manage-empty">No transactions found.</div>
-      <button
-        *ngFor="let transaction of filteredCategoryTransactions"
-        type="button"
-        class="manage-table__row manage-table__row--button"
-        (click)="openTransactionEditor(transaction)"
-      >
-        <div>{{ transaction.date }}</div>
-        <div>{{ getAccountName(transaction.accountId) || 'Unknown account' }}</div>
-        <div>
-          <div class="manage-table__primary">{{ transaction.payeeName || 'No payee' }}</div>
-          <div class="manage-table__secondary" *ngIf="transaction.splitChild">Split line</div>
+    </div>
+    <div class="manage-summary-card">
+      <div class="manage-summary-card__label">Average amount</div>
+      <div class="manage-summary-card__value" [class.manage-summary-card__value--negative]="categoryTransactionsAverage < 0">
+        {{ formatTransactionAmount(categoryTransactionsAverage) }}
+      </div>
+    </div>
+  </div>
+
+  <div class="manage-transactions-layout" *ngIf="!transactionsErrorMessage">
+    <div class="manage-card manage-card--dialog manage-card--transactions-list">
+      <div class="manage-table manage-table--compact-transactions">
+        <div class="manage-table__row manage-table__row--header">
+          <div>Date</div>
+          <div class="manage-table__amount">Amount</div>
         </div>
-        <div>
-          <div class="manage-table__primary">{{ transaction.displayCategory || 'Uncategorised' }}</div>
-          <div class="manage-table__secondary" *ngIf="transaction.whoName">Who: {{ transaction.whoName }}</div>
-        </div>
-        <div>{{ transaction.memo || '' }}</div>
-        <div class="manage-table__amount" [ngClass]="getTransactionAmountClass(transaction)">
-          {{ transaction.amount | number: '1.2-2' }}
-        </div>
-      </button>
+        <div *ngIf="transactionsLoading" class="manage-empty">Loading transactions...</div>
+        <div *ngIf="!transactionsLoading && filteredCategoryTransactions.length === 0" class="manage-empty">No transactions found.</div>
+        <button
+          *ngFor="let transaction of filteredCategoryTransactions"
+          type="button"
+          class="manage-table__row manage-table__row--button"
+          (click)="openTransactionEditor(transaction)"
+        >
+          <div>
+            <div class="manage-table__primary">{{ transaction.date }}</div>
+            <div class="manage-table__secondary">{{ transaction.payeeName || transaction.displayCategory || 'Open details' }}</div>
+          </div>
+          <div class="manage-table__amount" [ngClass]="getTransactionAmountClass(transaction)">
+            {{ transaction.amount | number: '1.2-2' }}
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <div class="manage-card manage-card--chart manage-card--chart-panel">
+      <label class="manage-chart-toggle">
+        <input type="checkbox" [checked]="categoryTrendlineVisible" (change)="toggleCategoryTrendline()" />
+        <span>Show trendline</span>
+      </label>
+      <div *ngIf="transactionsLoading" class="manage-empty">Loading chart...</div>
+      <div *ngIf="!transactionsLoading && filteredCategoryTransactions.length === 0" class="manage-empty">
+        No transactions available for the selected filters.
+      </div>
+      <apx-chart
+        *ngIf="!transactionsLoading && filteredCategoryTransactions.length > 0"
+        class="manage-transactions-chart"
+        [series]="categoryTransactionSeries"
+        [chart]="transactionAmountChartOptions.chart"
+        [xaxis]="transactionAmountChartOptions.xaxis"
+        [yaxis]="transactionAmountChartOptions.yaxis"
+        [stroke]="transactionAmountChartOptions.stroke"
+        [dataLabels]="transactionAmountChartOptions.dataLabels"
+        [markers]="transactionAmountChartOptions.markers"
+        [tooltip]="transactionAmountChartOptions.tooltip"
+      ></apx-chart>
     </div>
   </div>
 </p-dialog>

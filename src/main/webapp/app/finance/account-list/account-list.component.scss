@@ -56,3 +56,16 @@
   flex-grow: 0;
   margin-right: 18px;
 }
+
+.account-favourite-button {
+  border: 0;
+  background: transparent;
+  color: #b88700;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.4rem 0 0;
+}
+
+.account-favourite-button:hover {
+  color: #8c6700;
+}

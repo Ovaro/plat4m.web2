@@ -213,6 +213,8 @@
         </createTable>
     </changeSet>
     <changeSet author="justin (generated)" id="1709369667173-13">
+        <validCheckSum>9:d19df168a23a5426e49d5e33ffcd2a8e</validCheckSum>
+        <validCheckSum>9:bbedb82e9d66204771f758f88c16055a</validCheckSum>
         <createTable tableName="fin_transaction">
             <column name="id" type="UUID">
                 <constraints nullable="false" primaryKey="true" primaryKeyName="fin_transactionPK"/>

@@ -22,7 +22,39 @@
           </p-select>
         </div>
         <div class="col app-table--align-right">
-          <div class="float-right" style="display: flex"></div>
+          <div class="investment-actions-menu float-right">
+            <button
+              type="button"
+              class="btn btn-outline-secondary investment-actions-menu__toggle"
+              aria-label="Investment actions"
+              aria-haspopup="menu"
+              [attr.aria-expanded]="actionsMenuOpen"
+              (click)="toggleActionsMenu()"
+              [disabled]="!securityId"
+            >
+              <fa-icon icon="bars"></fa-icon>
+              <fa-icon icon="angle-down"></fa-icon>
+            </button>
+            <div class="investment-actions-menu__dropdown" *ngIf="actionsMenuOpen" role="menu">
+              <button type="button" class="investment-actions-menu__item" role="menuitem" (click)="openPriceDialog()">
+                Maintain prices
+              </button>
+              <button
+                type="button"
+                class="investment-actions-menu__item"
+                role="menuitem"
+                (click)="refreshQuotesFromActionsMenu()"
+                [disabled]="isRefreshingQuotes"
+              >
+                <span
+                  *ngIf="isRefreshingQuotes"
+                  class="spinner-border spinner-border-sm investment-refresh-button__spinner"
+                  aria-hidden="true"
+                ></span>
+                <span>{{ isRefreshingQuotes ? 'Refreshing prices...' : 'Refresh prices' }}</span>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="col">
           <div class="datawell-sm" style="margin-top: 2px">
@@ -30,6 +62,9 @@
             <div *ngIf="investmentSummary" class="datawell-data datawell-data-xs">
               <span *ngIf="investmentSummary.currencyIsoCode === 'USD'">US</span
               >{{ investmentSummary.price | currency: investmentSummary.currencyIsoCode : 'symbol-narrow' }}
+            </div>
+            <div *ngIf="investmentSummary?.priceDate" class="datawell-label datawell-label-xs">
+              As of {{ investmentSummary?.priceDate | date }}
             </div>
             <p-skeleton *ngIf="isLoading"></p-skeleton>
           </div>
@@ -63,6 +98,9 @@
         </div>
       </div>
       <div class="row m-t">
+        <div class="col" *ngIf="quoteRefreshMessage">
+          <div class="investment-refresh-message">{{ quoteRefreshMessage }}</div>
+        </div>
         <div class="col"></div>
         <div class="col col-auto">
           <div class="header-settings-toggle-container">
@@ -76,6 +114,101 @@
       </div>
     </div>
   </div>
+
+  <p-dialog
+    header="Maintain Prices"
+    [(visible)]="priceDialogVisible"
+    [modal]="true"
+    [draggable]="false"
+    [style]="{ width: 'min(68rem, 96vw)' }"
+    styleClass="investment-prices-dialog"
+    (onHide)="resetStoredPriceForm()"
+  >
+    <div class="investment-prices-dialog__toolbar">
+      <div>
+        <div class="manage-table__primary">{{ holding?.name || 'Selected holding' }}</div>
+        <!-- <div class="manage-table__secondary">{{ holding?.symbol || investmentSummary?.userSecurityId || '' }}</div> -->
+      </div>
+    </div>
+
+    <div *ngIf="priceErrorMessage" class="manage-alert">{{ priceErrorMessage }}</div>
+
+    <form class="investment-prices-editor" [formGroup]="priceForm" (ngSubmit)="saveStoredPrice()">
+      <label class="investment-prices-editor__field">
+        <span>Date</span>
+        <input type="date" formControlName="date" />
+      </label>
+      <label class="investment-prices-editor__field">
+        <span>Price</span>
+        <input type="number" min="0" step="0.001" formControlName="price" />
+      </label>
+      <div class="investment-prices-editor__actions">
+        <button type="button" class="manage-button" (click)="startAddingStoredPrice()" [disabled]="isPriceSaving">
+          <fa-icon icon="plus"></fa-icon>
+          Add
+        </button>
+        <button type="submit" class="manage-button manage-button--primary" [disabled]="isPriceSaving || priceForm.invalid">Save</button>
+      </div>
+    </form>
+
+    <div class="manage-card investment-prices-dialog__history">
+      <div class="manage-table manage-table--investment-prices">
+        <div class="manage-table__row manage-table__row--header">
+          <div>Date</div>
+          <div>Price</div>
+          <div class="manage-table__actions">Actions</div>
+        </div>
+        <div *ngIf="isPricesLoading" class="manage-empty">Loading stored prices...</div>
+        <div *ngIf="!isPricesLoading && storedPrices.length === 0" class="manage-empty">No stored prices found.</div>
+        <div
+          *ngFor="let price of storedPrices"
+          class="manage-table__row manage-table__row--button"
+          [class.manage-table__row--selected]="editingStoredPrice?.id === price.id"
+          (click)="selectStoredPrice(price)"
+          (keydown.enter)="selectStoredPrice(price)"
+          tabindex="0"
+        >
+          <div>{{ price.date | date }}</div>
+          <div>{{ price.price | currency: holding?.currencyCode || investmentSummary?.currencyIsoCode || 'AUD' : 'symbol-narrow' }}</div>
+          <div class="manage-table__actions">
+            <button
+              type="button"
+              class="manage-icon-button manage-icon-button--danger"
+              title="Delete"
+              [attr.aria-label]="'Delete price for ' + price.date"
+              (click)="confirmDeleteStoredPrice(price); $event.stopPropagation()"
+            >
+              <fa-icon icon="trash-alt"></fa-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </p-dialog>
+
+  <p-dialog
+    header="Delete stock price?"
+    [(visible)]="priceDeleteDialogVisible"
+    [modal]="true"
+    [draggable]="false"
+    [style]="{ width: '28rem' }"
+    (onHide)="deleteStoredPriceCandidate = null"
+  >
+    <p>Delete stored price for {{ deleteStoredPriceCandidate?.date | date }}?</p>
+    <div class="manage-dialog-actions">
+      <button
+        type="button"
+        class="manage-button"
+        (click)="deleteStoredPriceCandidate = null; priceDeleteDialogVisible = false"
+        [disabled]="isPriceSaving"
+      >
+        Cancel
+      </button>
+      <button type="button" class="manage-button manage-button--danger" (click)="deleteStoredPrice()" [disabled]="isPriceSaving">
+        Delete
+      </button>
+    </div>
+  </p-dialog>
 
   <!-- <div class="row m-t">
         <div class="datawell-container">

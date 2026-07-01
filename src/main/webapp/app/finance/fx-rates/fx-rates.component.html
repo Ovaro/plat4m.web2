@@ -6,34 +6,17 @@
       </div>
       <div class="manage-page__subtitle">Maintain exchange rates used for foreign-currency account values.</div>
     </div>
-    <button type="button" class="manage-button manage-button--primary" (click)="openAddDialog()">
-      <fa-icon icon="plus"></fa-icon>
-      <span>Add</span>
-    </button>
-  </div>
-
-  <form class="manage-import-card" [formGroup]="importForm" (ngSubmit)="updateFromFrankfurter()">
-    <div>
-      <div class="manage-table__primary">Update from Frankfurter</div>
-      <div class="manage-page__subtitle">Public no-key exchange-rate API. Leave date blank for latest available rates.</div>
+    <div class="manage-page__header-actions">
+      <button type="button" class="manage-button" (click)="openImportDialog()">
+        <fa-icon icon="sync"></fa-icon>
+        <span>Update Rates</span>
+      </button>
+      <button type="button" class="manage-button manage-button--primary" (click)="openAddDialog()">
+        <fa-icon icon="plus"></fa-icon>
+        <span>Add</span>
+      </button>
     </div>
-    <label>
-      <span>Base</span>
-      <input type="text" maxlength="3" formControlName="baseCurrency" />
-    </label>
-    <label class="manage-import-card__quotes">
-      <span>Quotes</span>
-      <input type="text" formControlName="quoteCurrencies" />
-    </label>
-    <label>
-      <span>Date</span>
-      <input type="date" formControlName="date" />
-    </label>
-    <button type="submit" class="manage-button manage-button--primary" [disabled]="isImporting">
-      <fa-icon icon="sync"></fa-icon>
-      <span>{{ isImporting ? 'Updating...' : 'Update Rates' }}</span>
-    </button>
-  </form>
+  </div>
 
   <div class="manage-toolbar">
     <label class="manage-search">
@@ -50,39 +33,128 @@
   <div *ngIf="importMessage" class="manage-alert manage-alert--success">{{ importMessage }}</div>
 
   <div class="manage-card">
-    <div class="manage-table manage-table--fx">
-      <div class="manage-table__row manage-table__row--header">
-        <div>Pair</div>
-        <div>Latest date</div>
-        <div>Latest rate</div>
-        <div class="manage-table__actions">Actions</div>
-      </div>
-      <div *ngIf="isLoading" class="manage-empty">Loading FX rates...</div>
-      <div *ngIf="!isLoading && filteredRates.length === 0" class="manage-empty">No FX rates found.</div>
-      <div *ngFor="let rate of filteredRates" class="manage-table__row manage-table__row--clickable" (click)="openHistoryDialog(rate)">
-        <div>
-          <div class="manage-table__primary">{{ rate.fromIsoCode }} / {{ rate.toIsoCode }}</div>
-          <div class="manage-table__secondary">Click for history</div>
+    <div *ngIf="isLoading" class="manage-empty">Loading FX rates...</div>
+    <div *ngIf="!isLoading && filteredRates.length === 0" class="manage-empty">No FX rates found.</div>
+
+    <div class="manage-table-section" *ngIf="!isLoading && favouriteRates.length > 0">
+      <div class="manage-table-section__title">Favourites</div>
+      <div class="manage-table manage-table--fx">
+        <div class="manage-table__row manage-table__row--header">
+          <div>Pair</div>
+          <div>Latest date</div>
+          <div>Latest rate</div>
+          <div class="manage-table__actions">Actions</div>
         </div>
-        <div>{{ getDateInputValue(rate.date) }}</div>
-        <div class="manage-rate">{{ formatRate(rate.rate) }}</div>
-        <div class="manage-table__actions">
-          <button type="button" class="manage-icon-button" title="Edit" (click)="openEditDialog(rate); $event.stopPropagation()">
-            <fa-icon icon="pencil-alt"></fa-icon>
-          </button>
-          <button
-            type="button"
-            class="manage-icon-button manage-icon-button--danger"
-            title="Delete"
-            (click)="confirmDelete(rate); $event.stopPropagation()"
-          >
-            <fa-icon icon="trash-alt"></fa-icon>
-          </button>
+        <div *ngFor="let rate of favouriteRates" class="manage-table__row manage-table__row--clickable" (click)="openHistoryDialog(rate)">
+          <div>
+            <div class="manage-table__primary">{{ rate.fromIsoCode }} / {{ rate.toIsoCode }}</div>
+            <div class="manage-table__secondary">Click for history</div>
+          </div>
+          <div>{{ getDateInputValue(rate.date) }}</div>
+          <div class="manage-rate">{{ formatRate(rate.rate) }}</div>
+          <div class="manage-table__actions manage-table__actions--fx">
+            <button
+              type="button"
+              class="account-favourite-button"
+              [title]="favouriteTitle(rate)"
+              (click)="toggleFavourite(rate); $event.stopPropagation()"
+            >
+              {{ rate.favourite ? '★' : '☆' }}
+            </button>
+            <button type="button" class="manage-icon-button" title="Edit" (click)="openEditDialog(rate); $event.stopPropagation()">
+              <fa-icon icon="pencil-alt"></fa-icon>
+            </button>
+            <button
+              type="button"
+              class="manage-icon-button manage-icon-button--danger"
+              title="Delete"
+              (click)="confirmDelete(rate); $event.stopPropagation()"
+            >
+              <fa-icon icon="trash-alt"></fa-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="manage-table-section" *ngIf="!isLoading && otherRates.length > 0">
+      <div class="manage-table-section__title">{{ favouriteRates.length > 0 ? 'All Pairs' : 'FX Pairs' }}</div>
+      <div class="manage-table manage-table--fx">
+        <div class="manage-table__row manage-table__row--header">
+          <div>Pair</div>
+          <div>Latest date</div>
+          <div>Latest rate</div>
+          <div class="manage-table__actions">Actions</div>
+        </div>
+        <div *ngFor="let rate of otherRates" class="manage-table__row manage-table__row--clickable" (click)="openHistoryDialog(rate)">
+          <div>
+            <div class="manage-table__primary">{{ rate.fromIsoCode }} / {{ rate.toIsoCode }}</div>
+            <div class="manage-table__secondary">Click for history</div>
+          </div>
+          <div>{{ getDateInputValue(rate.date) }}</div>
+          <div class="manage-rate">{{ formatRate(rate.rate) }}</div>
+          <div class="manage-table__actions manage-table__actions--fx">
+            <button
+              type="button"
+              class="account-favourite-button"
+              [title]="favouriteTitle(rate)"
+              (click)="toggleFavourite(rate); $event.stopPropagation()"
+            >
+              {{ rate.favourite ? '★' : '☆' }}
+            </button>
+            <button type="button" class="manage-icon-button" title="Edit" (click)="openEditDialog(rate); $event.stopPropagation()">
+              <fa-icon icon="pencil-alt"></fa-icon>
+            </button>
+            <button
+              type="button"
+              class="manage-icon-button manage-icon-button--danger"
+              title="Delete"
+              (click)="confirmDelete(rate); $event.stopPropagation()"
+            >
+              <fa-icon icon="trash-alt"></fa-icon>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<p-dialog
+  header="Update FX Rates"
+  [(visible)]="importDialogVisible"
+  [modal]="true"
+  [style]="{ width: '64rem', maxWidth: '96vw' }"
+  [contentStyle]="{ overflow: 'visible' }"
+  [draggable]="false"
+  styleClass="fx-rates-import-dialog"
+>
+  <form class="manage-import-card manage-import-card--dialog" [formGroup]="importForm" (ngSubmit)="updateFromFrankfurter()">
+    <div>
+      <div class="manage-table__primary">Update FX Rates</div>
+      <div class="manage-page__subtitle">Leave date blank for latest available rates.</div>
+    </div>
+    <label class="manage-import-card__base">
+      <span>Base</span>
+      <input type="text" maxlength="3" formControlName="baseCurrency" />
+    </label>
+    <label class="manage-import-card__quotes">
+      <span>Quotes</span>
+      <input type="text" formControlName="quoteCurrencies" />
+    </label>
+    <label>
+      <span>Date</span>
+      <input type="date" formControlName="date" />
+    </label>
+    <div class="manage-dialog-actions manage-dialog-actions--import">
+      <button type="button" class="manage-button" (click)="importDialogVisible = false" [disabled]="isImporting">Cancel</button>
+      <button type="submit" class="manage-button manage-button--primary" [disabled]="isImporting">
+        <fa-icon icon="sync"></fa-icon>
+        <span>{{ isImporting ? 'Updating...' : 'Update Rates' }}</span>
+      </button>
+    </div>
+  </form>
+</p-dialog>
 
 <p-dialog
   [header]="editingRate ? 'Edit FX rate' : 'Add FX rate'"

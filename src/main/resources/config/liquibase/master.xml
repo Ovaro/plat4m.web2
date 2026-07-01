@@ -17,6 +17,11 @@
     <include file="config/liquibase/changelog/20260613000100_add_user_ai_settings.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260615000100_add_fin_xfer.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260616000100_add_principal_amount_to_fin_transaction.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260617000100_add_favourite_to_fin_account.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260618000100_add_ai_transaction_import.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260618000200_refine_ai_import_duplicate_review.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260618000300_add_ai_import_transfer_support.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260619000100_add_fx_pair_favourites.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-changelog - JHipster will add liquibase changelogs here -->
     <!-- jhipster-needle-liquibase-add-constraints-changelog - JHipster will add liquibase constraints changelogs here -->
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->

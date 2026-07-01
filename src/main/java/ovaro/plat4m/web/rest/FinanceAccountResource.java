@@ -31,9 +31,11 @@ import ovaro.plat4m.domain.FinanceTransaction;
 import ovaro.plat4m.domain.User;
 import ovaro.plat4m.security.SecurityUtils;
 import ovaro.plat4m.service.FinanceAccountService;
+import ovaro.plat4m.service.FinanceTransactionImportService;
 import ovaro.plat4m.service.FinanceTransactionService;
 import ovaro.plat4m.service.UserService;
 import ovaro.plat4m.service.dto.FinanceAccountDTO;
+import ovaro.plat4m.service.dto.FinanceAccountFavouriteUpdateDTO;
 import ovaro.plat4m.service.dto.FinanceCategoryCreateDTO;
 import ovaro.plat4m.service.dto.FinanceIndicatorDTO;
 import ovaro.plat4m.service.dto.FinanceIndicatorsDTO;
@@ -44,6 +46,13 @@ import ovaro.plat4m.service.dto.FinanceManagePayeeUpdateDTO;
 import ovaro.plat4m.service.dto.FinanceResourceDTO;
 import ovaro.plat4m.service.dto.FinanceSnapshotsPerResourceDTO;
 import ovaro.plat4m.service.dto.FinanceTransactionEditorOptionsDTO;
+import ovaro.plat4m.service.dto.FinanceTransactionImportCommitRequestDTO;
+import ovaro.plat4m.service.dto.FinanceTransactionImportCommitResponseDTO;
+import ovaro.plat4m.service.dto.FinanceTransactionImportDTO;
+import ovaro.plat4m.service.dto.FinanceTransactionImportDraftRequestDTO;
+import ovaro.plat4m.service.dto.FinanceTransactionImportHistoryDTO;
+import ovaro.plat4m.service.dto.FinanceTransactionImportRowDTO;
+import ovaro.plat4m.service.dto.FinanceTransactionImportRowUpdateDTO;
 import ovaro.plat4m.service.dto.FinanceTransactionRowDTO;
 import ovaro.plat4m.service.dto.FinanceTransactionUpdateDTO;
 import ovaro.plat4m.service.dto.FinanceTreeNodeDTO;
@@ -59,24 +68,30 @@ public class FinanceAccountResource {
     private final Logger log = LoggerFactory.getLogger(FinanceAccountResource.class);
     private FinanceAccountService financeAccountService;
     private FinanceTransactionService financeTransactionService;
+    private FinanceTransactionImportService financeTransactionImportService;
     private final UserService userService;
 
     public FinanceAccountResource(
         FinanceAccountService financeAccountService,
         FinanceTransactionService financeTransactionService,
+        FinanceTransactionImportService financeTransactionImportService,
         UserService userService
     ) {
         this.financeAccountService = financeAccountService;
         this.financeTransactionService = financeTransactionService;
+        this.financeTransactionImportService = financeTransactionImportService;
         this.userService = userService;
     }
 
     @GetMapping("/accounts")
-    public ResponseEntity<List<FinanceAccountDTO>> getAccounts(@RequestParam(required = false) Integer type) throws IOException {
+    public ResponseEntity<List<FinanceAccountDTO>> getAccounts(
+        @RequestParam(required = false) Integer type,
+        @RequestParam(required = false) Boolean closed
+    ) throws IOException {
         String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
 
         Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
-        List<FinanceAccountDTO> accounts = financeAccountService.getAccounts(u.get(), type, null);
+        List<FinanceAccountDTO> accounts = financeAccountService.getAccounts(u.get(), type, closed);
         return new ResponseEntity<>(accounts, HttpStatus.OK);
     }
 
@@ -254,6 +269,24 @@ public class FinanceAccountResource {
         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
     }
 
+    @GetMapping("/transactions/editor-options/payees/{payeeId}/last-category")
+    public ResponseEntity<FinanceResourceDTO> getLastCategoryForPayee(
+        @PathVariable(name = "payeeId") UUID payeeId,
+        @RequestParam(name = "type") String transactionType
+    ) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        try {
+            return new ResponseEntity<>(
+                financeTransactionService.getLastCategoryForPayee(u.get(), payeeId, transactionType),
+                HttpStatus.OK
+            );
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
     @GetMapping("/transactions/editor-options/tags")
     public ResponseEntity<List<FinanceResourceDTO>> getTransactionTagOptions(
         @RequestParam(name = "query", required = false) String query,
@@ -375,6 +408,19 @@ public class FinanceAccountResource {
         }
     }
 
+    @PutMapping("/accounts/{accountId}/favourite")
+    public ResponseEntity<FinanceAccountDTO> updateAccountFavourite(
+        @PathVariable(name = "accountId") UUID accountId,
+        @RequestBody FinanceAccountFavouriteUpdateDTO update
+    ) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            return new ResponseEntity<>(financeAccountService.updateFavourite(u.get(), accountId, update.isFavourite()), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
     @PutMapping("/account/{accountId}/transactions/{transactionId}")
     public ResponseEntity<FinanceTransactionRowDTO> updateTransaction(
         @PathVariable(name = "accountId") String accountId,
@@ -387,6 +433,41 @@ public class FinanceAccountResource {
         try {
             FinanceTransactionRowDTO saved = financeTransactionService.updateTransaction(u.get(), accountId, transactionId, update);
             return new ResponseEntity<>(saved, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
+    }
+
+    @GetMapping("/account/{accountId}/transactions/{transactionId}")
+    public ResponseEntity<FinanceTransactionRowDTO> getTransaction(
+        @PathVariable(name = "accountId") String accountId,
+        @PathVariable(name = "transactionId") UUID transactionId
+    ) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        try {
+            return new ResponseEntity<>(financeTransactionService.getTransactionRow(u.get(), accountId, transactionId), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    @GetMapping("/account/{accountId}/transactions/{transactionId}/linked-transfer")
+    public ResponseEntity<FinanceTransactionRowDTO> getLinkedTransferTransaction(
+        @PathVariable(name = "accountId") String accountId,
+        @PathVariable(name = "transactionId") UUID transactionId
+    ) throws IOException {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+
+        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        try {
+            return new ResponseEntity<>(
+                financeTransactionService.getLinkedTransferTransactionRow(u.get(), accountId, transactionId),
+                HttpStatus.OK
+            );
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
         } catch (IllegalStateException e) {
@@ -448,6 +529,101 @@ public class FinanceAccountResource {
         try {
             FinanceTransactionRowDTO saved = financeTransactionService.createTransaction(u.get(), accountId, update);
             return new ResponseEntity<>(saved, HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
+    }
+
+    @PostMapping("/account/{accountId}/transaction-imports")
+    public ResponseEntity<FinanceTransactionImportDTO> createTransactionImportDraft(
+        @PathVariable(name = "accountId") String accountId,
+        @RequestBody FinanceTransactionImportDraftRequestDTO request
+    ) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            return new ResponseEntity<>(financeTransactionImportService.createDraft(u.get(), accountId, request), HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
+    }
+
+    @GetMapping("/account/{accountId}/transaction-imports")
+    public ResponseEntity<List<FinanceTransactionImportHistoryDTO>> listTransactionImports(
+        @PathVariable(name = "accountId") String accountId
+    ) throws IOException {
+        Optional<User> u = getCurrentUser();
+        return new ResponseEntity<>(financeTransactionImportService.listImports(u.get(), accountId), HttpStatus.OK);
+    }
+
+    @GetMapping("/transaction-imports")
+    public ResponseEntity<List<FinanceTransactionImportHistoryDTO>> listAllTransactionImports() throws IOException {
+        Optional<User> u = getCurrentUser();
+        return new ResponseEntity<>(financeTransactionImportService.listImports(u.get(), null), HttpStatus.OK);
+    }
+
+    @GetMapping("/transaction-imports/{importId}")
+    public ResponseEntity<FinanceTransactionImportDTO> getTransactionImport(@PathVariable(name = "importId") UUID importId)
+        throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            return new ResponseEntity<>(financeTransactionImportService.getImport(u.get(), importId), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    @PutMapping("/transaction-imports/{importId}/rows/{rowId}")
+    public ResponseEntity<FinanceTransactionImportRowDTO> updateTransactionImportRow(
+        @PathVariable(name = "importId") UUID importId,
+        @PathVariable(name = "rowId") UUID rowId,
+        @RequestBody FinanceTransactionImportRowUpdateDTO update
+    ) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            return new ResponseEntity<>(financeTransactionImportService.updateImportRow(u.get(), importId, rowId, update), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    @PostMapping("/transaction-imports/{importId}/commit")
+    public ResponseEntity<FinanceTransactionImportCommitResponseDTO> commitTransactionImport(
+        @PathVariable(name = "importId") UUID importId,
+        @RequestBody(required = false) FinanceTransactionImportCommitRequestDTO request
+    ) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            return new ResponseEntity<>(financeTransactionImportService.commitImport(u.get(), importId, request), HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
+    }
+
+    @PostMapping("/transaction-imports/{importId}/back-out")
+    public ResponseEntity<Void> backOutTransactionImport(@PathVariable(name = "importId") UUID importId) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            financeTransactionImportService.backOutImport(u.get(), importId);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage(), e);
+        }
+    }
+
+    @PostMapping("/transaction-imports/{importId}/discard")
+    public ResponseEntity<Void> discardTransactionImport(@PathVariable(name = "importId") UUID importId) throws IOException {
+        Optional<User> u = getCurrentUser();
+        try {
+            financeTransactionImportService.discardDraftImport(u.get(), importId);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
         } catch (IllegalStateException e) {

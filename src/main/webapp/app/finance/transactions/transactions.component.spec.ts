@@ -18,6 +18,32 @@ describe('TransactionsComponent', () => {
   const transactionsServiceMock = {
     get: () => of(new HttpResponse({ body: [], headers: new HttpHeaders({ 'X-Total-Count': '0' }) })),
     getEditorOptions: () => of({ categories: [], payees: [] }),
+    getLinkedTransfer: () =>
+      of({
+        id: 'txn-2',
+        accountId: 'account-2',
+        date: '2026-01-02',
+        payeeName: 'Transfer from : Everyday',
+        payeeId: '',
+        memo: null,
+        amount: 25,
+        runningBalance: 200,
+        categoryId: '',
+        categoryName: '',
+        parentCategoryId: '',
+        parentCategoryName: '',
+        splitParent: false,
+        splitChild: false,
+        transferredAccountId: 'account-1',
+        cleared: false,
+        voided: false,
+        number: 1,
+        payment: 0,
+        deposit: 25,
+        displayCategory: '',
+        name: '',
+        type: 0,
+      }),
     update: () => of(),
     create: () => of(),
   };
@@ -29,6 +55,7 @@ describe('TransactionsComponent', () => {
 
   const accountListMock = {
     getSimple: () => of([]),
+    updateFavourite: () => of({ id: 'account-1', favourite: true }),
   };
 
   const cookieServiceMock = {
@@ -55,6 +82,7 @@ describe('TransactionsComponent', () => {
         {
           provide: Router,
           useValue: {
+            navigate: () => Promise.resolve(true),
             routerState: {
               snapshot: {
                 root: { data: { pageTitle: 'Transactions' } },
@@ -125,6 +153,8 @@ describe('TransactionsComponent', () => {
       fxRateToLocal: null,
       fxDateTime: null,
       relatedToAccountId: null,
+      closed: false,
+      favourite: false,
       institution: null,
       startingBalance: 100,
     };
@@ -177,5 +207,72 @@ describe('TransactionsComponent', () => {
     };
 
     expect(component.getSelectedTransactionReadonlyReason()).toBeNull();
+  });
+
+  it('formats transfer payees with account context and payee name', () => {
+    component.accounts = [
+      {
+        id: 'account-1',
+        name: 'Everyday',
+        type: 1,
+        accountType: 'Bank',
+        currencyCode: 'AUD',
+        balance: 0,
+        balanceWarning: '',
+        fxRateToLocal: null,
+        fxDateTime: null,
+        relatedToAccountId: null,
+        closed: false,
+        favourite: false,
+        institution: null,
+        startingBalance: 0,
+      },
+      {
+        id: 'account-2',
+        name: 'Visa Card',
+        type: 1,
+        accountType: 'Credit',
+        currencyCode: 'AUD',
+        balance: 0,
+        balanceWarning: '',
+        fxRateToLocal: null,
+        fxDateTime: null,
+        relatedToAccountId: null,
+        closed: false,
+        favourite: false,
+        institution: null,
+        startingBalance: 0,
+      },
+    ];
+
+    const payeeColumn = component.columnDefs.find(column => 'colId' in column && column.colId === 'payee') as any;
+    const displayValue = payeeColumn.valueGetter({
+      data: {
+        id: 'txn-1',
+        date: '2026-01-02',
+        payeeName: 'Electricity Bill',
+        payeeId: 'payee-1',
+        memo: null,
+        amount: -120,
+        runningBalance: 100,
+        categoryId: '',
+        categoryName: '',
+        parentCategoryId: '',
+        parentCategoryName: '',
+        splitParent: false,
+        splitChild: false,
+        transferredAccountId: 'account-2',
+        cleared: false,
+        voided: false,
+        number: 1,
+        payment: 120,
+        deposit: 0,
+        displayCategory: '',
+        name: '',
+        type: 0,
+      },
+    });
+
+    expect(displayValue).toBe('Transfer to: Visa Card (Electricity Bill)');
   });
 });

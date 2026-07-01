@@ -12,11 +12,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class ApplicationProperties {
 
     private final Liquibase liquibase = new Liquibase();
+    private final MarketData marketData = new MarketData();
 
     // jhipster-needle-application-properties-property
 
     public Liquibase getLiquibase() {
         return liquibase;
+    }
+
+    public MarketData getMarketData() {
+        return marketData;
     }
 
     // jhipster-needle-application-properties-property-getter
@@ -35,6 +40,73 @@ public class ApplicationProperties {
     }
 
     // jhipster-needle-application-properties-property-class
+
+    public static class MarketData {
+
+        private boolean enabled = true;
+        private final TwelveData twelveData = new TwelveData();
+        private final QuoteRefresh quoteRefresh = new QuoteRefresh();
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public TwelveData getTwelveData() {
+            return twelveData;
+        }
+
+        public QuoteRefresh getQuoteRefresh() {
+            return quoteRefresh;
+        }
+    }
+
+    public static class TwelveData {
+
+        private String apiKey;
+
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
+        }
+    }
+
+    public static class QuoteRefresh {
+
+        private String cron = "0 0 8 * * MON-FRI";
+        private String zone = "Australia/Brisbane";
+        private long requestDelayMs = 8000;
+
+        public String getCron() {
+            return cron;
+        }
+
+        public void setCron(String cron) {
+            this.cron = cron;
+        }
+
+        public String getZone() {
+            return zone;
+        }
+
+        public void setZone(String zone) {
+            this.zone = zone;
+        }
+
+        public long getRequestDelayMs() {
+            return requestDelayMs;
+        }
+
+        public void setRequestDelayMs(long requestDelayMs) {
+            this.requestDelayMs = requestDelayMs;
+        }
+    }
 
     private String rapidapiKey;
 

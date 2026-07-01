@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ovaro.plat4m.domain.User;
 import ovaro.plat4m.domain.UserAiSettings;
 import ovaro.plat4m.service.dto.AiModelOptionDTO;
 
@@ -59,6 +61,18 @@ public class AIService {
 
     public Optional<AiTextResponse> generateText(AiServiceCallType callType, String prompt) {
         UserAiSettings settings = aiSettingsService.getCurrentUserSettingsForUse();
+        return generateText(settings, callType, prompt);
+    }
+
+    public Optional<AiTextResponse> generateText(User user, AiServiceCallType callType, String prompt) {
+        Optional<UserAiSettings> settings = aiSettingsService.findSettingsForUser(user);
+        if (settings.isEmpty()) {
+            return Optional.empty();
+        }
+        return generateText(settings.get(), callType, prompt);
+    }
+
+    private Optional<AiTextResponse> generateText(UserAiSettings settings, AiServiceCallType callType, String prompt) {
         if (settings.getGeminiApiKey() == null || settings.getGeminiApiKey().isBlank()) {
             return Optional.empty();
         }
@@ -258,6 +272,8 @@ public class AIService {
     public enum AiServiceCallType {
         DEFAULT,
         AI_ASSISTANT,
+        TRANSACTION_IMPORT,
+        MARKET_DATA,
     }
 
     public record AiClientContext(AiProvider provider, String model, Object client) {}

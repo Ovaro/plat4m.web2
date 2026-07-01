@@ -10,20 +10,63 @@
         <div class="col-auto transactions-account-select-col">
           <p-select
             inputId="transactions-account-select"
-            [options]="accounts!"
+            [options]="accountSelectOptions"
+            [group]="true"
             [(ngModel)]="accountId"
             [filter]="true"
             filterBy="name"
             filterPlaceholder="Search accounts"
             optionLabel="name"
             optionValue="id"
+            optionGroupLabel="label"
+            optionGroupChildren="items"
             placeholder="Select account"
             [showClear]="true"
             appendTo="body"
             styleClass="transactions-account-select"
             panelStyleClass="transactions-account-select-panel"
             (onChange)="onChangeAccount($event)"
-          ></p-select>
+          >
+            <ng-template #selectedItem let-account>
+              <div class="transactions-account-option" *ngIf="account">
+                <span class="transactions-account-option__name">{{ account.name }}</span>
+                <span class="transactions-account-option__meta" *ngIf="account.favourite">Favourite</span>
+                <span class="transactions-account-option__meta" *ngIf="account.closed">Closed</span>
+              </div>
+            </ng-template>
+            <ng-template #group let-group>
+              <div class="transactions-account-group-label">{{ accountGroupValue(group) }}</div>
+            </ng-template>
+            <ng-template #item let-account>
+              <div class="transactions-account-option">
+                <span class="transactions-account-option__name">{{ account.name }}</span>
+                <span class="transactions-account-option__meta" *ngIf="account.favourite">Favourite</span>
+                <span class="transactions-account-option__meta" *ngIf="account.closed">Closed</span>
+              </div>
+            </ng-template>
+          </p-select>
+        </div>
+        <div class="col-auto">
+          <button
+            type="button"
+            class="btn btn-outline-secondary transactions-closed-toggle"
+            [attr.aria-pressed]="showClosedAccounts"
+            [title]="showClosedAccounts ? 'Hide closed accounts' : 'Show closed accounts'"
+            (click)="toggleShowClosedAccounts()"
+          >
+            {{ showClosedAccounts ? 'Open only' : 'Show closed' }}
+          </button>
+        </div>
+        <div class="col-auto">
+          <button
+            type="button"
+            class="btn btn-outline-secondary transactions-favourite-toggle"
+            [disabled]="!accountId || !account || isUpdatingAccountFavourite"
+            [title]="account?.favourite ? 'Remove from favourites' : 'Add to favourites'"
+            (click)="toggleSelectedAccountFavourite()"
+          >
+            {{ account?.favourite ? '★ Favourite' : '☆ Favourite' }}
+          </button>
         </div>
         <div class="col-auto">
           <button
@@ -58,6 +101,16 @@
               </label>
             </div>
           </div>
+        </div>
+        <div class="col-auto">
+          <button
+            type="button"
+            class="btn btn-outline-secondary transactions-import-button"
+            [disabled]="!accountId || !account"
+            (click)="openImportDialog()"
+          >
+            Import
+          </button>
         </div>
         <div class="col-auto">
           <button
@@ -122,10 +175,510 @@
         (saveTransaction)="saveTransaction($event)"
         (newTransaction)="openAddTransaction($event)"
         (editTransaction)="openEditMode()"
+        (openLinkedTransfer)="openLinkedTransfer()"
         (deleteTransaction)="deleteSelectedTransaction()"
         (cancelEditor)="closeEditor()"
       ></jhi-transaction-editor>
     </aside>
   </div>
+  <p-dialog
+    header="AI Transaction Import"
+    [(visible)]="importDialogVisible"
+    [modal]="true"
+    [style]="{ width: '90rem', maxWidth: '96vw' }"
+    [draggable]="false"
+    (onHide)="closeImportDialog()"
+  >
+    <div *ngIf="account" class="import-dialog">
+      <div class="import-dialog__header">
+        <div>
+          <strong>{{ account.name }}</strong>
+          <div class="import-dialog__meta">{{ account.currencyCode }} account</div>
+        </div>
+        <div class="import-dialog__tabs">
+          <button
+            type="button"
+            class="btn btn-sm"
+            [class.btn-primary]="importDialogTab === 'new'"
+            [class.btn-outline-secondary]="importDialogTab !== 'new'"
+            (click)="importDialogTab = 'new'"
+          >
+            New Import
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm"
+            [class.btn-primary]="importDialogTab === 'history'"
+            [class.btn-outline-secondary]="importDialogTab !== 'history'"
+            (click)="importDialogTab = 'history'"
+          >
+            History
+          </button>
+        </div>
+      </div>
+
+      <div class="alert alert-danger" *ngIf="importError">{{ importError }}</div>
+
+      <div *ngIf="importDialogTab === 'new'" class="import-dialog__content">
+        <div *ngIf="!importDraft" class="import-dialog__start">
+          <div *ngIf="!importBusy; else importProcessingState">
+            <label class="import-dialog__label" for="import-raw-content">Paste copied transaction content</label>
+            <textarea
+              id="import-raw-content"
+              class="form-control import-dialog__textarea"
+              [(ngModel)]="importRawContent"
+              placeholder="Paste the table, statement rows, or copied banking content here"
+              (paste)="onImportPaste($event)"
+            ></textarea>
+
+            <label class="import-dialog__label" for="expected-balance"
+              >Ending balance (optional, only needed when no running balance is present)</label
+            >
+            <input
+              id="expected-balance"
+              class="form-control import-dialog__balance"
+              type="number"
+              step="0.01"
+              [(ngModel)]="expectedEndingBalance"
+              placeholder="Optional ending balance"
+            />
+          </div>
+
+          <ng-template #importProcessingState>
+            <div class="import-dialog__processing import-dialog__processing--solo">
+              <div class="import-dialog__processing-visual" aria-hidden="true">
+                <span class="import-dialog__pulse import-dialog__pulse--one"></span>
+                <span class="import-dialog__pulse import-dialog__pulse--two"></span>
+                <span class="import-dialog__pulse import-dialog__pulse--three"></span>
+                <div class="import-dialog__orbital-ring">
+                  <span class="import-dialog__orbital-dot"></span>
+                </div>
+              </div>
+              <div class="import-dialog__processing-copy">
+                <p class="import-dialog__processing-title">AI is unpacking your paste</p>
+                <p class="import-dialog__processing-message">{{ importProgressMessages[importProgressMessageIndex] }}...</p>
+                <div class="import-dialog__processing-steps">
+                  <span
+                    *ngFor="let message of importProgressMessages; let i = index"
+                    class="import-dialog__processing-step"
+                    [class.import-dialog__processing-step--active]="i === importProgressMessageIndex"
+                  >
+                    {{ message }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </ng-template>
+
+          <div class="import-dialog__actions" *ngIf="!importBusy">
+            <button type="button" class="btn btn-primary" [disabled]="importBusy" (click)="createImportDraft()">Analyse Paste</button>
+          </div>
+        </div>
+
+        <div *ngIf="importDraft as draft" class="import-dialog__review">
+          <div class="import-dialog__summary">
+            <div><strong>Status:</strong> {{ draft.status }}</div>
+            <div><strong>Rows:</strong> {{ draft.totalRows }}</div>
+            <div><strong>Flagged:</strong> {{ draft.flaggedRows }}</div>
+            <div><strong>Correlation:</strong> {{ draft.correlationStatus }}</div>
+          </div>
+          <p class="import-dialog__correlation">{{ draft.correlationMessage }}</p>
+          <div class="import-dialog__resolved-toggle" *ngIf="countHiddenConfirmedDuplicateRows(draft.rows) > 0">
+            <span
+              >{{ countHiddenConfirmedDuplicateRows(draft.rows) }} duplicate
+              {{ countHiddenConfirmedDuplicateRows(draft.rows) === 1 ? 'row is' : 'rows are' }} hidden from review</span
+            >
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              (click)="showConfirmedDuplicateRows = !showConfirmedDuplicateRows"
+            >
+              {{ showConfirmedDuplicateRows ? 'Hide confirmed duplicates' : 'Show confirmed duplicates' }}
+            </button>
+          </div>
+          <div class="import-dialog__resolved-toggle" *ngIf="countHiddenDuplicateRows(draft.rows) > 0 || showDuplicateRows">
+            <span
+              >{{ countHiddenDuplicateRows(draft.rows) }} possible duplicate
+              {{ countHiddenDuplicateRows(draft.rows) === 1 ? 'row is' : 'rows are' }} hidden from review</span
+            >
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="showDuplicateRows = !showDuplicateRows">
+              {{ showDuplicateRows ? 'Hide duplicates' : 'Show duplicates' }}
+            </button>
+          </div>
+          <div class="import-dialog__resolved-toggle" *ngIf="countHiddenAcceptedRows(draft.rows) > 0">
+            <span
+              >{{ countHiddenAcceptedRows(draft.rows) }} accepted
+              {{ countHiddenAcceptedRows(draft.rows) === 1 ? 'row is' : 'rows are' }} hidden from review</span
+            >
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="showAcceptedRows = !showAcceptedRows">
+              {{ showAcceptedRows ? 'Hide accepted' : 'Show accepted' }}
+            </button>
+          </div>
+          <div class="import-dialog__resolved-toggle" *ngIf="countHiddenIgnoredRows(draft.rows) > 0">
+            <span
+              >{{ countHiddenIgnoredRows(draft.rows) }} ignored
+              {{ countHiddenIgnoredRows(draft.rows) === 1 ? 'row is' : 'rows are' }} hidden from review</span
+            >
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="showIgnoredRows = !showIgnoredRows">
+              {{ showIgnoredRows ? 'Hide ignored' : 'Show ignored' }}
+            </button>
+          </div>
+          <div class="import-dialog__toolbar">
+            <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="importBusy" (click)="clearAllImportMemos()">
+              Clear all memos
+            </button>
+          </div>
+
+          <div class="import-dialog__table-wrapper">
+            <table class="table table-sm import-dialog__table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>Payee</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Review</th>
+                </tr>
+              </thead>
+              <tbody>
+                <ng-container *ngFor="let row of getVisibleImportRows(draft.rows)">
+                  <tr
+                    [class.import-dialog__row--ok]="getImportRowState(row) === 'ok'"
+                    [class.import-dialog__row--warning]="getImportRowState(row) === 'warning'"
+                    [class.import-dialog__row--duplicate]="getImportRowState(row) === 'duplicate'"
+                    [class.import-dialog__row--transfer]="getImportRowState(row) === 'transfer'"
+                    class="import-dialog__row import-dialog__row--primary"
+                  >
+                    <td rowspan="2">
+                      <span class="import-dialog__status-badge" [attr.data-state]="getImportRowState(row)" [title]="getImportRowLabel(row)">
+                        <fa-icon [icon]="getImportRowIcon(row)"></fa-icon>
+                      </span>
+                    </td>
+                    <td rowspan="2">{{ row.rowIndex + 1 }}</td>
+                    <td rowspan="2"><input class="form-control form-control-sm" type="date" [(ngModel)]="row.date" /></td>
+                    <td>
+                      <div class="import-dialog__field" [class.import-dialog__field--transfer]="isTransferDisplayRow(row)">
+                        <ng-container *ngIf="isTransferDisplayRow(row); else importPayeeField">
+                          <label class="import-dialog__subfield-label">Transfer account</label>
+                          <p-autocomplete
+                            [(ngModel)]="row.transferAccountControl"
+                            [suggestions]="importTransferAccountSuggestions[row.id] || transferAccountOptions"
+                            optionLabel="name"
+                            placeholder="Transfer account"
+                            [showClear]="true"
+                            [forceSelection]="true"
+                            [virtualScroll]="true"
+                            [virtualScrollItemSize]="40"
+                            appendTo="body"
+                            styleClass="transaction-editor__select"
+                            panelStyleClass="transaction-editor__select-panel"
+                            (completeMethod)="searchImportTransferAccounts($event, row)"
+                            (onSelect)="onImportTransferAccountSelected(row)"
+                            (onClear)="clearImportTransferAccount(row)"
+                          ></p-autocomplete>
+                        </ng-container>
+                        <ng-template #importPayeeField>
+                          <p-autocomplete
+                            [(ngModel)]="row.payeeControl"
+                            [suggestions]="payeeSuggestions[row.id] || []"
+                            optionLabel="name"
+                            placeholder="Payee name"
+                            [showClear]="true"
+                            [forceSelection]="false"
+                            [virtualScroll]="true"
+                            [virtualScrollItemSize]="40"
+                            appendTo="body"
+                            styleClass="transaction-editor__select"
+                            panelStyleClass="transaction-editor__select-panel"
+                            (completeMethod)="searchPayees($event, row)"
+                            (onSelect)="onImportPayeeSelected(row)"
+                            (onClear)="clearImportPayee(row)"
+                          ></p-autocomplete>
+                        </ng-template>
+                        <div
+                          class="import-dialog__field-message import-dialog__field-message--warning"
+                          *ngIf="!isTransferDisplayRow(row) && showNewPayeeMessage(row)"
+                        >
+                          New Payee - Please Check
+                        </div>
+                        <div
+                          class="import-dialog__field-message import-dialog__field-message--warning"
+                          *ngIf="isTransferDisplayRow(row) && row.transferNeedsReview"
+                        >
+                          Transfer account required
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <ng-container *ngIf="isTransferDisplayRow(row); else importCategoryField">
+                        <div class="import-dialog__transfer-note import-dialog__transfer-note--primary">
+                          <fa-icon icon="exchange-alt"></fa-icon>
+                          <span>Transfer</span>
+                          <span
+                            class="import-dialog__transfer-info"
+                            *ngIf="getTransferReviewTooltip(row)"
+                            [title]="getTransferReviewTooltip(row)"
+                            aria-label="Transfer review info"
+                            >i</span
+                          >
+                        </div>
+                        <div class="import-dialog__transfer-caption">No category for internal transfers</div>
+                      </ng-container>
+                      <ng-template #importCategoryField>
+                        <div
+                          class="import-dialog__field"
+                          [class.import-dialog__field--error]="showCategoryRequiredMessage(row)"
+                          [class.import-dialog__field--warning]="showCategoryCheckMessage(row)"
+                        >
+                          <p-treeselect
+                            [(ngModel)]="row.categoryControl"
+                            [options]="importCategoryOptions"
+                            selectionMode="single"
+                            placeholder="No category"
+                            [showClear]="true"
+                            [filter]="true"
+                            filterBy="label"
+                            filterMode="lenient"
+                            filterPlaceholder="Search categories"
+                            scrollHeight="24rem"
+                            [virtualScroll]="true"
+                            [virtualScrollItemSize]="32"
+                            [loading]="importCategoryLoading"
+                            appendTo="body"
+                            containerStyleClass="transaction-editor__select transaction-editor__category-select"
+                            panelStyleClass="transaction-editor__select-panel transaction-editor__tree-panel"
+                            (ngModelChange)="onImportCategoryChanged(row)"
+                            (onShow)="positionTreeSelectPanelAbove($event)"
+                            (onClear)="clearImportCategory(row)"
+                          >
+                            <ng-template #value let-value let-placeholder="placeholder">
+                              <span
+                                class="transaction-editor__category-value"
+                                [class.transaction-editor__category-value--placeholder]="!value"
+                              >
+                                {{ getCategoryTreeSelectLabel(value, placeholder) }}
+                              </span>
+                            </ng-template>
+                          </p-treeselect>
+                          <div class="import-dialog__field-message" *ngIf="showCategoryRequiredMessage(row)">Category required</div>
+                          <div
+                            class="import-dialog__field-message import-dialog__field-message--warning"
+                            *ngIf="showCategoryCheckMessage(row)"
+                          >
+                            Please check category
+                          </div>
+                        </div>
+                      </ng-template>
+                    </td>
+                    <td><input class="form-control form-control-sm" type="number" step="0.01" [(ngModel)]="row.amount" /></td>
+                    <td rowspan="2">
+                      <div class="import-dialog__review-actions">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-success"
+                          *ngIf="!row.ignored && !row.duplicateConfirmed"
+                          [disabled]="importBusy"
+                          (click)="acceptImportRow(row)"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          *ngIf="!row.ignored && !row.duplicateConfirmed"
+                          [disabled]="importBusy"
+                          (click)="ignoreImportRow(row)"
+                        >
+                          Skip
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          *ngIf="isAcceptedReviewRow(row) || row.ignored"
+                          [disabled]="importBusy"
+                          (click)="reassessImportRow(row)"
+                        >
+                          Reassess
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr
+                    [class.import-dialog__row--ok]="getImportRowState(row) === 'ok'"
+                    [class.import-dialog__row--warning]="getImportRowState(row) === 'warning'"
+                    [class.import-dialog__row--duplicate]="getImportRowState(row) === 'duplicate'"
+                    [class.import-dialog__row--transfer]="getImportRowState(row) === 'transfer'"
+                    class="import-dialog__row import-dialog__row--secondary"
+                  >
+                    <td colspan="2">
+                      <ng-container *ngIf="isTransferDisplayRow(row); else importMemoField">
+                        <div class="import-dialog__field import-dialog__field--transfer">
+                          <label class="import-dialog__subfield-label">{{ getImportPayeeLabel(row) }}</label>
+                          <p-autocomplete
+                            [(ngModel)]="row.payeeControl"
+                            [suggestions]="payeeSuggestions[row.id] || []"
+                            optionLabel="name"
+                            placeholder="Payee name"
+                            [showClear]="true"
+                            [forceSelection]="false"
+                            [virtualScroll]="true"
+                            [virtualScrollItemSize]="40"
+                            appendTo="body"
+                            styleClass="transaction-editor__select"
+                            panelStyleClass="transaction-editor__select-panel"
+                            (completeMethod)="searchPayees($event, row)"
+                            (onSelect)="onImportPayeeSelected(row)"
+                            (onClear)="clearImportPayee(row)"
+                          ></p-autocomplete>
+                          <div class="import-dialog__field-message import-dialog__field-message--warning" *ngIf="showNewPayeeMessage(row)">
+                            New Payee - Please Check
+                          </div>
+                          <div class="import-dialog__transfer-caption">Optional counterparty or reference</div>
+                        </div>
+                      </ng-container>
+                      <ng-template #importMemoField>
+                        <label class="import-dialog__subfield-label">Memo</label>
+                        <input class="form-control form-control-sm" [(ngModel)]="row.memo" />
+                      </ng-template>
+                    </td>
+                    <td colspan="2">
+                      <ng-container *ngIf="isTransferDisplayRow(row); else importRowMessages">
+                        <label class="import-dialog__subfield-label">Memo</label>
+                        <input class="form-control form-control-sm" [(ngModel)]="row.memo" />
+                        <div class="import-dialog__review-message" *ngIf="row.reviewMessage">{{ row.reviewMessage }}</div>
+                      </ng-container>
+                      <ng-template #importRowMessages>
+                        <div class="import-dialog__review-message" *ngIf="row.reviewMessage">{{ row.reviewMessage }}</div>
+                      </ng-template>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary import-dialog__duplicate-action"
+                        *ngIf="isTransferDisplayRow(row)"
+                        [disabled]="importBusy"
+                        (click)="treatTransferAsNormalTransaction(row)"
+                      >
+                        {{ getTransferConvertActionLabel(row) }}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary import-dialog__duplicate-action"
+                        *ngIf="!isTransferDisplayRow(row)"
+                        [disabled]="importBusy"
+                        (click)="matchTransferToInternalAccount(row)"
+                      >
+                        Convert to Transfer...
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary import-dialog__duplicate-action"
+                        *ngIf="row.duplicateSuspected"
+                        [disabled]="!row.duplicateTransactionId"
+                        [title]="
+                          row.duplicateTransactionId
+                            ? 'View the matched transaction'
+                            : 'Preview unavailable for this draft yet. Re-opened drafts should refresh this.'
+                        "
+                        (click)="openDuplicatePreview(row)"
+                      >
+                        View duplicate
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary import-dialog__duplicate-action"
+                        *ngIf="row.duplicateConfirmed"
+                        [disabled]="importBusy"
+                        (click)="reEvaluateDuplicate(row)"
+                      >
+                        Re-evaluate
+                      </button>
+                      <div class="import-dialog__duplicate-help" *ngIf="row.duplicateSuspected && !row.duplicateTransactionId">
+                        Preview is being refreshed for this draft.
+                      </div>
+                    </td>
+                  </tr>
+                </ng-container>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="import-dialog__actions">
+            <div class="alert alert-danger import-dialog__commit-error" *ngIf="importError">{{ importError }}</div>
+            <button type="button" class="btn btn-outline-secondary" [disabled]="importBusy" (click)="startImportOver()">Start Over</button>
+            <button type="button" class="btn btn-primary" [disabled]="importBusy" (click)="commitImport()">Commit Import</button>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="importDialogTab === 'history'" class="import-dialog__content">
+        <div *ngIf="importHistoryLoading">Loading import history...</div>
+        <table class="table table-sm import-dialog__table" *ngIf="!importHistoryLoading">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Account</th>
+              <th>Status</th>
+              <th>Rows</th>
+              <th>Flagged</th>
+              <th>Correlation</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of importHistory">
+              <td>{{ item.createdDateTime | date: 'medium' }}</td>
+              <td>{{ item.accountName }}</td>
+              <td>{{ item.status }}</td>
+              <td>{{ item.totalRows }}</td>
+              <td>{{ item.flaggedRows }}</td>
+              <td>{{ item.correlationStatus }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger"
+                  [disabled]="item.status !== 'IMPORTED' || importBusy"
+                  (click)="backOutImport(item)"
+                >
+                  Back out import
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="importHistory.length === 0">
+              <td colspan="7">No imports for this account yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </p-dialog>
+  <p-dialog
+    header="Matched Existing Transaction"
+    [(visible)]="duplicatePreviewVisible"
+    [modal]="true"
+    [style]="{ width: '72rem', maxWidth: '96vw' }"
+    [draggable]="false"
+    (onHide)="closeDuplicatePreview()"
+  >
+    <div class="import-dialog__duplicate-preview" *ngIf="duplicatePreviewVisible">
+      <div *ngIf="duplicatePreviewLoading" class="import-dialog__duplicate-loading">Loading duplicate transaction…</div>
+      <div
+        class="import-dialog__duplicate-target"
+        *ngIf="!duplicatePreviewLoading && duplicatePreviewRow && formatDuplicateTarget(duplicatePreviewRow) as duplicateTarget"
+      >
+        Matches: {{ duplicateTarget }}
+      </div>
+      <jhi-transaction-editor
+        *ngIf="!duplicatePreviewLoading && duplicatePreviewTransaction"
+        [transaction]="duplicatePreviewTransaction"
+        [mode]="'view'"
+        [dialogView]="true"
+        [currencyCode]="account?.currencyCode ?? 'AUD'"
+        [currentAccountId]="accountId"
+        [accounts]="transferAccountOptions"
+        (cancelEditor)="closeDuplicatePreview()"
+      ></jhi-transaction-editor>
+    </div>
+  </p-dialog>
   <!-- [sideBar]="true" -->
 </div>

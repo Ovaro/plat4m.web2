@@ -40,4 +40,9 @@ public interface FinancePayeeRepository extends JpaRepository<FinancePayee, Stri
     );
 
     Optional<FinancePayee> findByUserGuidAndNameIgnoreCase(String userGuid, String name);
+
+    @Query(
+        "select case when count(p) > 0 then true else false end from FinancePayee p where p.userGuid = :userGuid and p.parentId = :parentId and (p.hidden = false or p.hidden is null)"
+    )
+    boolean existsVisibleChildByUserGuidAndParentId(@Param("userGuid") String userGuid, @Param("parentId") String parentId);
 }

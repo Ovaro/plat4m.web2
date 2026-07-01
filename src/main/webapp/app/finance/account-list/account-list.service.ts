@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
@@ -24,5 +24,11 @@ export class AccountList {
 
   getByType(type: number): Observable<FinancialAccount[]> {
     return this.http.get<FinancialAccount[]>(this.applicationConfigService.getEndpointFor('api/accounts?type=' + String(type)));
+  }
+
+  updateFavourite(accountId: string, favourite: boolean): Observable<FinancialAccount> {
+    return this.http.put<FinancialAccount>(this.applicationConfigService.getEndpointFor(`api/accounts/${accountId}/favourite`), {
+      favourite,
+    });
   }
 }

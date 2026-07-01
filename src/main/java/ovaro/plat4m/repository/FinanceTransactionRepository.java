@@ -3,7 +3,6 @@ package ovaro.plat4m.repository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -68,6 +67,25 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
             "order by f.date desc, f.number desc, f.id desc"
     )
     List<FinanceTransaction> findAllByUserGuidAndPayeeIds(@Param("userGuid") String userGuid, @Param("payeeIds") List<String> payeeIds);
+
+    @Query(
+        "select f from FinanceTransaction f " +
+            "where f.userGuid = :userGuid " +
+            "and f.voided = false " +
+            "and f.recurring = false " +
+            "and f.splitChild = false " +
+            "and f.transferredAccountId is null " +
+            "and f.category is not null " +
+            "and f.payeeId in :payeeIds " +
+            "and ((:deposit = true and f.amount > 0) or (:deposit = false and f.amount < 0)) " +
+            "order by f.date desc, f.number desc, f.id desc"
+    )
+    List<FinanceTransaction> findRecentCategorisedByUserGuidAndPayeeIdsAndDirection(
+        @Param("userGuid") String userGuid,
+        @Param("payeeIds") List<String> payeeIds,
+        @Param("deposit") boolean deposit,
+        Pageable pageable
+    );
 
     @Query(
         "SELECT sum(amount) as balance FROM FinanceTransaction f WHERE f.accountId = :accountId AND f.voided = FALSE AND  f.splitChild = FALSE AND f.recurring = FALSE"
@@ -138,10 +156,10 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
         value = "select a.id as accountId, a.name as accountName, f.security_id as securityId, u.type as securityType, u.name as name, u.known_symbol as symbol, u.symbol as userSymbol, s.currency_code as currencyCode, " +
             "sum(quantity) FILTER (WHERE f.investment_activity_type in (1,9,12,16,32)) as addSec, " +
             "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
-            "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName " +
+            "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName, s.exchange_mic as exchangeMic " +
             "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
             "where f.account_id = :account_id and u.type in (1,2,7,10) and f.user_guid = :user_guid " +
-            "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name;",
+            "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name, s.exchange_mic;",
         nativeQuery = true
     )
     List<FinanceSecurityInvestmentSummary> findSecurityInvestmentTransactionsForAccountId(
@@ -153,10 +171,10 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
         value = "select a.id as accountId, a.name as accountName, f.security_id as securityId, u.type as securityType, u.name as name, u.known_symbol as symbol, u.symbol as userSymbol, s.currency_code as currencyCode, " +
             "sum(quantity) FILTER (WHERE f.investment_activity_type in (1,9,12,16,32)) as addSec, " +
             "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
-            "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName " +
+            "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName, s.exchange_mic as exchangeMic " +
             "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
             "where u.type in (1,2,7,10) and f.user_guid = :user_guid and a.closed = false " +
-            "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name;",
+            "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name, s.exchange_mic;",
         nativeQuery = true
     )
     List<FinanceSecurityInvestmentSummary> findSecurityInvestmentTransactionsForOpenAccounts(@Param("user_guid") String userGuid);
@@ -165,10 +183,10 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
         value = "select a.id as accountId, a.name as accountName, f.security_id as securityId, u.type as securityType, u.name as name, u.known_symbol as symbol, u.symbol as userSymbol, s.currency_code as currencyCode, " +
             "sum(quantity) FILTER (WHERE f.investment_activity_type in (1,9,12,16,32)) as addSec, " +
             "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
-            "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName " +
+            "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName, s.exchange_mic as exchangeMic " +
             "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
             "where u.type in (1,2,7,10) and f.user_guid = :user_guid and a.closed = false AND f.date < :date " +
-            "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name;",
+            "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name, s.exchange_mic;",
         nativeQuery = true
     )
     List<FinanceSecurityInvestmentSummary> findSecurityInvestmentTransactionsForOpenAccountsUptoDate(
@@ -179,6 +197,45 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
     List<FinanceTransaction> findByUserGuidAndSecurityIdOrderByDateDesc(String userGuid, String securityId);
 
     List<FinanceTransaction> findByUserGuidAndInvestmentOrderByDateDesc(String userGuid, boolean investment);
+
+    List<FinanceTransaction> findAllByImportId(UUID importId);
+
+    @Query(
+        value = "select count(*) from fin_transaction f " +
+            "where f.user_guid = :user_guid " +
+            "and f.account_id = :account_id " +
+            "and not f.voided and not f.split_child and not f.recurring " +
+            "and (" +
+            "  f.date > :date " +
+            "  or (f.date = :date and coalesce(f.number, -2147483648) > coalesce(:number, -2147483648)) " +
+            "  or (f.date = :date and coalesce(f.number, -2147483648) = coalesce(:number, -2147483648) and f.id > cast(:transaction_id as uuid))" +
+            ")",
+        nativeQuery = true
+    )
+    long countTransactionsBeforeInDefaultSort(
+        @Param("user_guid") String userGuid,
+        @Param("account_id") String accountId,
+        @Param("date") LocalDate date,
+        @Param("number") Integer number,
+        @Param("transaction_id") String transactionId
+    );
+
+    @Query(
+        "select f from FinanceTransaction f " +
+            "where f.userGuid = :userGuid " +
+            "and f.accountId = :accountId " +
+            "and f.date between :startDate and :endDate " +
+            "and f.voided = false " +
+            "and f.splitChild = false " +
+            "and f.recurring = false " +
+            "order by f.date asc, f.number asc, f.id asc"
+    )
+    List<FinanceTransaction> findAllByUserGuidAndAccountIdAndDateBetween(
+        @Param("userGuid") String userGuid,
+        @Param("accountId") String accountId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
 
     @Query(
         value = "with data as (" +

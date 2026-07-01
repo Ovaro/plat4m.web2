@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +54,14 @@ public class AiSettingsService {
 
     public UserAiSettings getCurrentUserSettingsForUse() {
         return getOrCreateCurrentUserSettings();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<UserAiSettings> findSettingsForUser(User user) {
+        if (user == null || user.getLogin() == null || user.getLogin().isBlank()) {
+            return Optional.empty();
+        }
+        return userAiSettingsRepository.findOneByUserLogin(user.getLogin());
     }
 
     @Transactional(readOnly = true)

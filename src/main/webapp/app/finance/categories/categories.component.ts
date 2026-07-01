@@ -1,12 +1,25 @@
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DEFAULT_CURRENCY_CODE, Inject, LOCALE_ID, OnInit, inject } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
+import { ApexAxisChartSeries, NgApexchartsModule } from 'ng-apexcharts';
 
 import SharedModule from 'app/shared/shared.module';
 import { FinancialAccount, FinancialTransaction } from '../finance.model';
 import { AccountList } from '../account-list/account-list.service';
 import { FinanceManageDataService } from '../manage-data/finance-manage-data.service';
 import { ManagedCategory, ManagedCategoryUpdate } from '../manage-data/finance-manage-data.types';
+import {
+  TRANSACTION_HISTORY_RANGE_OPTIONS,
+  TransactionAmountChartOptions,
+  TransactionHistoryRange,
+  TransactionHistoryRangeOption,
+  buildTransactionPoints,
+  createTransactionChartOptions,
+  createTrendlineSeries,
+  filterTransactionsByRange,
+  formatCurrencyAmount,
+  inferTransactionCurrencyCode,
+} from '../transaction-history-dialog.utils';
 import { TransactionEditorComponent } from '../transactions/transaction-editor.component';
 import { TransactionOption } from '../transactions/transactions.types';
 
@@ -16,7 +29,7 @@ type CategoryFilter = 'all' | 'category' | 'who';
   selector: 'jhi-categories',
   templateUrl: './categories.component.html',
   styleUrls: ['./categories.component.scss'],
-  imports: [SharedModule, ReactiveFormsModule, DialogModule, TransactionEditorComponent],
+  imports: [SharedModule, ReactiveFormsModule, DialogModule, NgApexchartsModule, TransactionEditorComponent],
 })
 export class CategoriesComponent implements OnInit {
   protected categories: ManagedCategory[] = [];
@@ -35,9 +48,15 @@ export class CategoriesComponent implements OnInit {
   protected selectedTransactionCategory: ManagedCategory | null = null;
   protected categoryTransactions: FinancialTransaction[] = [];
   protected categoryTransactionsFilter = '';
+  protected categoryTransactionsRange: TransactionHistoryRange = 'all';
+  protected categoryTrendlineVisible = false;
   protected selectedCategoryTransaction: FinancialTransaction | null = null;
   protected transactionEditorVisible = false;
   protected expandedCategoryIds = new Set<string>();
+  protected readonly categoryTransactionRangeOptions: TransactionHistoryRangeOption[] = TRANSACTION_HISTORY_RANGE_OPTIONS;
+  protected readonly transactionAmountChartOptions: TransactionAmountChartOptions = createTransactionChartOptions(value =>
+    this.formatTransactionAmount(value),
+  );
 
   protected readonly form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -49,6 +68,11 @@ export class CategoriesComponent implements OnInit {
   private readonly manageDataService = inject(FinanceManageDataService);
   private readonly accountListService = inject(AccountList);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
+
+  constructor(
+    @Inject(LOCALE_ID) private readonly locale: string,
+    @Inject(DEFAULT_CURRENCY_CODE) private readonly defaultCurrencyCode: string,
+  ) {}
 
   ngOnInit(): void {
     this.load();
@@ -86,17 +110,21 @@ export class CategoriesComponent implements OnInit {
       this.selectedTransactionCategory = null;
       this.categoryTransactions = [];
       this.categoryTransactionsFilter = '';
+      this.categoryTransactionsRange = 'all';
+      this.categoryTrendlineVisible = false;
       this.transactionsErrorMessage = null;
+      this.closeTransactionEditor();
     }
   }
 
   get filteredCategoryTransactions(): FinancialTransaction[] {
+    const durationFilteredTransactions = this.filterTransactionsByRange(this.categoryTransactions, this.categoryTransactionsRange);
     const query = this.categoryTransactionsFilter.trim().toLowerCase();
     if (!query) {
-      return this.categoryTransactions;
+      return durationFilteredTransactions;
     }
 
-    return this.categoryTransactions.filter(transaction =>
+    return durationFilteredTransactions.filter(transaction =>
       [
         transaction.date,
         transaction.payeeName,
@@ -110,6 +138,45 @@ export class CategoriesComponent implements OnInit {
       ]
         .filter(Boolean)
         .some(value => String(value).toLowerCase().includes(query)),
+    );
+  }
+
+  get categoryTransactionsSum(): number {
+    return this.filteredCategoryTransactions.reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0);
+  }
+
+  get categoryTransactionsAverage(): number {
+    if (this.filteredCategoryTransactions.length === 0) {
+      return 0;
+    }
+    return this.categoryTransactionsSum / this.filteredCategoryTransactions.length;
+  }
+
+  get categoryTransactionSeries(): ApexAxisChartSeries {
+    const transactionSeries = buildTransactionPoints(this.filteredCategoryTransactions);
+
+    const series: ApexAxisChartSeries = [
+      {
+        name: 'Transaction amount',
+        data: transactionSeries,
+      },
+    ];
+
+    if (this.categoryTrendlineVisible) {
+      const trendlineSeries = createTrendlineSeries(transactionSeries);
+      if (trendlineSeries) {
+        series.push(trendlineSeries.series);
+      }
+    }
+
+    return series;
+  }
+
+  get categoryTransactionsCurrencyCode(): string {
+    return inferTransactionCurrencyCode(
+      this.filteredCategoryTransactions,
+      accountId => this.getAccountCurrency(accountId),
+      this.defaultCurrencyCode,
     );
   }
 
@@ -172,6 +239,8 @@ export class CategoriesComponent implements OnInit {
     this.selectedTransactionCategory = category;
     this.categoryTransactions = [];
     this.categoryTransactionsFilter = '';
+    this.categoryTransactionsRange = 'all';
+    this.categoryTrendlineVisible = false;
     this.transactionsErrorMessage = null;
     this.transactionsLoading = true;
     this.manageDataService.getCategoryTransactions(category.id).subscribe({
@@ -308,6 +377,22 @@ export class CategoriesComponent implements OnInit {
     return transaction.amount >= 0 ? 'manage-amount manage-amount--positive' : 'manage-amount manage-amount--negative';
   }
 
+  setCategoryTransactionsRange(range: TransactionHistoryRange): void {
+    this.categoryTransactionsRange = range;
+  }
+
+  isCategoryTransactionsRangeSelected(range: TransactionHistoryRange): boolean {
+    return this.categoryTransactionsRange === range;
+  }
+
+  toggleCategoryTrendline(): void {
+    this.categoryTrendlineVisible = !this.categoryTrendlineVisible;
+  }
+
+  formatTransactionAmount(value: number | null | undefined): string {
+    return formatCurrencyAmount(Number(value ?? 0), this.locale, this.categoryTransactionsCurrencyCode);
+  }
+
   noopEditorAction(): void {
     // Dialog drill-down is read-only; editing continues to live in the account register.
   }
@@ -394,5 +479,9 @@ export class CategoriesComponent implements OnInit {
     }
 
     return transaction.parentCategoryName ? `${transaction.parentCategoryName}: ${transaction.categoryName}` : transaction.categoryName;
+  }
+
+  private filterTransactionsByRange(transactions: FinancialTransaction[], range: TransactionHistoryRange): FinancialTransaction[] {
+    return filterTransactionsByRange(transactions, range);
   }
 }

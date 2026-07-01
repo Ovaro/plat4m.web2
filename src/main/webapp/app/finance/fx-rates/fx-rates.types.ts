@@ -4,6 +4,7 @@ export interface FinanceFXRate {
   fromIsoCode: string;
   toIsoCode: string;
   rate: number;
+  favourite?: boolean;
 }
 
 export interface FinanceFXHistoryPoint {

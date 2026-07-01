@@ -1,8 +1,14 @@
 @use '../manage-data/manage-data';
 
 .manage-table--fx .manage-table__row {
-  grid-template-columns: minmax(210px, 1.4fr) 140px minmax(160px, 1fr) 96px;
+  grid-template-columns: minmax(210px, 1.4fr) 140px minmax(160px, 1fr) 180px;
   align-items: center;
+}
+
+.manage-table__actions--fx {
+  width: auto;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .manage-table--fx-history .manage-table__row {
@@ -24,6 +30,40 @@
 
 .manage-rate {
   font-variant-numeric: tabular-nums;
+}
+
+.manage-page__header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.manage-table-section + .manage-table-section {
+  margin-top: 18px;
+}
+
+.manage-table-section__title {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-colours-text-secondary, inherit);
+}
+
+.manage-inline-action {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--app-colours-primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.manage-inline-action:hover {
+  text-decoration: underline;
 }
 
 .manage-import-card {
@@ -48,6 +88,23 @@
   gap: 5px;
   margin: 0;
   font-size: 0.72rem;
+}
+
+.manage-import-card--dialog {
+  margin-bottom: 0;
+  grid-template-columns: minmax(190px, 1fr) 5.5rem minmax(260px, 1.55fr) 160px auto;
+}
+
+.manage-dialog-actions--import {
+  align-self: end;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+
+.manage-import-card__base input {
+  width: 100%;
+  max-width: 5.5rem;
 }
 
 .manage-import-card input {
@@ -87,6 +144,19 @@
   min-width: 0;
 }
 
+.account-favourite-button {
+  border: 0;
+  background: transparent;
+  color: #b88700;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.4rem 0 0;
+}
+
+.account-favourite-button:hover {
+  color: #8c6700;
+}
+
 .fx-rates-history-dialog__actions {
   display: flex;
   gap: 8px;
@@ -119,13 +189,22 @@
   overflow: hidden;
 }
 
+:host ::ng-deep .fx-rates-import-dialog .p-dialog-content {
+  overflow: visible;
+}
+
 @media screen and (max-width: 960px) {
   .manage-import-card {
     grid-template-columns: 1fr 1fr;
   }
 
+  .manage-import-card--dialog {
+    grid-template-columns: 1fr;
+  }
+
   .manage-import-card > div,
-  .manage-import-card__quotes {
+  .manage-import-card__quotes,
+  .manage-dialog-actions--import {
     grid-column: 1 / -1;
   }
 

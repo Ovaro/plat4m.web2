@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260618000300-1" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="fin_transaction_import_row" columnName="transaction_kind"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="fin_transaction_import_row">
+            <column name="transaction_kind" type="varchar(50)"/>
+            <column name="transfer_account_text" type="varchar(1000)"/>
+            <column name="resolved_transfer_account_id" type="varchar(255)"/>
+            <column name="resolved_transfer_account_name" type="varchar(255)"/>
+            <column name="transfer_needs_review" type="boolean" defaultValueBoolean="false"/>
+            <column name="external_transfer_like" type="boolean" defaultValueBoolean="false"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260618000300-2" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="fin_transaction_import_transfer_memory"/>
+            </not>
+        </preConditions>
+        <createTable tableName="fin_transaction_import_transfer_memory">
+            <column name="id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_guid" type="varchar(255)"/>
+            <column name="source_account_id" type="varchar(255)"/>
+            <column name="normalized_transfer_text" type="varchar(255)"/>
+            <column name="transfer_account_id" type="varchar(255)"/>
+            <column name="usage_count" type="int"/>
+            <column name="created_date_time" type="timestamp"/>
+            <column name="last_used_date_time" type="timestamp"/>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>

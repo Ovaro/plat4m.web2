@@ -3,7 +3,14 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
-import { FinanceInvestmentSnapshotDetails, FinanceResourceSnapshots, InvestmentTransaction } from '../finance.model';
+import {
+  FinanceInvestmentSnapshotDetails,
+  FinanceResourceSnapshots,
+  FinanceSecurityStoredPrice,
+  FinanceSecurityStoredPriceUpdate,
+  FinanceSecurityPriceRefreshResult,
+  InvestmentTransaction,
+} from '../finance.model';
 
 @Injectable({
   providedIn: 'root', // Add this line
@@ -52,5 +59,39 @@ export class InvestmentTransactions {
         `api/portfolios/history?userSecurityId=${userSecurityId}&includeClosed=${includeClosedPositions}&periodAgo=${periodAgo}&numberOfPeriods=0`,
       ),
     );
+  }
+
+  refreshQuotes(userSecurityId: string): Observable<FinanceSecurityPriceRefreshResult> {
+    return this.http.post<FinanceSecurityPriceRefreshResult>(this.applicationConfigService.getEndpointFor('api/security-prices/refresh'), {
+      userSecurityId,
+    });
+  }
+
+  getStoredPrices(userSecurityId: string): Observable<FinanceSecurityStoredPrice[]> {
+    return this.http.get<FinanceSecurityStoredPrice[]>(
+      this.applicationConfigService.getEndpointFor(`api/investment/${userSecurityId}/prices`),
+    );
+  }
+
+  createStoredPrice(userSecurityId: string, update: FinanceSecurityStoredPriceUpdate): Observable<FinanceSecurityStoredPrice> {
+    return this.http.post<FinanceSecurityStoredPrice>(
+      this.applicationConfigService.getEndpointFor(`api/investment/${userSecurityId}/prices`),
+      update,
+    );
+  }
+
+  updateStoredPrice(
+    userSecurityId: string,
+    priceId: string,
+    update: FinanceSecurityStoredPriceUpdate,
+  ): Observable<FinanceSecurityStoredPrice> {
+    return this.http.put<FinanceSecurityStoredPrice>(
+      this.applicationConfigService.getEndpointFor(`api/investment/${userSecurityId}/prices/${priceId}`),
+      update,
+    );
+  }
+
+  deleteStoredPrice(userSecurityId: string, priceId: string): Observable<void> {
+    return this.http.delete<void>(this.applicationConfigService.getEndpointFor(`api/investment/${userSecurityId}/prices/${priceId}`));
   }
 }

@@ -45,6 +45,7 @@ export class FxRatesComponent implements OnInit {
   protected isSaving = false;
   protected isImporting = false;
   protected editorVisible = false;
+  protected importDialogVisible = false;
   protected historyDialogVisible = false;
   protected isHistoryLoading = false;
   protected errorMessage: string | null = null;
@@ -96,6 +97,14 @@ export class FxRatesComponent implements OnInit {
       const pair = `${rate.fromIsoCode}/${rate.toIsoCode}`.toLowerCase();
       return !query || date.includes(query) || pair.includes(query) || String(rate.rate).includes(query);
     });
+  }
+
+  get favouriteRates(): FinanceFXRate[] {
+    return this.filteredRates.filter(rate => rate.favourite);
+  }
+
+  get otherRates(): FinanceFXRate[] {
+    return this.filteredRates.filter(rate => !rate.favourite);
   }
 
   get deleteDialogVisible(): boolean {
@@ -170,6 +179,12 @@ export class FxRatesComponent implements OnInit {
       rate: null,
     });
     this.editorVisible = true;
+  }
+
+  openImportDialog(): void {
+    this.importDialogVisible = true;
+    this.errorMessage = null;
+    this.importMessage = null;
   }
 
   openEditDialog(rate: FinanceFXRate): void {
@@ -324,6 +339,23 @@ export class FxRatesComponent implements OnInit {
     });
   }
 
+  toggleFavourite(rate: FinanceFXRate): void {
+    this.fxRatesService.updateFavourite(rate.id, !rate.favourite).subscribe({
+      next: updatedRate => {
+        this.rates = this.rates.map(existing => (existing.id === rate.id ? { ...existing, favourite: updatedRate.favourite } : existing));
+        this.changeDetectorRef.markForCheck();
+      },
+      error: error => {
+        this.errorMessage = this.getErrorMessage(error, 'Updating FX favourite failed.');
+        this.changeDetectorRef.markForCheck();
+      },
+    });
+  }
+
+  favouriteTitle(rate: FinanceFXRate): string {
+    return rate.favourite ? 'Remove from favourites' : 'Add to favourites';
+  }
+
   updateFromFrankfurter(): void {
     if (this.importForm.invalid) {
       this.importForm.markAllAsTouched();
@@ -346,6 +378,7 @@ export class FxRatesComponent implements OnInit {
       next: result => {
         this.importMessage = `Updated ${result.updated} ${result.baseCurrency} rate${result.updated === 1 ? '' : 's'} for ${result.date}.`;
         this.isImporting = false;
+        this.importDialogVisible = false;
         this.changeDetectorRef.markForCheck();
         this.load();
       },

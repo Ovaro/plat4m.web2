@@ -1,19 +1,25 @@
 package ovaro.plat4m.service.dto;
 
+import java.util.List;
+
 public class FinanceManagePayeeDTO {
 
     private String id;
     private String name;
     private String parentId;
     private Boolean hidden;
+    private int childCount;
+    private List<String> childNames;
 
     public FinanceManagePayeeDTO() {}
 
-    public FinanceManagePayeeDTO(String id, String name, String parentId, Boolean hidden) {
+    public FinanceManagePayeeDTO(String id, String name, String parentId, Boolean hidden, int childCount, List<String> childNames) {
         this.id = id;
         this.name = name;
         this.parentId = parentId;
         this.hidden = hidden;
+        this.childCount = childCount;
+        this.childNames = childNames;
     }
 
     public String getId() {
@@ -46,5 +52,21 @@ public class FinanceManagePayeeDTO {
 
     public void setHidden(Boolean hidden) {
         this.hidden = hidden;
+    }
+
+    public int getChildCount() {
+        return childCount;
+    }
+
+    public void setChildCount(int childCount) {
+        this.childCount = childCount;
+    }
+
+    public List<String> getChildNames() {
+        return childNames;
+    }
+
+    public void setChildNames(List<String> childNames) {
+        this.childNames = childNames;
     }
 }

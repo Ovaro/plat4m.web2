@@ -1,0 +1,240 @@
+@mixin styles {
+  .manage-table__row--clickable,
+  .manage-table__row--button {
+    cursor: pointer;
+  }
+
+  .manage-table__row--clickable:hover,
+  .manage-table__row--button:hover {
+    background: color-mix(in srgb, var(--app-colours-primary) 8%, transparent);
+  }
+
+  :host-context(.theme-dark) .manage-table__row--clickable:hover,
+  :host-context(.theme-dark) .manage-table__row--button:hover {
+    background: color-mix(in srgb, var(--app-colours-primary) 16%, var(--ps-colors-background-dark-2));
+  }
+
+  .manage-table__row--button {
+    width: 100%;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    color: inherit;
+    text-align: left;
+    background: transparent;
+  }
+
+  .manage-toolbar--dialog {
+    margin-bottom: 10px;
+  }
+
+  .manage-quick-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .manage-quick-filter {
+    border: 1px solid var(--app-colours-border, rgba(15, 23, 42, 0.16));
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+    background: color-mix(in srgb, var(--app-colours-background, white) 92%, var(--app-colours-primary) 8%);
+    color: inherit;
+    font-size: 0.85rem;
+    line-height: 1;
+    transition:
+      border-color 0.2s ease,
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  .manage-quick-filter--active {
+    border-color: var(--app-colours-primary);
+    background: var(--app-colours-primary);
+    color: var(--ps-colors-text-icon-high-on-dark, white);
+  }
+
+  .manage-transactions-overview {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .manage-summary-card {
+    padding: 14px 16px;
+    border: 1px solid var(--app-colours-border, rgba(15, 23, 42, 0.12));
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--app-colours-background, white) 94%, var(--app-colours-primary) 6%);
+  }
+
+  .manage-summary-card__label {
+    margin-bottom: 4px;
+    font-size: 0.78rem;
+    color: var(--app-colours-text-secondary, rgba(15, 23, 42, 0.7));
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .manage-summary-card__value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .manage-summary-card__value--negative {
+    color: #b42318;
+  }
+
+  .manage-card--chart {
+    margin-bottom: 12px;
+    padding: 12px 12px 4px;
+  }
+
+  .manage-transactions-layout {
+    display: grid;
+    grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  .manage-card--transactions-list {
+    max-height: min(40rem, 62vh);
+  }
+
+  .manage-card--chart-panel {
+    min-height: min(40rem, 62vh);
+    margin-bottom: 0;
+  }
+
+  .manage-chart-toggle {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  .manage-chart-toggle input {
+    margin: 0;
+  }
+
+  .manage-transactions-chart {
+    display: block;
+    width: 100%;
+  }
+
+  .manage-card--dialog {
+    max-height: min(32rem, 62vh);
+    overflow: auto;
+  }
+
+  .manage-card--transactions-list.manage-card--dialog {
+    max-height: min(40rem, 62vh);
+  }
+
+  .manage-table--compact-transactions .manage-table__row {
+    grid-template-columns: minmax(0, 1fr) 96px;
+    align-items: center;
+  }
+
+  .manage-table--compact-transactions .manage-table__primary,
+  .manage-table--compact-transactions .manage-table__secondary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .manage-table__amount {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .manage-amount {
+    font-weight: 600;
+  }
+
+  .manage-amount--positive {
+    color: #027a48;
+  }
+
+  .manage-amount--negative {
+    color: #b42318;
+  }
+
+  :host-context(.theme-dark) .manage-amount--positive {
+    color: #6ce9a6;
+  }
+
+  :host-context(.theme-dark) .manage-amount--negative,
+  :host-context(.theme-dark) .manage-summary-card__value--negative {
+    color: #fda29b;
+  }
+
+  :host-context(.theme-dark) .manage-quick-filter {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: color-mix(in srgb, var(--ps-colors-background-dark-2) 90%, var(--app-colours-primary) 10%);
+  }
+
+  :host-context(.theme-dark) .manage-summary-card {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: color-mix(in srgb, var(--ps-colors-background-dark-2) 92%, var(--app-colours-primary) 8%);
+  }
+
+  :host-context(.theme-dark) .manage-summary-card__label {
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  :host ::ng-deep .manage-transactions-dialog .p-dialog-content {
+    overflow: hidden;
+  }
+
+  :host ::ng-deep .manage-transactions-dialog.p-dialog {
+    margin-top: var(--app-dialog-safe-top);
+    max-height: calc(100vh - var(--app-dialog-safe-top) - 16px);
+  }
+
+  :host ::ng-deep .manage-transactions-dialog.p-dialog .p-dialog-content {
+    max-height: calc(100vh - var(--app-dialog-safe-top) - 7.5rem);
+  }
+
+  :host ::ng-deep .manage-transactions-dialog.p-dialog .p-dialog-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  :host ::ng-deep .manage-transactions-dialog.p-dialog.p-dialog-maximized {
+    top: var(--app-dialog-safe-top) !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: calc(100vh - var(--app-dialog-safe-top)) !important;
+    max-height: calc(100vh - var(--app-dialog-safe-top)) !important;
+  }
+
+  :host ::ng-deep .manage-transactions-dialog.p-dialog.p-dialog-maximized .p-dialog-content {
+    max-height: calc(100vh - var(--app-dialog-safe-top) - 4rem);
+  }
+
+  :host ::ng-deep .manage-transaction-editor-dialog .p-dialog-content {
+    padding: 0;
+  }
+
+  :host ::ng-deep .manage-transaction-editor-dialog .transaction-editor {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  @media (max-width: 900px) {
+    .manage-transactions-overview {
+      grid-template-columns: 1fr;
+    }
+
+    .manage-transactions-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+}

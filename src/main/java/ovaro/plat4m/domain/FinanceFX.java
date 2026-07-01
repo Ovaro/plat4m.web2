@@ -1,11 +1,13 @@
 package ovaro.plat4m.domain;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 import java.io.Serializable;
 import java.time.ZonedDateTime;
@@ -33,6 +35,10 @@ public class FinanceFX implements Serializable {
     String toIsoCode;
 
     Double rate;
+
+    @Transient
+    @JsonProperty("favourite")
+    private boolean favourite;
 
     public FinanceFX() {}
 
@@ -81,5 +87,15 @@ public class FinanceFX implements Serializable {
 
     public void setRate(Double rate) {
         this.rate = rate;
+    }
+
+    @JsonProperty("favourite")
+    public boolean isFavourite() {
+        return favourite;
+    }
+
+    @JsonProperty("favourite")
+    public void setFavourite(boolean favourite) {
+        this.favourite = favourite;
     }
 }

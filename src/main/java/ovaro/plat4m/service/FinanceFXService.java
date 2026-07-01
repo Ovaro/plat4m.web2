@@ -18,7 +18,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
@@ -26,8 +29,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StopWatch;
 import ovaro.plat4m.domain.FinanceFX;
+import ovaro.plat4m.domain.FinanceFXFavouritePair;
 import ovaro.plat4m.domain.User;
+import ovaro.plat4m.repository.FinanceFXFavouritePairRepository;
 import ovaro.plat4m.repository.FinanceFXRepository;
+import ovaro.plat4m.service.dto.FinanceFXFavouriteUpdateDTO;
 import ovaro.plat4m.service.dto.FinanceFXImportRequestDTO;
 import ovaro.plat4m.service.dto.FinanceFXImportResultDTO;
 import ovaro.plat4m.service.dto.FinanceFXUpdateDTO;
@@ -40,13 +46,19 @@ public class FinanceFXService {
     private static final String FRANKFURTER_RATES_URL = "https://api.frankfurter.dev/v2/rates";
 
     private FinanceFXRepository fxRepository;
+    private FinanceFXFavouritePairRepository fxFavouritePairRepository;
     private final ObjectMapper objectMapper;
 
     //private FinanceCurrencyRepository currencyRepository;
 
-    public FinanceFXService(FinanceFXRepository fxRepository, ObjectMapper objectMapper) {
+    public FinanceFXService(
+        FinanceFXRepository fxRepository,
+        FinanceFXFavouritePairRepository fxFavouritePairRepository,
+        ObjectMapper objectMapper
+    ) {
         // , FinanceCurrencyRepository currencyRepository
         this.fxRepository = fxRepository;
+        this.fxFavouritePairRepository = fxFavouritePairRepository;
         this.objectMapper = objectMapper;
         //this.currencyRepository = currencyRepository;
     }
@@ -89,9 +101,14 @@ public class FinanceFXService {
     // }
 
     public List<FinanceFX> getLatestFXAll() {
+        return getLatestFXAll(null);
+    }
+
+    public List<FinanceFX> getLatestFXAll(User user) {
         StopWatch sw = new StopWatch();
         sw.start("getLastestFX");
         List<FinanceFX> accounts = this.fxRepository.findLatestDistinctPairs();
+        applyFavouriteFlags(user, accounts);
         sw.stop();
         log.info(sw.prettyPrint());
         return accounts;
@@ -169,6 +186,34 @@ public class FinanceFXService {
         }
 
         return new FinanceFXImportResultDTO(response.date(), baseCurrency, updated);
+    }
+
+    @Transactional
+    public FinanceFX updateFavourite(User user, UUID fxId, FinanceFXFavouriteUpdateDTO update) {
+        FinanceFX fx = this.fxRepository.findById(fxId).orElseThrow(() -> new IllegalArgumentException("FX rate not found"));
+        String fromIsoCode = normalizeCurrencyCode(fx.getFromIsoCode(), null);
+        String toIsoCode = normalizeCurrencyCode(fx.getToIsoCode(), null);
+        String userGuid = user.getGuid().toString();
+
+        Optional<FinanceFXFavouritePair> existing = this.fxFavouritePairRepository.findByUserGuidAndFromIsoCodeAndToIsoCode(
+            userGuid,
+            fromIsoCode,
+            toIsoCode
+        );
+        if (update.isFavourite()) {
+            if (existing.isEmpty()) {
+                FinanceFXFavouritePair favouritePair = new FinanceFXFavouritePair();
+                favouritePair.setUserGuid(userGuid);
+                favouritePair.setFromIsoCode(fromIsoCode);
+                favouritePair.setToIsoCode(toIsoCode);
+                this.fxFavouritePairRepository.save(favouritePair);
+            }
+        } else {
+            existing.ifPresent(this.fxFavouritePairRepository::delete);
+        }
+
+        fx.setFavourite(update.isFavourite());
+        return fx;
     }
 
     public List<FinanceFX> findFXSummaries(String fromIsoCode, String toIsoCode, LocalDate fromDate, LocalDate toDate, int days) {
@@ -289,6 +334,20 @@ public class FinanceFXService {
         fx.setFromIsoCode(fromIsoCode);
         fx.setToIsoCode(toIsoCode);
         fx.setRate(update.getRate());
+    }
+
+    private void applyFavouriteFlags(User user, List<FinanceFX> rates) {
+        if (user == null || rates == null || rates.isEmpty()) {
+            return;
+        }
+
+        Set<String> favouritePairs = this.fxFavouritePairRepository
+            .findAllByUserGuid(user.getGuid().toString())
+            .stream()
+            .map(favourite -> favourite.getFromIsoCode() + "->" + favourite.getToIsoCode())
+            .collect(Collectors.toSet());
+
+        rates.forEach(rate -> rate.setFavourite(favouritePairs.contains(rate.getFromIsoCode() + "->" + rate.getToIsoCode())));
     }
 
     private List<String> normalizeQuoteCurrencies(List<String> quoteCurrencies, String baseCurrency) {

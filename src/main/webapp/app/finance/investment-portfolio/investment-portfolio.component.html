@@ -1,4 +1,87 @@
 <div class="standard-page-container investment-portfolio-container">
+  <p-dialog
+    header="{{ quoteRefreshDialogTitle }}"
+    [(visible)]="quoteRefreshDialogVisible"
+    [modal]="true"
+    [draggable]="false"
+    [style]="{ width: '72rem', maxWidth: '96vw' }"
+    styleClass="investment-refresh-dialog"
+  >
+    <div class="investment-refresh-dialog__content">
+      <div class="investment-refresh-dialog__summary">
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          (click)="applyQuoteRefreshResults()"
+          [disabled]="!canApplyQuoteRefreshResults()"
+        >
+          <span
+            *ngIf="isApplyingQuoteRefreshResults"
+            class="spinner-border spinner-border-sm investment-refresh-button__spinner"
+            aria-hidden="true"
+          ></span>
+          <span>{{ quoteRefreshApplyLabel }}</span>
+        </button>
+        <span>{{ quoteRefreshResult?.appliedCount ?? 0 }} applied</span>
+        <span>{{ quoteRefreshResult?.refreshedCount ?? 0 }} refreshed</span>
+        <span>{{ quoteRefreshResult?.skippedCount ?? 0 }} skipped</span>
+        <span>{{ quoteRefreshResult?.failedCount ?? 0 }} failed</span>
+        <span *ngIf="quoteRefreshResult?.currentMessage">{{ quoteRefreshResult?.currentMessage }}</span>
+      </div>
+
+      <div class="investment-refresh-dialog__table-wrap">
+        <table class="table table-sm investment-refresh-dialog__table">
+          <thead>
+            <tr>
+              <th>Apply</th>
+              <th>Status</th>
+              <th>Symbol Used</th>
+              <th>Exchange</th>
+              <th>Previous</th>
+              <th>AI Quote</th>
+              <th>AI Note</th>
+              <th>Twelve Data Quote</th>
+              <th>Twelve Data Note</th>
+              <th>Final</th>
+              <th>Saved</th>
+              <th>Delta</th>
+              <th>Delta %</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of quoteRefreshItems; track item.userSecurityId ?? item.requestedSymbol ?? item.symbol ?? $index) {
+              <tr>
+                <td>
+                  <p-toggleSwitch
+                    [ngModel]="item.selected"
+                    (ngModelChange)="onQuoteRefreshSelectionChanged(item, $event)"
+                    [disabled]="!item.userSecurityId"
+                  ></p-toggleSwitch>
+                </td>
+                <td>
+                  <span [class]="quoteRefreshStatusClass(item.status)">{{ item.status }}</span>
+                </td>
+                <td>{{ item.requestedSymbol || item.symbol || '—' }}</td>
+                <td>{{ item.requestedExchangeMic || '—' }}</td>
+                <td>{{ formatRefreshCurrency(item.previousPrice, item.currencyCode) }}</td>
+                <td>{{ formatRefreshCurrency(item.aiPrice, item.currencyCode) }}</td>
+                <td>{{ item.aiMessage || '—' }}</td>
+                <td>{{ formatRefreshCurrency(item.twelveDataPrice, item.currencyCode) }}</td>
+                <td>{{ item.twelveDataMessage || '—' }}</td>
+                <td>{{ formatRefreshCurrency(item.price, item.currencyCode) }}</td>
+                <td>{{ item.applied ? item.appliedSource || 'Yes' : 'No' }}</td>
+                <td>{{ formatRefreshCurrency(item.priceDeltaValue, item.currencyCode) }}</td>
+                <td>{{ formatRefreshPercent(item.priceDeltaPercent) }}</td>
+                <td>{{ item.message || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </p-dialog>
+
   <div class="investment-portfolio-header">
     <div class="top-sticky-row">
       <div class="row">
@@ -21,6 +104,21 @@
             placeholder="All"
           >
           </p-select>
+        </div>
+        <div class="col col-auto">
+          <button type="button" class="btn btn-outline-secondary investment-refresh-button" (click)="refreshQuotes()">
+            <span
+              *ngIf="isRefreshingQuotes"
+              class="spinner-border spinner-border-sm investment-refresh-button__spinner"
+              aria-hidden="true"
+            ></span>
+            <span>{{ isRefreshingQuotes ? 'Refreshing prices...' : 'Refresh Prices' }}</span>
+          </button>
+        </div>
+      </div>
+      <div class="row" *ngIf="quoteRefreshMessage">
+        <div class="col">
+          <div class="investment-refresh-message">{{ quoteRefreshMessage }}</div>
         </div>
       </div>
     </div>
@@ -466,7 +564,7 @@
                               *ngIf="holding.priceDateTime"
                               class="hovertext"
                               pTooltip="{{ findComparison(holding.id)?.price | currency }} @ {{
-                                findComparison(holding.id)?.priceDateTime | date
+                                findComparison(holding.id)?.priceDate | date
                               }}"
                               tooltipPosition="bottom"
                             >

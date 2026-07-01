@@ -9,6 +9,8 @@
   --ps-layout-spacing-large: 24px;
   --ps-layout-spacing-xlarge: 48px;
   --ps-layout-spacing-xxLarge: 64px;
+  --app-navbar-height: 66px;
+  --app-dialog-safe-top: calc(var(--app-navbar-height) + 12px);
 
   /* ==========================================================================
     Layers

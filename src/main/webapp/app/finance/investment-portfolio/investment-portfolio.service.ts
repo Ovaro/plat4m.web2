@@ -3,16 +3,35 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
-import { FinanceResourceSnapshots, FinanceSecurityHolding, InvestmentPortfolioDetails } from '../finance.model';
+import {
+  FinanceResourceSnapshots,
+  FinanceSecurityHolding,
+  FinanceSecurityPriceRefreshResult,
+  InvestmentPortfolioDetails,
+} from '../finance.model';
 
 @Injectable({
   providedIn: 'root', // Add this line
 })
 export class InvestmentPortfolio {
+  private activeQuoteRefreshResult: FinanceSecurityPriceRefreshResult | null = null;
+
   constructor(
     private http: HttpClient,
     private applicationConfigService: ApplicationConfigService,
   ) {}
+
+  getActiveQuoteRefreshResult(): FinanceSecurityPriceRefreshResult | null {
+    return this.activeQuoteRefreshResult;
+  }
+
+  setActiveQuoteRefreshResult(result: FinanceSecurityPriceRefreshResult | null): void {
+    this.activeQuoteRefreshResult = result;
+  }
+
+  clearActiveQuoteRefreshResult(): void {
+    this.activeQuoteRefreshResult = null;
+  }
 
   // get(includeClosedPositions: boolean): Observable<FinanceSecurityHolding[]> {
   //     if(includeClosedPositions) {
@@ -98,5 +117,40 @@ export class InvestmentPortfolio {
         ),
       );
     }
+  }
+
+  refreshQuotes(accountId: string | null): Observable<FinanceSecurityPriceRefreshResult> {
+    return this.http.post<FinanceSecurityPriceRefreshResult>(
+      this.applicationConfigService.getEndpointFor('api/security-prices/refresh/start'),
+      { accountId },
+    );
+  }
+
+  getRefreshQuoteStatus(jobId: string): Observable<FinanceSecurityPriceRefreshResult> {
+    return this.http.get<FinanceSecurityPriceRefreshResult>(
+      this.applicationConfigService.getEndpointFor(`api/security-prices/refresh/${jobId}`),
+    );
+  }
+
+  updateRefreshQuoteSelection(jobId: string, userSecurityId: string, selected: boolean): Observable<FinanceSecurityPriceRefreshResult> {
+    return this.http.post<FinanceSecurityPriceRefreshResult>(
+      this.applicationConfigService.getEndpointFor(
+        `api/security-prices/refresh/${jobId}/items/${userSecurityId}/selection?selected=${selected}`,
+      ),
+      {},
+    );
+  }
+
+  applyRefreshQuotes(jobId: string): Observable<FinanceSecurityPriceRefreshResult> {
+    return this.http.post<FinanceSecurityPriceRefreshResult>(
+      this.applicationConfigService.getEndpointFor(`api/security-prices/refresh/${jobId}/apply`),
+      {},
+    );
+  }
+
+  refreshQuotesSync(accountId: string | null): Observable<FinanceSecurityPriceRefreshResult> {
+    return this.http.post<FinanceSecurityPriceRefreshResult>(this.applicationConfigService.getEndpointFor('api/security-prices/refresh'), {
+      accountId,
+    });
   }
 }

@@ -96,6 +96,7 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
   @Output() editTransaction = new EventEmitter<void>();
   @Output() deleteTransaction = new EventEmitter<void>();
   @Output() cancelEditor = new EventEmitter<void>();
+  @Output() openLinkedTransfer = new EventEmitter<void>();
 
   protected categoryOptions: TransactionTreeOption[] = [];
   protected whoOptions: TransactionTreeOption[] = [];
@@ -118,7 +119,7 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
   protected readonly form = new FormGroup({
     transactionType: new FormControl<TransactionEditorType>('withdrawal', { nonNullable: true }),
     date: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    amount: new FormControl<number | null>(0, { validators: [Validators.required, Validators.min(0)] }),
+    amount: new FormControl<number | null>(0, { validators: [Validators.required] }),
     payee: new FormControl<TransactionOption | string | null>(null),
     transferAccount: new FormControl<TransactionOption | null>(null),
     tags: new FormControl<string[]>([], { nonNullable: true }),
@@ -139,9 +140,13 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
   private readonly destroyRef = inject(DestroyRef);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private splitRowsLoadSequence = 0;
+  private payeeCategorySuggestionSequence = 0;
   private suppressTransactionTypePrompt = false;
+  private suppressPayeeCategorySuggestion = false;
+  private suppressAutoSuggestedCategoryTracking = false;
   private lastSelectableTransactionType: TransactionEditorType = 'withdrawal';
   private replaceWithTransferOnSave = false;
+  private lastAutoSuggestedCategoryKey: string | null = null;
 
   ngOnInit(): void {
     const selectedPayee = this.getSelectedPayeeOption();
@@ -153,12 +158,29 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     this.loadWhoTreeOptions();
     this.form.controls.transactionType.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.applyFormState();
+      this.maybePrefillCategoryFromPayee();
+    });
+    this.form.controls.payee.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.maybePrefillCategoryFromPayee();
+    });
+    this.form.controls.category.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(category => {
+      if (this.suppressAutoSuggestedCategoryTracking) {
+        return;
+      }
+
+      const currentCategoryKey = this.normalizeCategoryValue(category);
+      if (currentCategoryKey !== this.lastAutoSuggestedCategoryKey) {
+        this.lastAutoSuggestedCategoryKey = null;
+      }
     });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if ('transaction' in changes) {
       this.patchForm();
+    } else if ('mode' in changes || 'accounts' in changes) {
+      this.form.controls.payee.setValue(this.getSelectedPayeeOption(), { emitEvent: false });
+      this.form.controls.transferAccount.setValue(this.getSelectedTransferAccountOption(), { emitEvent: false });
     }
 
     this.applyFormState();
@@ -183,10 +205,10 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     this.saveTransaction.emit({
       date: rawValue.date,
       amount: signedAmount,
-      payeeId: isTransfer ? null : payeeValue.id,
-      payeeName: isTransfer ? null : payeeValue.name,
+      payeeId: payeeValue.id,
+      payeeName: payeeValue.name,
       categoryId: isTransfer || isSplit ? null : this.normalizeCategoryValue(rawValue.category),
-      whoId: isTransfer || isSplit ? null : whoId,
+      whoId: isSplit ? null : whoId,
       tags: rawValue.tags,
       transferredAccountId: isTransfer ? (rawValue.transferAccount?.id ?? null) : null,
       memo: this.trimToNull(rawValue.memo),
@@ -216,12 +238,8 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     return this.mode === 'view' && !this.readonlyReason;
   }
 
-  getTransferSummary(): string {
-    if (this.isAddMode()) {
-      return 'Outgoing transfer from this account';
-    }
-
-    return this.transaction && this.transaction.amount >= 0 ? 'Incoming transfer' : 'Outgoing transfer';
+  canOpenLinkedTransfer(): boolean {
+    return !this.dialogView && !!this.transaction?.id && !!this.transaction?.transferredAccountId && !!this.currentAccountId;
   }
 
   getPayeeLabel(): string {
@@ -265,6 +283,21 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
 
   clearCategory(): void {
     this.form.controls.category.setValue(null);
+  }
+
+  requestOpenLinkedTransfer(): void {
+    if (!this.canOpenLinkedTransfer()) {
+      return;
+    }
+
+    if (this.form.dirty) {
+      const confirmed = window.confirm('You have unsaved changes. Open the linked transfer and discard these changes?');
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    this.openLinkedTransfer.emit();
   }
 
   getCategoryTreeSelectLabel(
@@ -679,10 +712,11 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
   private patchForm(): void {
     const transactionType = this.isAddMode() && this.initialTransactionType ? this.initialTransactionType : this.getTransactionType();
 
+    this.suppressPayeeCategorySuggestion = true;
     this.form.reset({
       transactionType,
       date: this.transaction?.date ?? '',
-      amount: Math.abs(this.transaction?.amount ?? 0),
+      amount: this.getDisplayAmount(transactionType),
       payee: this.getSelectedPayeeOption(),
       transferAccount: this.getSelectedTransferAccountOption(),
       tags: this.transaction?.tags ?? [],
@@ -700,6 +734,8 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     this.deleteConfirmOpen = false;
     this.replaceWithTransferOnSave = false;
     this.lastSelectableTransactionType = transactionType;
+    this.lastAutoSuggestedCategoryKey = null;
+    this.suppressPayeeCategorySuggestion = false;
     this.loadSplitRows();
   }
 
@@ -745,11 +781,16 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
 
     const transactionType = this.form.controls.transactionType.value;
     if (transactionType === 'transfer') {
+      this.form.controls.amount.setValidators([Validators.required]);
+    } else {
+      this.form.controls.amount.setValidators([Validators.required, Validators.min(0)]);
+    }
+    this.form.controls.amount.updateValueAndValidity({ emitEvent: false });
+
+    if (transactionType === 'transfer') {
       this.form.controls.transferAccount.setValidators([Validators.required]);
       this.form.controls.transferAccount.updateValueAndValidity({ emitEvent: false });
-      this.form.controls.payee.disable({ emitEvent: false });
       this.form.controls.category.disable({ emitEvent: false });
-      this.form.controls.who.disable({ emitEvent: false });
       this.form.controls.transferAccount.enable({ emitEvent: false });
     } else if (transactionType === 'split') {
       this.form.controls.transferAccount.clearValidators();
@@ -770,6 +811,14 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     }
 
     this.form.controls.transactionType.enable({ emitEvent: false });
+  }
+
+  private getDisplayAmount(transactionType: TransactionEditorType): number {
+    const amount = this.transaction?.amount ?? 0;
+    if (transactionType === 'transfer' && this.transaction) {
+      return amount;
+    }
+    return Math.abs(amount);
   }
 
   private shouldInterceptTransactionTypeChange(previousType: TransactionEditorType, nextType: TransactionEditorSelectableType): boolean {
@@ -836,6 +885,58 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
       },
       error: () => {
         this.payeeLoading = false;
+      },
+    });
+  }
+
+  private maybePrefillCategoryFromPayee(): void {
+    if (this.suppressPayeeCategorySuggestion || this.mode === 'view' || this.readonlyReason) {
+      return;
+    }
+
+    const transactionType = this.form.controls.transactionType.value;
+    if (transactionType !== 'deposit' && transactionType !== 'withdrawal') {
+      return;
+    }
+
+    const currentCategoryKey = this.normalizeCategoryValue(this.form.controls.category.value);
+    if (currentCategoryKey && currentCategoryKey !== this.lastAutoSuggestedCategoryKey) {
+      return;
+    }
+
+    const payee = this.form.controls.payee.value;
+    if (!payee || typeof payee === 'string' || !payee.id) {
+      if (currentCategoryKey && currentCategoryKey === this.lastAutoSuggestedCategoryKey) {
+        this.setSuggestedCategory(null);
+      }
+      return;
+    }
+
+    const requestSequence = ++this.payeeCategorySuggestionSequence;
+    this.transactionsService.getLastCategoryForPayee(payee.id, transactionType).subscribe({
+      next: category => {
+        if (requestSequence !== this.payeeCategorySuggestionSequence) {
+          return;
+        }
+
+        const selectedPayee = this.form.controls.payee.value;
+        if (!selectedPayee || typeof selectedPayee === 'string' || selectedPayee.id !== payee.id) {
+          return;
+        }
+
+        if (this.form.controls.transactionType.value !== transactionType) {
+          return;
+        }
+
+        const latestCategoryKey = this.normalizeCategoryValue(this.form.controls.category.value);
+        if (latestCategoryKey && latestCategoryKey !== this.lastAutoSuggestedCategoryKey) {
+          return;
+        }
+
+        this.setSuggestedCategory(category);
+      },
+      error: () => {
+        // Keep the editor responsive; missing suggestion data should not block editing.
       },
     });
   }
@@ -1017,6 +1118,24 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
     return this.trimToNull(category.key);
   }
 
+  private setSuggestedCategory(category: TransactionOption | null): void {
+    this.suppressAutoSuggestedCategoryTracking = true;
+    try {
+      if (!category?.id) {
+        this.form.controls.category.setValue(null);
+        this.lastAutoSuggestedCategoryKey = null;
+        return;
+      }
+
+      this.form.controls.category.setValue(
+        this.findCategoryOptionByKey(category.id) ?? { key: category.id, label: category.name, leaf: true },
+      );
+      this.lastAutoSuggestedCategoryKey = category.id;
+    } finally {
+      this.suppressAutoSuggestedCategoryTracking = false;
+    }
+  }
+
   private getSelectedWhoOption(): TransactionTreeOption | null {
     const transaction = this.transaction;
     if (!transaction?.whoId || !transaction.whoName) {
@@ -1161,13 +1280,13 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
 
   private getSelectedPayeeOption(): TransactionOption | null {
     const transaction = this.transaction;
-    if (!transaction?.payeeId || !transaction.payeeName) {
+    if (!transaction?.payeeName) {
       return null;
     }
 
     return {
       id: transaction.payeeId,
-      name: transaction.payeeName,
+      name: this.mode === 'view' ? this.getDisplayPayeeName(transaction) : transaction.payeeName,
     };
   }
 
@@ -1182,6 +1301,19 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
 
   private getSelectedTransferAccountControlOption(): TransactionOption | null {
     return this.form.controls.transferAccount.value;
+  }
+
+  private getDisplayPayeeName(transaction: FinancialTransaction): string {
+    if (!transaction.transferredAccountId) {
+      return transaction.payeeName ?? '';
+    }
+
+    const transferredAccountName =
+      this.accounts.find(account => account.id === transaction.transferredAccountId)?.name ?? transaction.transferredAccountId;
+    const directionLabel = transaction.amount < 0 ? 'Transfer to' : 'Transfer from';
+    const payeeSuffix = transaction.payeeName ? ` (${transaction.payeeName})` : '';
+
+    return `${directionLabel}: ${transferredAccountName}${payeeSuffix}`;
   }
 
   private getAvailableTransferAccounts(): TransactionOption[] {

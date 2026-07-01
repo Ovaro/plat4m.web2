@@ -33,7 +33,6 @@
     <div class="manage-table manage-table--payees">
       <div class="manage-table__row manage-table__row--header">
         <div>Name</div>
-        <div>Parent</div>
         <div>Status</div>
         <div class="manage-table__actions">Actions</div>
       </div>
@@ -45,7 +44,6 @@
         (click)="openPayeeTransactions(payee)"
       >
         <div class="manage-table__primary">{{ payee.name }}</div>
-        <div>{{ getParentName(payee.parentId) }}</div>
         <div>
           <span class="manage-pill" [class.manage-pill--muted]="payee.hidden">{{ payee.hidden ? 'Hidden' : 'Active' }}</span>
         </div>
@@ -71,34 +69,92 @@
   [header]="editingPayee ? 'Edit payee' : 'Add payee'"
   [(visible)]="editorVisible"
   [modal]="true"
-  [style]="{ width: '32rem' }"
+  [style]="{ width: '36rem' }"
   [draggable]="false"
+  (onHide)="closeEditor()"
 >
   <form class="manage-form" [formGroup]="form" (ngSubmit)="save()">
     <label>
       <span>Name</span>
       <input type="text" formControlName="name" autofocus />
     </label>
-    <label>
-      <span>Parent</span>
-      <select formControlName="parentId">
-        <option [ngValue]="null">None</option>
-        <option *ngFor="let payee of parentOptions" [ngValue]="payee.id">{{ payee.name }}</option>
-      </select>
-    </label>
-    <label class="manage-check">
-      <input type="checkbox" formControlName="hidden" />
-      <span>Hidden</span>
-    </label>
+    <div class="payee-checkbox-row">
+      <p-checkbox inputId="payee-hidden" formControlName="hidden" [binary]="true"></p-checkbox>
+      <label for="payee-hidden" class="payee-checkbox-label">Hidden</label>
+    </div>
+
+    <div *ngIf="editingPayee" class="payee-variants">
+      <div class="payee-variants__header">
+        <div>
+          <div class="payee-variants__title">Variants</div>
+          <div class="manage-table__secondary">Also-known-as names that should roll up under this payee.</div>
+        </div>
+        <button type="button" class="manage-button" (click)="openAddVariantDialog()" [disabled]="isSaving || variantsLoading">
+          <fa-icon icon="plus"></fa-icon>
+          <span>Add variant</span>
+        </button>
+      </div>
+
+      <div *ngIf="variantsLoading" class="manage-empty">Loading variants...</div>
+      <div *ngIf="!variantsLoading && dialogVariants.length === 0" class="manage-empty">No variants yet.</div>
+
+      <div *ngIf="!variantsLoading && dialogVariants.length > 0" class="payee-variants__list">
+        <div *ngFor="let variant of dialogVariants" class="payee-variants__row">
+          <div>
+            <div class="manage-table__primary">{{ variant.name }}</div>
+            <div class="manage-table__secondary">{{ variant.hidden ? 'Hidden variant' : 'Active variant' }}</div>
+          </div>
+          <div class="payee-variants__actions">
+            <button type="button" class="manage-icon-button" title="Edit variant" (click)="openEditVariantDialog(variant)">
+              <fa-icon icon="pencil-alt"></fa-icon>
+            </button>
+            <button
+              type="button"
+              class="manage-icon-button manage-icon-button--danger"
+              title="Hide variant"
+              (click)="confirmDelete(variant, 'variant')"
+            >
+              <fa-icon icon="trash-alt"></fa-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="manage-dialog-actions">
-      <button type="button" class="manage-button" (click)="editorVisible = false" [disabled]="isSaving">Cancel</button>
+      <button type="button" class="manage-button" (click)="closeEditor()" [disabled]="isSaving">Cancel</button>
       <button type="submit" class="manage-button manage-button--primary" [disabled]="isSaving">Save</button>
     </div>
   </form>
 </p-dialog>
 
-<p-dialog header="Hide payee?" [(visible)]="deleteDialogVisible" [modal]="true" [style]="{ width: '28rem' }" [draggable]="false">
-  <p>Hide {{ deleteCandidate?.name }}? Existing transactions will keep their payee.</p>
+<p-dialog
+  [header]="editingVariant ? 'Edit variant' : 'Add variant'"
+  [(visible)]="variantEditorVisible"
+  [modal]="true"
+  [style]="{ width: '28rem' }"
+  [draggable]="false"
+  (onHide)="closeVariantEditor()"
+>
+  <form class="manage-form" [formGroup]="variantForm" (ngSubmit)="saveVariant()">
+    <label>
+      <span>Name</span>
+      <input type="text" formControlName="name" autofocus />
+    </label>
+    <div class="payee-checkbox-row">
+      <p-checkbox inputId="variant-hidden" formControlName="hidden" [binary]="true"></p-checkbox>
+      <label for="variant-hidden" class="payee-checkbox-label">Hidden</label>
+    </div>
+    <div class="manage-dialog-actions">
+      <button type="button" class="manage-button" (click)="closeVariantEditor()" [disabled]="isSaving">Cancel</button>
+      <button type="submit" class="manage-button manage-button--primary" [disabled]="isSaving">Save</button>
+    </div>
+  </form>
+</p-dialog>
+
+<p-dialog [header]="deleteDialogTitle" [(visible)]="deleteDialogVisible" [modal]="true" [style]="{ width: '28rem' }" [draggable]="false">
+  <p *ngIf="deleteCandidateMode === 'variant'">Hide variant {{ deleteCandidate?.name }}? Existing transactions will keep their payee.</p>
+  <p *ngIf="deleteCandidateMode === 'payee'">Hide {{ deleteCandidate?.name }}? Existing transactions will keep their payee.</p>
   <div class="manage-dialog-actions">
     <button type="button" class="manage-button" (click)="deleteCandidate = null" [disabled]="isSaving">Cancel</button>
     <button type="button" class="manage-button manage-button--danger" (click)="deletePayee()" [disabled]="isSaving">Hide</button>
@@ -110,7 +166,8 @@
   [(visible)]="payeeTransactionsDialogVisible"
   [modal]="true"
   [draggable]="false"
-  [style]="{ width: 'min(82rem, 96vw)' }"
+  [maximizable]="true"
+  [style]="{ width: 'min(92rem, 96vw)' }"
   styleClass="manage-transactions-dialog"
 >
   <div class="manage-toolbar manage-toolbar--dialog">
@@ -129,41 +186,86 @@
     </button>
   </div>
 
+  <div class="manage-quick-filters">
+    <button
+      *ngFor="let option of payeeTransactionRangeOptions"
+      type="button"
+      class="manage-quick-filter"
+      [class.manage-quick-filter--active]="isPayeeTransactionsRangeSelected(option.value)"
+      (click)="setPayeeTransactionsRange(option.value)"
+    >
+      {{ option.label }}
+    </button>
+  </div>
+
   <div *ngIf="transactionsErrorMessage" class="manage-alert">{{ transactionsErrorMessage }}</div>
 
-  <div class="manage-card manage-card--dialog">
-    <div class="manage-table manage-table--category-transactions">
-      <div class="manage-table__row manage-table__row--header">
-        <div>Date</div>
-        <div>Account</div>
-        <div>Payee</div>
-        <div>Category / Who</div>
-        <div>Memo</div>
-        <div class="manage-table__amount">Amount</div>
+  <div class="manage-transactions-overview" *ngIf="!transactionsLoading && !transactionsErrorMessage">
+    <div class="manage-summary-card">
+      <div class="manage-summary-card__label">Transactions</div>
+      <div class="manage-summary-card__value">{{ filteredPayeeTransactions.length }}</div>
+    </div>
+    <div class="manage-summary-card">
+      <div class="manage-summary-card__label">Total sum</div>
+      <div class="manage-summary-card__value" [class.manage-summary-card__value--negative]="payeeTransactionsSum < 0">
+        {{ formatTransactionAmount(payeeTransactionsSum) }}
       </div>
-      <div *ngIf="transactionsLoading" class="manage-empty">Loading transactions...</div>
-      <div *ngIf="!transactionsLoading && filteredPayeeTransactions.length === 0" class="manage-empty">No transactions found.</div>
-      <button
-        *ngFor="let transaction of filteredPayeeTransactions"
-        type="button"
-        class="manage-table__row manage-table__row--button"
-        (click)="openTransactionEditor(transaction)"
-      >
-        <div>{{ transaction.date }}</div>
-        <div>{{ getAccountName(transaction.accountId) || 'Unknown account' }}</div>
-        <div>
-          <div class="manage-table__primary">{{ transaction.payeeName || 'No payee' }}</div>
-          <div class="manage-table__secondary" *ngIf="transaction.splitChild">Split line</div>
+    </div>
+    <div class="manage-summary-card">
+      <div class="manage-summary-card__label">Average amount</div>
+      <div class="manage-summary-card__value" [class.manage-summary-card__value--negative]="payeeTransactionsAverage < 0">
+        {{ formatTransactionAmount(payeeTransactionsAverage) }}
+      </div>
+    </div>
+  </div>
+
+  <div class="manage-transactions-layout" *ngIf="!transactionsErrorMessage">
+    <div class="manage-card manage-card--dialog manage-card--transactions-list">
+      <div class="manage-table manage-table--compact-transactions">
+        <div class="manage-table__row manage-table__row--header">
+          <div>Date</div>
+          <div class="manage-table__amount">Amount</div>
         </div>
-        <div>
-          <div class="manage-table__primary">{{ transaction.displayCategory || 'Uncategorised' }}</div>
-          <div class="manage-table__secondary" *ngIf="transaction.whoName">Who: {{ transaction.whoName }}</div>
-        </div>
-        <div>{{ transaction.memo || '' }}</div>
-        <div class="manage-table__amount" [ngClass]="getTransactionAmountClass(transaction)">
-          {{ transaction.amount | number: '1.2-2' }}
-        </div>
-      </button>
+        <div *ngIf="transactionsLoading" class="manage-empty">Loading transactions...</div>
+        <div *ngIf="!transactionsLoading && filteredPayeeTransactions.length === 0" class="manage-empty">No transactions found.</div>
+        <button
+          *ngFor="let transaction of filteredPayeeTransactions"
+          type="button"
+          class="manage-table__row manage-table__row--button"
+          (click)="openTransactionEditor(transaction)"
+        >
+          <div>
+            <div class="manage-table__primary">{{ transaction.date }}</div>
+            <div class="manage-table__secondary">{{ transaction.displayCategory || transaction.categoryName || 'Open details' }}</div>
+          </div>
+          <div class="manage-table__amount" [ngClass]="getTransactionAmountClass(transaction)">
+            {{ transaction.amount | number: '1.2-2' }}
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <div class="manage-card manage-card--chart manage-card--chart-panel">
+      <label class="manage-chart-toggle">
+        <input type="checkbox" [checked]="payeeTrendlineVisible" (change)="togglePayeeTrendline()" />
+        <span>Show trendline</span>
+      </label>
+      <div *ngIf="transactionsLoading" class="manage-empty">Loading chart...</div>
+      <div *ngIf="!transactionsLoading && filteredPayeeTransactions.length === 0" class="manage-empty">
+        No transactions available for the selected filters.
+      </div>
+      <apx-chart
+        *ngIf="!transactionsLoading && filteredPayeeTransactions.length > 0"
+        class="manage-transactions-chart"
+        [series]="payeeTransactionSeries"
+        [chart]="transactionAmountChartOptions.chart"
+        [xaxis]="transactionAmountChartOptions.xaxis"
+        [yaxis]="transactionAmountChartOptions.yaxis"
+        [stroke]="transactionAmountChartOptions.stroke"
+        [dataLabels]="transactionAmountChartOptions.dataLabels"
+        [markers]="transactionAmountChartOptions.markers"
+        [tooltip]="transactionAmountChartOptions.tooltip"
+      ></apx-chart>
     </div>
   </div>
 </p-dialog>

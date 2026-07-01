@@ -113,6 +113,25 @@ public class FinanceTransactionService {
         return this.transactionRepository.findTransactionRowById(user.getGuid().toString(), accountId, transactionId);
     }
 
+    public FinanceTransactionRowDTO getLinkedTransferTransactionRow(User user, String accountId, UUID transactionId) {
+        FinanceTransaction transaction = this.transactionRepository
+            .findByIdAndUserGuid(transactionId, user.getGuid().toString())
+            .orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
+        if (!accountId.equals(transaction.getAccountId())) {
+            throw new IllegalArgumentException("Transaction not found for account");
+        }
+
+        FinanceTransferLink transferLink = findTransferLink(user, transactionId).orElseThrow(() ->
+            new IllegalStateException("This transaction does not have a linked transfer transaction")
+        );
+        UUID counterpartId = transferLink.getFromId().equals(transactionId) ? transferLink.getLinkId() : transferLink.getFromId();
+        FinanceTransaction counterpart = this.transactionRepository
+            .findByIdAndUserGuid(counterpartId, user.getGuid().toString())
+            .orElseThrow(() -> new IllegalStateException("The linked transfer transaction could not be found"));
+
+        return getTransactionRow(user, counterpart.getAccountId(), counterpartId);
+    }
+
     public FinanceTransactionEditorOptionsDTO getEditorOptions(User user) {
         List<FinanceResourceDTO> categoryOptions = this.getCategoryOptions(user, null, Pageable.unpaged()).getContent();
         List<FinanceResourceDTO> payeeOptions = this.getPayeeOptions(user, null, Pageable.unpaged()).getContent();
@@ -256,7 +275,14 @@ public class FinanceTransactionService {
         List<FinancePayee> payees = includeHidden
             ? this.payeeRepository.findByUserGuidOrderByNameAsc(user.getGuid().toString())
             : this.payeeRepository.findVisibleByUserGuid(user.getGuid().toString());
-        return payees.stream().map(this::mapManagedPayee).toList();
+        Map<String, List<FinancePayee>> childrenByParentId = payees
+            .stream()
+            .filter(payee -> payee.getParentId() != null)
+            .collect(Collectors.groupingBy(FinancePayee::getParentId));
+        return payees
+            .stream()
+            .map(payee -> mapManagedPayee(payee, childrenByParentId))
+            .toList();
     }
 
     @Transactional(readOnly = true)
@@ -291,6 +317,7 @@ public class FinanceTransactionService {
     @Transactional
     public void deleteManagedPayee(User user, UUID payeeId) {
         FinancePayee payee = findUserPayee(user, payeeId);
+        validatePayeeCanBeHidden(user, payee);
         payee.setHidden(true);
         this.payeeRepository.save(payee);
         this.editorLookupCacheService.invalidatePayeeOptions(user.getGuid().toString());
@@ -299,6 +326,28 @@ public class FinanceTransactionService {
     public Page<FinanceResourceDTO> getPayeeOptions(User user, String query, Pageable pageable) {
         List<FinanceResourceDTO> payeeOptions = this.editorLookupCacheService.getPayeeOptions(user.getGuid().toString());
         return filterResourceOptions(payeeOptions, query, pageable);
+    }
+
+    public FinanceResourceDTO getLastCategoryForPayee(User user, UUID payeeId, String transactionType) {
+        FinancePayee payee = findUserPayee(user, payeeId);
+        boolean deposit;
+        if ("deposit".equalsIgnoreCase(transactionType)) {
+            deposit = true;
+        } else if ("withdrawal".equalsIgnoreCase(transactionType)) {
+            deposit = false;
+        } else {
+            throw new IllegalArgumentException("Transaction type must be deposit or withdrawal");
+        }
+
+        List<String> payeeIds = collectPayeeBranchIds(user.getGuid().toString(), payee);
+        return this.transactionRepository
+            .findRecentCategorisedByUserGuidAndPayeeIdsAndDirection(user.getGuid().toString(), payeeIds, deposit, Pageable.ofSize(1))
+            .stream()
+            .findFirst()
+            .map(FinanceTransaction::getCategory)
+            .filter(Objects::nonNull)
+            .map(category -> new FinanceResourceDTO(category.getId().toString(), buildCategoryDisplayName(category)))
+            .orElse(null);
     }
 
     public Page<FinanceResourceDTO> getTagOptions(User user, String query, Pageable pageable) {
@@ -409,11 +458,7 @@ public class FinanceTransactionService {
         transaction.setCurrencyCode(account.getCurrencyCode());
         transaction.setSerialDateTime(ZonedDateTime.now());
 
-        applyTransactionUpdate(user, accountId, transaction, update);
-        FinanceTransaction saved = this.transactionRepository.save(transaction);
-        syncSplitTransactions(user, accountId, saved, update);
-        syncTransferTransaction(user, saved);
-        syncTransactionTags(user, saved, update.getTags());
+        FinanceTransaction saved = createTransactionEntity(user, accountId, transaction, update);
         return getTransactionRow(user, accountId, saved.getId());
     }
 
@@ -480,6 +525,29 @@ public class FinanceTransactionService {
         transaction.setCleared(Boolean.TRUE.equals(update.getCleared()));
         transaction.setMemo(trimToNull(update.getMemo()));
 
+        String whoId = trimToNull(update.getWhoId());
+        FinanceCategory who = null;
+        if (whoId != null) {
+            who = this.categoryRepository.findById(UUID.fromString(whoId)).orElseThrow(() -> new IllegalArgumentException("Who not found"));
+            if (!user.getGuid().toString().equals(who.getUserGuid()) || !Integer.valueOf(1).equals(who.getClassificationId())) {
+                throw new IllegalArgumentException("Who not found");
+            }
+        }
+
+        String payeeId = trimToNull(update.getPayeeId());
+        String payeeName = trimToNull(update.getPayeeName());
+        FinancePayee payee = null;
+        if (payeeId != null) {
+            payee = this.payeeRepository
+                .findById(UUID.fromString(payeeId))
+                .orElseThrow(() -> new IllegalArgumentException("Payee not found"));
+            if (!user.getGuid().toString().equals(payee.getUserGuid())) {
+                throw new IllegalArgumentException("Payee not found");
+            }
+        } else {
+            payee = resolveOrCreatePayee(user, payeeName);
+        }
+
         String transferredAccountId = trimToNull(update.getTransferredAccountId());
         if (transferredAccountId != null) {
             if (accountId.equals(transferredAccountId)) {
@@ -498,9 +566,9 @@ public class FinanceTransactionService {
             transaction.setTransfer(true);
             transaction.setTransferTo(update.getAmount().signum() > 0);
             transaction.setCategory(null);
-            transaction.setWho(null);
-            transaction.setPayeeId(null);
-            transaction.setPayeeName(null);
+            transaction.setWho(who);
+            transaction.setPayeeId(payee != null ? payee.getId().toString() : null);
+            transaction.setPayeeName(payeeName != null ? payeeName : (payee != null ? payee.getName() : null));
             transaction.setSplitParent(false);
             transaction.setSplitChild(false);
             transaction.setParentId(null);
@@ -523,35 +591,64 @@ public class FinanceTransactionService {
             transaction.setCategory(category);
         }
 
-        String whoId = trimToNull(update.getWhoId());
-        if (whoId == null) {
+        if (who == null) {
             transaction.setWho(null);
         } else {
-            FinanceCategory who = this.categoryRepository
-                .findById(UUID.fromString(whoId))
-                .orElseThrow(() -> new IllegalArgumentException("Who not found"));
-            if (!user.getGuid().toString().equals(who.getUserGuid()) || !Integer.valueOf(1).equals(who.getClassificationId())) {
-                throw new IllegalArgumentException("Who not found");
-            }
             transaction.setWho(who);
         }
 
-        String payeeId = trimToNull(update.getPayeeId());
-        String payeeName = trimToNull(update.getPayeeName());
         if (payeeId != null) {
-            FinancePayee payee = this.payeeRepository
-                .findById(UUID.fromString(payeeId))
-                .orElseThrow(() -> new IllegalArgumentException("Payee not found"));
-            if (!user.getGuid().toString().equals(payee.getUserGuid())) {
-                throw new IllegalArgumentException("Payee not found");
-            }
             transaction.setPayeeId(payee.getId().toString());
             transaction.setPayeeName(payeeName != null ? payeeName : payee.getName());
         } else {
-            FinancePayee payee = resolveOrCreatePayee(user, payeeName);
             transaction.setPayeeId(payee != null ? payee.getId().toString() : null);
             transaction.setPayeeName(payee != null ? payee.getName() : null);
         }
+    }
+
+    @Transactional
+    public FinanceTransaction createImportedTransaction(User user, String accountId, FinanceTransactionUpdateDTO update, UUID importId) {
+        if (update.getDate() == null || update.getAmount() == null) {
+            throw new IllegalArgumentException("Date and amount are required");
+        }
+
+        FinanceAccount account = this.accountRepository
+            .findById(UUID.fromString(accountId))
+            .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+        if (!user.getGuid().toString().equals(account.getUserGuid())) {
+            throw new IllegalArgumentException("Account not found");
+        }
+
+        FinanceTransaction transaction = new FinanceTransaction();
+        transaction.setUserGuid(user.getGuid().toString());
+        transaction.setAccountId(accountId);
+        transaction.setDate(update.getDate());
+        transaction.setAmount(update.getAmount());
+        transaction.setRecurring(false);
+        transaction.setSplitParent(false);
+        transaction.setSplitChild(false);
+        transaction.setVoided(false);
+        transaction.setInvestment(false);
+        transaction.setCleared(Boolean.TRUE.equals(update.getCleared()));
+        transaction.setReconciled(false);
+        transaction.setCurrencyCode(account.getCurrencyCode());
+        transaction.setSerialDateTime(ZonedDateTime.now());
+        transaction.setImportId(importId);
+        return createTransactionEntity(user, accountId, transaction, update);
+    }
+
+    private FinanceTransaction createTransactionEntity(
+        User user,
+        String accountId,
+        FinanceTransaction transaction,
+        FinanceTransactionUpdateDTO update
+    ) {
+        applyTransactionUpdate(user, accountId, transaction, update);
+        FinanceTransaction saved = this.transactionRepository.save(transaction);
+        syncSplitTransactions(user, accountId, saved, update);
+        syncTransferTransaction(user, saved);
+        syncTransactionTags(user, saved, update.getTags());
+        return saved;
     }
 
     private void syncSplitTransactions(User user, String accountId, FinanceTransaction parent, FinanceTransactionUpdateDTO update) {
@@ -700,11 +797,12 @@ public class FinanceTransactionService {
         transaction.setCleared(editedTransaction.isCleared());
         transaction.setMemo(editedTransaction.getMemo());
         transaction.setCategory(null);
-        transaction.setWho(null);
-        transaction.setPayeeId(null);
-        transaction.setPayeeName(null);
+        transaction.setWho(editedTransaction.getWho());
+        transaction.setPayeeId(editedTransaction.getPayeeId());
+        transaction.setPayeeName(editedTransaction.getPayeeName());
         transaction.setStatementId(null);
         transaction.setCurrencyCode(account.getCurrencyCode());
+        transaction.setImportId(editedTransaction.getImportId());
     }
 
     private void upsertTransferLink(User user, FinanceTransferLink existingLink, UUID fromId, UUID linkId) {
@@ -861,7 +959,20 @@ public class FinanceTransactionService {
     }
 
     private FinanceManagePayeeDTO mapManagedPayee(FinancePayee payee) {
-        return new FinanceManagePayeeDTO(payee.getId().toString(), payee.getName(), payee.getParentId(), payee.getHidden());
+        return mapManagedPayee(payee, Map.of());
+    }
+
+    private FinanceManagePayeeDTO mapManagedPayee(FinancePayee payee, Map<String, List<FinancePayee>> childrenByParentId) {
+        List<FinancePayee> children = childrenByParentId.getOrDefault(payee.getId().toString(), List.of());
+        List<String> childNames = children.stream().map(FinancePayee::getName).sorted(String.CASE_INSENSITIVE_ORDER).limit(3).toList();
+        return new FinanceManagePayeeDTO(
+            payee.getId().toString(),
+            payee.getName(),
+            payee.getParentId(),
+            payee.getHidden(),
+            children.size(),
+            childNames
+        );
     }
 
     private FinanceTransactionRowDTO mapTransactionRow(FinanceTransaction transaction) {
@@ -901,6 +1012,7 @@ public class FinanceTransactionService {
         dto.setSplitChild(transaction.isSplitChild());
         dto.setSplitParent(transaction.isSplitParent());
         dto.setStatementId(transaction.getStatementId());
+        dto.setImportId(transaction.getImportId() == null ? null : transaction.getImportId().toString());
         dto.setStatusFlag(transaction.getStatusFlag());
         dto.setTransfer(transaction.isTransfer());
         dto.setTransferTo(transaction.isTransferTo());
@@ -1010,6 +1122,9 @@ public class FinanceTransactionService {
         payee.setName(name);
         payee.setParentId(parentId);
         payee.setHidden(Boolean.TRUE.equals(update.getHidden()));
+        if (Boolean.TRUE.equals(payee.getHidden())) {
+            validatePayeeCanBeHidden(user, payee);
+        }
     }
 
     private FinanceCategory findUserCategory(User user, UUID categoryId) {
@@ -1024,6 +1139,15 @@ public class FinanceTransactionService {
             .findById(payeeId)
             .filter(payee -> user.getGuid().toString().equals(payee.getUserGuid()))
             .orElseThrow(() -> new IllegalArgumentException("Payee not found"));
+    }
+
+    private void validatePayeeCanBeHidden(User user, FinancePayee payee) {
+        if (
+            payee.getId() != null &&
+            this.payeeRepository.existsVisibleChildByUserGuidAndParentId(user.getGuid().toString(), payee.getId().toString())
+        ) {
+            throw new IllegalArgumentException("Payee has active variants. Hide or reassign them first.");
+        }
     }
 
     private void invalidateCategoryCaches(User user) {

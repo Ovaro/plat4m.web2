@@ -31,6 +31,10 @@ export class FxRatesService {
     return this.http.put<FinanceFXRate>(this.applicationConfigService.getEndpointFor(`api/fx/${id}`), update);
   }
 
+  updateFavourite(id: string, favourite: boolean): Observable<FinanceFXRate> {
+    return this.http.put<FinanceFXRate>(this.applicationConfigService.getEndpointFor(`api/fx/${id}/favourite`), { favourite });
+  }
+
   deleteRate(id: string): Observable<void> {
     return this.http.delete<void>(this.applicationConfigService.getEndpointFor(`api/fx/${id}`));
   }

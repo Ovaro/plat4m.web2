@@ -47,6 +47,8 @@ export class FinancialAccount {
     public fxRateToLocal: number | null,
     public fxDateTime: string | null,
     public relatedToAccountId: string | null,
+    public closed: boolean,
+    public favourite: boolean,
     public institution: Institution | null,
     public startingBalance: number,
   ) {}
@@ -151,7 +153,7 @@ export class InvestmentPortfolioDetails {
     public date: string,
     public summaries: FinanceInvestmentSnapshotDetails[],
     // FinanceInvestmentSnapshotDetails below
-    public priceDateTime: string,
+    public priceDate: string,
     public price: number,
     public quantity: number,
     public estimatedPrice: boolean | null,
@@ -204,6 +206,7 @@ export class FinancialTransaction {
     public whoId?: string | null,
     public whoName?: string | null,
     public accountId?: string | null,
+    public importId?: string | null,
   ) {}
 }
 
@@ -232,7 +235,7 @@ export class FinanceSnapshot {
 
 export class FinanceInvestmentSnapshotDetails {
   constructor(
-    public priceDateTime: string,
+    public priceDate: string,
     public price: number,
     public quantity: number,
     public estimatedPrice: boolean | null,
@@ -255,6 +258,63 @@ export class FinanceInvestmentSnapshotDetails {
     public fxDate?: string | null,
     public userSecurityId?: string | null,
   ) {}
+}
+
+export interface FinanceSecurityPriceRefreshItem {
+  userSecurityId: string | null;
+  symbol: string | null;
+  requestedSymbol: string | null;
+  requestedExchangeMic: string | null;
+  currencyCode: string | null;
+  selected: boolean;
+  applied: boolean;
+  canApply: boolean;
+  appliedSource: string | null;
+  status: string;
+  message: string | null;
+  priceDate: string | null;
+  price: number | null;
+  aiPriceDate: string | null;
+  aiPrice: number | null;
+  aiMessage: string | null;
+  twelveDataPriceDate: string | null;
+  twelveDataPrice: number | null;
+  twelveDataMessage: string | null;
+  previousPrice: number | null;
+  priceDeltaValue: number | null;
+  priceDeltaPercent: number | null;
+}
+
+export interface FinanceSecurityPriceRefreshResult {
+  jobId: string | null;
+  status: string | null;
+  currentSymbol: string | null;
+  currentMessage: string | null;
+  complete: boolean;
+  startedAtEpochMs: number;
+  completedAtEpochMs: number | null;
+  requestedCount: number;
+  processedCount: number;
+  refreshedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  appliedCount: number;
+  applyRequested: boolean;
+  items: FinanceSecurityPriceRefreshItem[];
+}
+
+export interface FinanceSecurityStoredPrice {
+  id: string;
+  symbol: string;
+  date: string;
+  price: number;
+  comment: string | null;
+}
+
+export interface FinanceSecurityStoredPriceUpdate {
+  date: string;
+  price: number;
+  comment: string | null;
 }
 
 export class FinanceResource {
