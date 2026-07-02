@@ -188,7 +188,6 @@ export class PayeesComponent implements OnInit {
       this.defaultCurrencyCode,
     );
   }
-
   get deleteDialogTitle(): string {
     return this.deleteCandidateMode === 'variant' ? 'Hide variant?' : 'Hide payee?';
   }

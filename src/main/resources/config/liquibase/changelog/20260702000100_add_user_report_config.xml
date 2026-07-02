@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet author="codex" id="20260702000100-1">
+        <createTable tableName="user_report_config">
+            <column name="id" type="uuid">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="user_report_config_pk"/>
+            </column>
+            <column name="report_key" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="varchar(120)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config_json" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="varchar(50)"/>
+            <column name="created_date" type="${datetimeType}"/>
+            <column name="last_modified_by" type="varchar(50)"/>
+            <column name="last_modified_date" type="${datetimeType}"/>
+        </createTable>
+
+        <addUniqueConstraint
+            tableName="user_report_config"
+            columnNames="user_id,report_key,name"
+            constraintName="ux_user_report_config_user_report_name"/>
+
+        <addForeignKeyConstraint
+            baseTableName="user_report_config"
+            baseColumnNames="user_id"
+            referencedTableName="jhi_user"
+            referencedColumnNames="id"
+            constraintName="fk_user_report_config_user_id"/>
+
+        <createIndex indexName="idx_user_report_config_user_id" tableName="user_report_config">
+            <column name="user_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_user_report_config_report_key" tableName="user_report_config">
+            <column name="report_key"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

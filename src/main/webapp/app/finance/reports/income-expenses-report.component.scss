@@ -1,0 +1,330 @@
+.report-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.report-shell__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.report-shell__title {
+  margin: 0.35rem 0 0.3rem;
+  font-size: 1.8rem;
+}
+
+.report-shell__subtitle {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.68);
+  max-width: 46rem;
+}
+
+.report-shell__header-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.report-shell__config-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 16rem;
+}
+
+.report-shell__config-picker span {
+  font-size: 0.82rem;
+  color: rgba(0, 0, 0, 0.66);
+}
+
+.report-shell__config-picker select,
+.report-config-dialog__panel select,
+.report-config-dialog__panel input[type='text'],
+.report-save-dialog__body input,
+.report-shell__custom-dates input {
+  width: 100%;
+  border: 1px solid rgba(18, 36, 64, 0.16);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  background: #fff;
+}
+
+.report-shell__menu-toggle {
+  border: 1px solid rgba(18, 36, 64, 0.12);
+  background: #fff;
+  border-radius: 0.85rem;
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.report-shell__menu {
+  position: absolute;
+  top: 3.2rem;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+  background: #fff;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(18, 36, 64, 0.12);
+  box-shadow: 0 1rem 2.2rem rgba(18, 36, 64, 0.16);
+  overflow: hidden;
+  z-index: 3;
+}
+
+.report-shell__menu button,
+.report-config-dialog__actions button,
+.report-config-dialog__tabs button {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 0.8rem 0.95rem;
+}
+
+.report-shell__menu button:hover,
+.report-config-dialog__actions button:hover,
+.report-config-dialog__tabs button:hover {
+  background: rgba(31, 76, 122, 0.08);
+}
+
+.report-shell__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(18, 36, 64, 0.1);
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.report-shell__custom-dates {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.report-shell__status,
+.report-shell__loading {
+  padding: 0.85rem 1rem;
+  border-radius: 0.9rem;
+  background: rgba(198, 93, 59, 0.1);
+  color: #8a3620;
+}
+
+.report-shell__surface,
+.report-table-card,
+.report-chart-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(18, 36, 64, 0.1);
+  background: #fff;
+  box-shadow: 0 0.8rem 2rem rgba(18, 36, 64, 0.08);
+}
+
+.report-table-card,
+.report-chart-card {
+  padding: 1rem;
+}
+
+.report-table-card__meta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+  color: rgba(0, 0, 0, 0.62);
+  font-size: 0.92rem;
+}
+
+.report-table-card__wrap {
+  overflow-x: auto;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 44rem;
+}
+
+.report-table th,
+.report-table td {
+  padding: 0.75rem 0.8rem;
+  border-bottom: 1px solid rgba(18, 36, 64, 0.08);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.report-table th:first-child,
+.report-table td:first-child {
+  text-align: left;
+}
+
+.report-table__group td {
+  background: rgba(31, 76, 122, 0.08);
+  font-weight: 600;
+}
+
+.report-table__subtotal td {
+  background: rgba(18, 36, 64, 0.035);
+  font-weight: 600;
+}
+
+.report-table__grand-total td {
+  background: rgba(31, 76, 122, 0.12);
+  font-weight: 700;
+}
+
+.report-table-card__empty {
+  padding: 1.4rem 0.25rem;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.report-config-dialog__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.report-config-dialog__tab--active {
+  background: rgba(31, 76, 122, 0.14) !important;
+  border-radius: 0.7rem;
+}
+
+.report-config-dialog__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.report-config-dialog__panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.report-config-dialog__toggle {
+  flex-direction: row !important;
+  align-items: center;
+}
+
+.report-config-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.report-config-dialog__actions button {
+  border: 1px solid rgba(18, 36, 64, 0.1);
+  border-radius: 0.8rem;
+  background: #fff;
+}
+
+.report-config-dialog__checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.6rem 1rem;
+  max-height: 22rem;
+  overflow: auto;
+  padding-right: 0.5rem;
+}
+
+.report-config-dialog__checklist label {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.report-save-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.report-save-dialog__body label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.report-save-dialog__hint {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.report-save-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+@media (max-width: 720px) {
+  .report-shell__header,
+  .report-shell__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .report-shell__header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .report-shell__config-picker {
+    min-width: 0;
+    flex: 1;
+  }
+}
+
+:host-context(.theme-dark) .report-shell__subtitle,
+:host-context(.theme-dark) .report-shell__config-picker span,
+:host-context(.theme-dark) .report-table-card__meta,
+:host-context(.theme-dark) .report-table-card__empty,
+:host-context(.theme-dark) .report-save-dialog__hint {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+:host-context(.theme-dark) .report-shell__toolbar,
+:host-context(.theme-dark) .report-shell__surface,
+:host-context(.theme-dark) .report-table-card,
+:host-context(.theme-dark) .report-chart-card,
+:host-context(.theme-dark) .report-shell__menu,
+:host-context(.theme-dark) .report-shell__config-picker select,
+:host-context(.theme-dark) .report-config-dialog__panel select,
+:host-context(.theme-dark) .report-config-dialog__panel input[type='text'],
+:host-context(.theme-dark) .report-save-dialog__body input,
+:host-context(.theme-dark) .report-shell__custom-dates input,
+:host-context(.theme-dark) .report-shell__menu-toggle,
+:host-context(.theme-dark) .report-config-dialog__actions button {
+  background: rgba(17, 25, 34, 0.95);
+  color: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:host-context(.theme-dark) .report-shell__status,
+:host-context(.theme-dark) .report-shell__loading {
+  background: rgba(198, 93, 59, 0.16);
+  color: #ffc7b3;
+}
+
+:host-context(.theme-dark) .report-table th,
+:host-context(.theme-dark) .report-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+:host-context(.theme-dark) .report-table__group td {
+  background: rgba(122, 196, 255, 0.12);
+}
+
+:host-context(.theme-dark) .report-table__subtotal td {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+:host-context(.theme-dark) .report-table__grand-total td {
+  background: rgba(122, 196, 255, 0.18);
+}

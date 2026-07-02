@@ -1,0 +1,90 @@
+.reports-home {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.reports-home__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.reports-home__subtitle {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.66);
+  max-width: 44rem;
+}
+
+.reports-home__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1rem;
+}
+
+.reports-home__card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(18, 36, 64, 0.12);
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(233, 240, 248, 0.9));
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 0.9rem 2rem rgba(18, 36, 64, 0.08);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.reports-home__card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 1.2rem 2.5rem rgba(18, 36, 64, 0.12);
+  border-color: rgba(31, 76, 122, 0.3);
+}
+
+.reports-home__card-icon {
+  width: 3rem;
+  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.9rem;
+  background: rgba(31, 76, 122, 0.12);
+  color: #1f4c7a;
+  font-size: 1.15rem;
+}
+
+.reports-home__card-body h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
+}
+
+.reports-home__card-body p {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.68);
+}
+
+.reports-home__card-arrow {
+  color: rgba(0, 0, 0, 0.42);
+}
+
+:host-context(.theme-dark) .reports-home__subtitle,
+:host-context(.theme-dark) .reports-home__card-body p,
+:host-context(.theme-dark) .reports-home__card-arrow {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+:host-context(.theme-dark) .reports-home__card {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(18, 28, 38, 0.96), rgba(16, 46, 63, 0.92));
+  box-shadow: 0 0.9rem 2rem rgba(0, 0, 0, 0.28);
+}
+
+:host-context(.theme-dark) .reports-home__card-icon {
+  background: rgba(122, 196, 255, 0.14);
+  color: #91d0ff;
+}

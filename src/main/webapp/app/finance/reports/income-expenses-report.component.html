@@ -1,0 +1,288 @@
+<div class="standard-page-container report-shell" *ngIf="workingConfig">
+  <div class="report-shell__header">
+    <div>
+      <div class="breadcrumbs">
+        <div class="primary-breadcrumb">Reports</div>
+      </div>
+      <h1 class="report-shell__title">{{ workingConfig.title }}</h1>
+      <p class="report-shell__subtitle">Configurable income and expense reporting with saved presets, grouped totals, and charts.</p>
+    </div>
+
+    <div class="report-shell__header-actions">
+      <label class="report-shell__config-picker">
+        <span>Configuration</span>
+        <select [ngModel]="activeConfigKey" (ngModelChange)="onConfigSelected($event)">
+          <option value="builtin">Default</option>
+          <option *ngFor="let config of savedConfigs; trackBy: trackById" [value]="config.id">{{ config.name }}</option>
+        </select>
+      </label>
+
+      <button type="button" class="report-shell__menu-toggle" (click)="toggleMenu()">
+        <fa-icon icon="cogs"></fa-icon>
+      </button>
+
+      <div class="report-shell__menu" *ngIf="menuOpen">
+        <button type="button" (click)="openConfigDialog()">Configure</button>
+        <button type="button" (click)="saveCurrentConfig()">Save</button>
+        <button type="button" (click)="openSaveDialog('saveAs')">Save As</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="report-shell__toolbar">
+    <p-selectButton
+      styleClass="period-selector"
+      [options]="dateOptions"
+      [ngModel]="selectedDatePreset"
+      optionLabel="label"
+      (onChange)="onDatePresetChanged($event.value)"
+      [allowEmpty]="false"
+    >
+    </p-selectButton>
+
+    <div class="report-shell__custom-dates" *ngIf="workingConfig.datePreset === 'custom'">
+      <input type="date" [(ngModel)]="workingConfig.startDate" (change)="onCustomDatesChanged()" />
+      <span>to</span>
+      <input type="date" [(ngModel)]="workingConfig.endDate" (change)="onCustomDatesChanged()" />
+    </div>
+
+    <p-selectButton
+      class="report-shell__view-switch"
+      [options]="viewOptions"
+      [ngModel]="selectedView"
+      optionLabel="label"
+      (onChange)="onViewChanged($event.value)"
+      [allowEmpty]="false"
+    >
+    </p-selectButton>
+  </div>
+
+  <div class="report-shell__status" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <div class="report-shell__surface" *ngIf="!isRunning && result">
+    <div *ngIf="workingConfig.defaultView === 'report'" class="report-table-card">
+      <div class="report-table-card__meta">
+        <span>{{ result.startDate }} to {{ result.endDate }}</span>
+        <span>{{ selectedConfigName }}</span>
+      </div>
+
+      <div *ngIf="result.rows.length === 0" class="report-table-card__empty">No report data matches the current filters.</div>
+
+      <div *ngIf="result.rows.length > 0" class="report-table-card__wrap">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Row</th>
+              <th *ngFor="let column of result.columns; trackBy: trackById">{{ column.label }}</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <ng-container *ngFor="let row of result.rows; let rowIndex = index">
+              <tr
+                *ngIf="
+                  row.groupLabel &&
+                  !row.subtotal &&
+                  !row.grandTotal &&
+                  (!result.rows[rowIndex - 1] || result.rows[rowIndex - 1].groupLabel !== row.groupLabel)
+                "
+                class="report-table__group"
+              >
+                <td [attr.colspan]="result.columns.length + 2">{{ row.groupLabel }}</td>
+              </tr>
+              <tr [class.report-table__subtotal]="row.subtotal" [class.report-table__grand-total]="row.grandTotal">
+                <td>{{ row.label }}</td>
+                <td *ngFor="let value of row.values; let valueIndex = index">
+                  {{ formatCellValue(value, row.valuePercents[valueIndex]) }}
+                </td>
+                <td>{{ formatCellValue(row.total, row.percentOfTotal) }}</td>
+              </tr>
+            </ng-container>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div *ngIf="workingConfig.defaultView === 'bar' || workingConfig.defaultView === 'line'" class="report-chart-card">
+      <div *ngIf="result.series.length === 0" class="report-table-card__empty">No chart data matches the current filters.</div>
+      <apx-chart
+        *ngIf="result.series.length > 0"
+        [series]="axisChartOptions.series!"
+        [chart]="axisChartOptions.chart!"
+        [stroke]="axisChartOptions.stroke!"
+        [dataLabels]="axisChartOptions.dataLabels!"
+        [tooltip]="axisChartOptions.tooltip!"
+        [xaxis]="axisChartOptions.xaxis!"
+        [yaxis]="axisChartOptions.yaxis!"
+        [plotOptions]="axisChartOptions.plotOptions!"
+        [colors]="axisChartOptions.colors!"
+      ></apx-chart>
+    </div>
+
+    <div *ngIf="workingConfig.defaultView === 'pie'" class="report-chart-card">
+      <div *ngIf="result.pie.length === 0" class="report-table-card__empty">No chart data matches the current filters.</div>
+      <apx-chart
+        *ngIf="result.pie.length > 0"
+        [series]="pieChartOptions.series!"
+        [chart]="pieChartOptions.chart!"
+        [labels]="pieChartOptions.labels!"
+        [legend]="pieChartOptions.legend!"
+        [dataLabels]="pieChartOptions.dataLabels!"
+        [tooltip]="pieChartOptions.tooltip!"
+        [colors]="pieChartOptions.colors!"
+      ></apx-chart>
+    </div>
+  </div>
+
+  <div *ngIf="isRunning" class="report-shell__loading">Refreshing report...</div>
+</div>
+
+<p-dialog
+  header="Report Configuration"
+  [(visible)]="configDialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(74rem, 96vw)' }"
+  styleClass="report-config-dialog"
+>
+  <div class="report-config-dialog__tabs">
+    <button
+      *ngFor="let tab of configTabs"
+      type="button"
+      [class.report-config-dialog__tab--active]="activeConfigTab === tab.value"
+      (click)="activeConfigTab = tab.value"
+    >
+      {{ tab.label }}
+    </button>
+  </div>
+
+  <div class="report-config-dialog__body" *ngIf="workingConfig">
+    <div *ngIf="activeConfigTab === 'layout'" class="report-config-dialog__panel">
+      <label>
+        <span>Rows</span>
+        <select [(ngModel)]="workingConfig.rowDimension" (ngModelChange)="onConfigFieldChanged()">
+          <option *ngFor="let option of rowOptions" [ngValue]="option.value">{{ option.label }}</option>
+        </select>
+      </label>
+      <label>
+        <span>Columns</span>
+        <select [(ngModel)]="workingConfig.columnDimension" (ngModelChange)="onConfigFieldChanged()">
+          <option *ngFor="let option of columnOptions" [ngValue]="option.value">{{ option.label }}</option>
+        </select>
+      </label>
+      <label class="report-config-dialog__toggle">
+        <input type="checkbox" [(ngModel)]="workingConfig.showPercentOfTotal" (change)="onConfigFieldChanged()" />
+        <span>Show values as % of total</span>
+      </label>
+    </div>
+
+    <div *ngIf="activeConfigTab === 'accounts'" class="report-config-dialog__panel">
+      <div class="report-config-dialog__actions">
+        <button type="button" (click)="selectAllList('accountIds')">Select All</button>
+        <button type="button" (click)="clearList('accountIds')">Clear All</button>
+      </div>
+      <div class="report-config-dialog__checklist">
+        <label *ngFor="let account of accounts; trackBy: trackById">
+          <input
+            type="checkbox"
+            [checked]="isSelected('accountIds', account.id)"
+            (change)="onCheckboxListToggle('accountIds', account.id, $any($event.target).checked)"
+          />
+          <span>{{ account.name }}</span>
+        </label>
+      </div>
+    </div>
+
+    <div *ngIf="activeConfigTab === 'categories'" class="report-config-dialog__panel">
+      <div class="report-config-dialog__actions">
+        <button type="button" (click)="selectAllCategories()">Select All</button>
+        <button type="button" (click)="selectIncomeCategories()">Select Income Categories</button>
+        <button type="button" (click)="selectExpenseCategories()">Select Expense Categories</button>
+        <button type="button" (click)="clearAllCategories()">Clear All</button>
+      </div>
+      <div class="report-config-dialog__checklist">
+        <label *ngFor="let category of categoryOptions; trackBy: trackById">
+          <input
+            type="checkbox"
+            [checked]="isSelected('categoryIds', category.id)"
+            (change)="onCheckboxListToggle('categoryIds', category.id, $any($event.target).checked)"
+          />
+          <span>{{ category.label }}</span>
+        </label>
+      </div>
+    </div>
+
+    <div *ngIf="activeConfigTab === 'payees'" class="report-config-dialog__panel">
+      <div class="report-config-dialog__actions">
+        <button type="button" (click)="selectAllList('payeeIds')">Select All</button>
+        <button type="button" (click)="clearList('payeeIds')">Clear All</button>
+      </div>
+      <div class="report-config-dialog__checklist">
+        <label *ngFor="let payee of payees; trackBy: trackById">
+          <input
+            type="checkbox"
+            [checked]="isSelected('payeeIds', payee.id)"
+            (change)="onCheckboxListToggle('payeeIds', payee.id, $any($event.target).checked)"
+          />
+          <span>{{ payee.name }}</span>
+        </label>
+      </div>
+    </div>
+
+    <div *ngIf="activeConfigTab === 'family'" class="report-config-dialog__panel">
+      <div class="report-config-dialog__actions">
+        <button type="button" (click)="selectAllList('familyMemberIds')">Select All</button>
+        <button type="button" (click)="clearList('familyMemberIds')">Clear All</button>
+      </div>
+      <div class="report-config-dialog__checklist">
+        <label *ngFor="let option of familyOptions; trackBy: trackById">
+          <input
+            type="checkbox"
+            [checked]="isSelected('familyMemberIds', option.id)"
+            (change)="onCheckboxListToggle('familyMemberIds', option.id, $any($event.target).checked)"
+          />
+          <span>{{ option.label }}</span>
+        </label>
+      </div>
+    </div>
+
+    <div *ngIf="activeConfigTab === 'title'" class="report-config-dialog__panel">
+      <label>
+        <span>Title</span>
+        <input type="text" [(ngModel)]="workingConfig.title" (ngModelChange)="onConfigFieldChanged()" />
+      </label>
+    </div>
+
+    <div *ngIf="activeConfigTab === 'view'" class="report-config-dialog__panel">
+      <label>
+        <span>Default view</span>
+        <select [(ngModel)]="workingConfig.defaultView" (ngModelChange)="onConfigFieldChanged()">
+          <option *ngFor="let option of viewOptions" [ngValue]="option.value">{{ option.label }}</option>
+        </select>
+      </label>
+    </div>
+  </div>
+</p-dialog>
+
+<p-dialog
+  header="Save Report Configuration"
+  [(visible)]="saveDialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: '28rem' }"
+  styleClass="report-save-dialog"
+>
+  <div class="report-save-dialog__body">
+    <label>
+      <span>Name</span>
+      <input type="text" [(ngModel)]="saveName" autofocus />
+    </label>
+    <p *ngIf="workingConfig?.builtin" class="report-save-dialog__hint">Built-in configurations must be saved with a unique name.</p>
+    <div class="report-save-dialog__actions">
+      <button type="button" class="manage-button" (click)="saveDialogVisible = false" [disabled]="isSaving">Cancel</button>
+      <button type="button" class="manage-button manage-button--primary" (click)="confirmSaveDialog()" [disabled]="isSaving">
+        {{ isSaving ? 'Saving...' : saveDialogMode === 'save' ? 'Save' : 'Save As' }}
+      </button>
+    </div>
+  </div>
+</p-dialog>

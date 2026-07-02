@@ -11,6 +11,8 @@ import { categoriesRoute } from './categories/categories.route';
 import { payeesRoute } from './payees/payees.route';
 import { fxRatesRoute } from './fx-rates/fx-rates.route';
 import { aiAssistantRoute } from './ai-assistant/ai-assistant.route';
+import { reportsHomeRoute } from './reports/reports-home.route';
+import { incomeExpensesReportRoute } from './reports/income-expenses-report.route';
 
 const routes: Routes = [
   accountListRoute,
@@ -26,6 +28,8 @@ const routes: Routes = [
   categoriesRoute,
   payeesRoute,
   fxRatesRoute,
+  reportsHomeRoute,
+  incomeExpensesReportRoute,
   importRoute,
 ];
 

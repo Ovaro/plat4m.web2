@@ -179,7 +179,6 @@ export class CategoriesComponent implements OnInit {
       this.defaultCurrencyCode,
     );
   }
-
   load(): void {
     this.isLoading = true;
     this.errorMessage = null;

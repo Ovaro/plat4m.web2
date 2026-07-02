@@ -201,6 +201,25 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
     List<FinanceTransaction> findAllByImportId(UUID importId);
 
     @Query(
+        "select f from FinanceTransaction f " +
+            "left join fetch f.category c " +
+            "left join fetch c.parent cp " +
+            "left join fetch cp.parent cpp " +
+            "left join fetch f.who w " +
+            "where f.userGuid = :userGuid " +
+            "and f.date between :startDate and :endDate " +
+            "and f.voided = false " +
+            "and f.recurring = false " +
+            "and f.splitParent = false " +
+            "order by f.date asc, f.number asc, f.id asc"
+    )
+    List<FinanceTransaction> findReportTransactions(
+        @Param("userGuid") String userGuid,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
+
+    @Query(
         value = "select count(*) from fin_transaction f " +
             "where f.user_guid = :user_guid " +
             "and f.account_id = :account_id " +

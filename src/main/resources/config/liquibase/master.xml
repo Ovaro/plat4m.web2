@@ -22,6 +22,7 @@
     <include file="config/liquibase/changelog/20260618000200_refine_ai_import_duplicate_review.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260618000300_add_ai_import_transfer_support.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260619000100_add_fx_pair_favourites.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260702000100_add_user_report_config.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-changelog - JHipster will add liquibase changelogs here -->
     <!-- jhipster-needle-liquibase-add-constraints-changelog - JHipster will add liquibase constraints changelogs here -->
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->

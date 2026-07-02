@@ -207,15 +207,31 @@
   }
 
   :host ::ng-deep .manage-transactions-dialog.p-dialog.p-dialog-maximized {
-    top: var(--app-dialog-safe-top) !important;
+    position: fixed !important;
+    top: 0 !important;
     left: 0 !important;
     width: 100vw !important;
-    height: calc(100vh - var(--app-dialog-safe-top)) !important;
-    max-height: calc(100vh - var(--app-dialog-safe-top)) !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    margin-top: 0;
+    transform: none !important;
+    border-radius: 0;
+    z-index: 1101 !important;
+  }
+
+  :host ::ng-deep .manage-transactions-dialog.p-dialog.p-dialog-maximized .p-dialog-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  :host ::ng-deep .manage-transactions-dialog.p-dialog.p-dialog-maximized .p-dialog-header-actions {
+    position: relative;
+    z-index: 3;
   }
 
   :host ::ng-deep .manage-transactions-dialog.p-dialog.p-dialog-maximized .p-dialog-content {
-    max-height: calc(100vh - var(--app-dialog-safe-top) - 4rem);
+    max-height: calc(100vh - 4rem);
   }
 
   :host ::ng-deep .manage-transaction-editor-dialog .p-dialog-content {
