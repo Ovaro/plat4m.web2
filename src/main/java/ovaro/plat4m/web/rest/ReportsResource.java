@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.*;
 import ovaro.plat4m.service.ReportsService;
+import ovaro.plat4m.service.dto.IncomeExpenseReportDrilldownDTO;
+import ovaro.plat4m.service.dto.IncomeExpenseReportDrilldownRequestDTO;
 import ovaro.plat4m.service.dto.IncomeExpenseReportResultDTO;
 import ovaro.plat4m.service.dto.ReportConfigDTO;
 import ovaro.plat4m.service.dto.ReportDefinitionDTO;
@@ -42,5 +44,10 @@ public class ReportsResource {
     @PostMapping("/income-expenses/run")
     public IncomeExpenseReportResultDTO runIncomeExpenseReport(@Valid @RequestBody ReportConfigDTO dto) {
         return reportsService.runIncomeExpenseReport(dto);
+    }
+
+    @PostMapping("/income-expenses/drilldown")
+    public IncomeExpenseReportDrilldownDTO getIncomeExpenseReportDrilldown(@Valid @RequestBody IncomeExpenseReportDrilldownRequestDTO dto) {
+        return reportsService.getIncomeExpenseDrilldown(dto);
     }
 }

@@ -1,6 +1,7 @@
 package ovaro.plat4m.repository;
 
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,4 +20,5 @@ public interface FinanceUserSecurityRepository extends JpaRepository<FinanceUser
     Optional<FinanceUserSecurity> findByMasterGuid(String masterGuid);
     List<FinanceUserSecurity> findByUserGuid(String userGuid);
     Optional<FinanceUserSecurity> findByIdAndUserGuid(UUID id, String userGuid);
+    List<FinanceUserSecurity> findAllByUserGuidAndIdIn(String userGuid, Collection<UUID> ids);
 }

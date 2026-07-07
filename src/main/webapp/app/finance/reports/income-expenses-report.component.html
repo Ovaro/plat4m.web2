@@ -9,17 +9,19 @@
     </div>
 
     <div class="report-shell__header-actions">
-      <label class="report-shell__config-picker">
-        <span>Configuration</span>
-        <select [ngModel]="activeConfigKey" (ngModelChange)="onConfigSelected($event)">
-          <option value="builtin">Default</option>
-          <option *ngFor="let config of savedConfigs; trackBy: trackById" [value]="config.id">{{ config.name }}</option>
-        </select>
-      </label>
+      <div class="report-shell__config-controls">
+        <label class="report-shell__config-picker">
+          <span>Configuration</span>
+          <select [ngModel]="activeConfigKey" (ngModelChange)="onConfigSelected($event)">
+            <option value="builtin">Default</option>
+            <option *ngFor="let config of savedConfigs; trackBy: trackById" [value]="config.id">{{ config.name }}</option>
+          </select>
+        </label>
 
-      <button type="button" class="report-shell__menu-toggle" (click)="toggleMenu()">
-        <fa-icon icon="cogs"></fa-icon>
-      </button>
+        <button type="button" class="report-shell__menu-toggle" (click)="toggleMenu()">
+          <fa-icon icon="cogs"></fa-icon>
+        </button>
+      </div>
 
       <div class="report-shell__menu" *ngIf="menuOpen">
         <button type="button" (click)="openConfigDialog()">Configure</button>
@@ -47,7 +49,18 @@
     </div>
 
     <p-selectButton
-      class="report-shell__view-switch"
+      styleClass="period-selector report-shell__row-switch"
+      [options]="rowOptions"
+      [ngModel]="workingConfig.rowDimension"
+      optionLabel="label"
+      optionValue="value"
+      (onChange)="onRowDimensionChanged($event.value)"
+      [allowEmpty]="false"
+    >
+    </p-selectButton>
+
+    <p-selectButton
+      styleClass="period-selector report-shell__view-switch"
       [options]="viewOptions"
       [ngModel]="selectedView"
       optionLabel="label"
@@ -61,41 +74,71 @@
 
   <div class="report-shell__surface" *ngIf="!isRunning && result">
     <div *ngIf="workingConfig.defaultView === 'report'" class="report-table-card">
-      <div class="report-table-card__meta">
-        <span>{{ result.startDate }} to {{ result.endDate }}</span>
-        <span>{{ selectedConfigName }}</span>
+      <div class="report-table-card__filter">
+        <input type="search" [(ngModel)]="reportRowFilter" placeholder="Filter rows" />
+        <p-selectButton
+          styleClass="period-selector report-table-card__section-filter"
+          [options]="sectionFilterOptions"
+          [ngModel]="reportSectionFilter"
+          optionLabel="label"
+          optionValue="value"
+          (onChange)="setReportSectionFilter($event.value)"
+          [allowEmpty]="false"
+        >
+        </p-selectButton>
+        <button type="button" class="manage-button" *ngIf="reportRowFilter" (click)="reportRowFilter = ''">Clear</button>
+        <div class="report-table-card__summary">
+          <span>{{ result.startDate }} to {{ result.endDate }}</span>
+        </div>
       </div>
 
       <div *ngIf="result.rows.length === 0" class="report-table-card__empty">No report data matches the current filters.</div>
+      <div *ngIf="result.rows.length > 0 && filteredResultRows.length === 0" class="report-table-card__empty">
+        No rows match the current filter text.
+      </div>
 
-      <div *ngIf="result.rows.length > 0" class="report-table-card__wrap">
+      <div *ngIf="result.rows.length > 0 && filteredResultRows.length > 0" class="report-table-card__wrap">
         <table class="report-table">
           <thead>
             <tr>
-              <th>Row</th>
+              <th class="report-table__sticky-column">Row</th>
               <th *ngFor="let column of result.columns; trackBy: trackById">{{ column.label }}</th>
               <th>Total</th>
             </tr>
           </thead>
           <tbody>
-            <ng-container *ngFor="let row of result.rows; let rowIndex = index">
+            <ng-container *ngFor="let row of filteredResultRows; let rowIndex = index">
               <tr
                 *ngIf="
                   row.groupLabel &&
                   !row.subtotal &&
                   !row.grandTotal &&
-                  (!result.rows[rowIndex - 1] || result.rows[rowIndex - 1].groupLabel !== row.groupLabel)
+                  (!filteredResultRows[rowIndex - 1] || filteredResultRows[rowIndex - 1].groupLabel !== row.groupLabel)
                 "
                 class="report-table__group"
+                [class.report-table__group--section-divider]="rowIndex > 0"
               >
-                <td [attr.colspan]="result.columns.length + 2">{{ row.groupLabel }}</td>
+                <td class="report-table__sticky-column report-table__group-cell">{{ row.groupLabel }}</td>
+                <td class="report-table__group-fill" [attr.colspan]="result.columns.length + 1"></td>
               </tr>
-              <tr [class.report-table__subtotal]="row.subtotal" [class.report-table__grand-total]="row.grandTotal">
-                <td>{{ row.label }}</td>
-                <td *ngFor="let value of row.values; let valueIndex = index">
+              <tr
+                [class.report-table__subtotal]="row.subtotal"
+                [class.report-table__grand-total]="row.grandTotal"
+                [class.report-table__section-total]="row.rowType === 'sectionTotal'"
+                [class.report-table__net-total]="row.rowType === 'net'"
+              >
+                <td class="report-table__sticky-column report-table__clickable" (click)="openRowHistory(row)">{{ row.label }}</td>
+                <td
+                  *ngFor="let value of row.values; let valueIndex = index"
+                  [class.report-table__negative]="value < 0"
+                  [class.report-table__clickable]="true"
+                  (click)="openCellDrilldown(row, result.columns[valueIndex])"
+                >
                   {{ formatCellValue(value, row.valuePercents[valueIndex]) }}
                 </td>
-                <td>{{ formatCellValue(row.total, row.percentOfTotal) }}</td>
+                <td [class.report-table__negative]="row.total < 0" [class.report-table__clickable]="true" (click)="openCellDrilldown(row)">
+                  {{ formatCellValue(row.total, row.percentOfTotal) }}
+                </td>
               </tr>
             </ng-container>
           </tbody>
@@ -103,14 +146,91 @@
       </div>
     </div>
 
-    <div *ngIf="workingConfig.defaultView === 'bar' || workingConfig.defaultView === 'line'" class="report-chart-card">
-      <div *ngIf="result.series.length === 0" class="report-table-card__empty">No chart data matches the current filters.</div>
+    <div *ngIf="workingConfig.defaultView === 'bar'" class="report-chart-card">
+      <div class="report-chart-card__filter">
+        <div class="report-chart-card__search">
+          <input
+            type="search"
+            [(ngModel)]="chartCategoryFilter"
+            (ngModelChange)="onChartCategoryFilterChanged()"
+            placeholder="Filter categories"
+          />
+          <button type="button" class="manage-button" *ngIf="chartCategoryFilter" (click)="clearChartCategoryFilter()">Clear</button>
+        </div>
+        <p-selectButton
+          styleClass="period-selector report-table-card__section-filter"
+          [options]="chartSectionFilterOptions"
+          [ngModel]="chartSectionFilter"
+          optionLabel="label"
+          optionValue="value"
+          (onChange)="setChartSectionFilter($event.value)"
+          [allowEmpty]="false"
+        >
+        </p-selectButton>
+        <label class="report-chart-card__switch">
+          <span>Legend</span>
+          <p-toggleswitch [(ngModel)]="showChartLegend" (ngModelChange)="onChartLegendChanged()"></p-toggleswitch>
+        </label>
+        <div class="report-table-card__summary">
+          <span>{{ result.startDate }} to {{ result.endDate }}</span>
+        </div>
+      </div>
+      <div *ngIf="chartOptimizationSummary" class="report-chart-card__note">{{ chartOptimizationSummary }}</div>
+
+      <div *ngIf="!hasFilteredAxisSeries" class="report-table-card__empty">No chart data matches the current filters.</div>
       <apx-chart
-        *ngIf="result.series.length > 0"
+        *ngIf="hasFilteredAxisSeries"
         [series]="axisChartOptions.series!"
         [chart]="axisChartOptions.chart!"
         [stroke]="axisChartOptions.stroke!"
         [dataLabels]="axisChartOptions.dataLabels!"
+        [legend]="axisChartOptions.legend!"
+        [tooltip]="axisChartOptions.tooltip!"
+        [xaxis]="axisChartOptions.xaxis!"
+        [yaxis]="axisChartOptions.yaxis!"
+        [plotOptions]="axisChartOptions.plotOptions!"
+        [colors]="axisChartOptions.colors!"
+      ></apx-chart>
+    </div>
+
+    <div *ngIf="workingConfig.defaultView === 'line'" class="report-chart-card">
+      <div class="report-chart-card__filter">
+        <div class="report-chart-card__search">
+          <input
+            type="search"
+            [(ngModel)]="chartCategoryFilter"
+            (ngModelChange)="onChartCategoryFilterChanged()"
+            placeholder="Filter categories"
+          />
+          <button type="button" class="manage-button" *ngIf="chartCategoryFilter" (click)="clearChartCategoryFilter()">Clear</button>
+        </div>
+        <p-selectButton
+          styleClass="period-selector report-table-card__section-filter"
+          [options]="sectionFilterOptions"
+          [ngModel]="reportSectionFilter"
+          optionLabel="label"
+          optionValue="value"
+          (onChange)="setReportSectionFilter($event.value)"
+          [allowEmpty]="false"
+        >
+        </p-selectButton>
+        <label class="report-chart-card__switch">
+          <span>Legend</span>
+          <p-toggleswitch [(ngModel)]="showChartLegend" (ngModelChange)="onChartLegendChanged()"></p-toggleswitch>
+        </label>
+        <div class="report-table-card__summary">
+          <span>{{ result.startDate }} to {{ result.endDate }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="!hasFilteredAxisSeries" class="report-table-card__empty">No chart data matches the current filters.</div>
+      <apx-chart
+        *ngIf="hasFilteredAxisSeries"
+        [series]="axisChartOptions.series!"
+        [chart]="axisChartOptions.chart!"
+        [stroke]="axisChartOptions.stroke!"
+        [dataLabels]="axisChartOptions.dataLabels!"
+        [legend]="axisChartOptions.legend!"
         [tooltip]="axisChartOptions.tooltip!"
         [xaxis]="axisChartOptions.xaxis!"
         [yaxis]="axisChartOptions.yaxis!"
@@ -120,9 +240,38 @@
     </div>
 
     <div *ngIf="workingConfig.defaultView === 'pie'" class="report-chart-card">
-      <div *ngIf="result.pie.length === 0" class="report-table-card__empty">No chart data matches the current filters.</div>
+      <div class="report-chart-card__filter">
+        <div class="report-chart-card__search">
+          <input
+            type="search"
+            [(ngModel)]="chartCategoryFilter"
+            (ngModelChange)="onChartCategoryFilterChanged()"
+            placeholder="Filter categories"
+          />
+          <button type="button" class="manage-button" *ngIf="chartCategoryFilter" (click)="clearChartCategoryFilter()">Clear</button>
+        </div>
+        <p-selectButton
+          styleClass="period-selector report-table-card__section-filter"
+          [options]="chartSectionFilterOptions"
+          [ngModel]="chartSectionFilter"
+          optionLabel="label"
+          optionValue="value"
+          (onChange)="setChartSectionFilter($event.value)"
+          [allowEmpty]="false"
+        >
+        </p-selectButton>
+        <label class="report-chart-card__switch">
+          <span>Legend</span>
+          <p-toggleswitch [(ngModel)]="showChartLegend" (ngModelChange)="onChartLegendChanged()"></p-toggleswitch>
+        </label>
+        <div class="report-table-card__summary">
+          <span>{{ result.startDate }} to {{ result.endDate }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="!hasFilteredPieSegments" class="report-table-card__empty">No chart data matches the current filters.</div>
       <apx-chart
-        *ngIf="result.pie.length > 0"
+        *ngIf="hasFilteredPieSegments"
         [series]="pieChartOptions.series!"
         [chart]="pieChartOptions.chart!"
         [labels]="pieChartOptions.labels!"
@@ -134,7 +283,13 @@
     </div>
   </div>
 
-  <div *ngIf="isRunning" class="report-shell__loading">Refreshing report...</div>
+  <div *ngIf="isRunning" class="report-shell__loading">
+    <span class="report-shell__loading-spinner" aria-hidden="true"></span>
+    <div class="report-shell__loading-copy">
+      <strong>Refreshing report</strong>
+      <span>Updating figures and charts with your latest filters.</span>
+    </div>
+  </div>
 </div>
 
 <p-dialog
@@ -181,14 +336,18 @@
         <button type="button" (click)="selectAllList('accountIds')">Select All</button>
         <button type="button" (click)="clearList('accountIds')">Clear All</button>
       </div>
-      <div class="report-config-dialog__checklist">
-        <label *ngFor="let account of accounts; trackBy: trackById">
+      <label class="report-config-dialog__filter">
+        <span>Filter accounts</span>
+        <input type="search" [(ngModel)]="optionFilters.accountIds" placeholder="Type to filter accounts" />
+      </label>
+      <div class="report-config-dialog__checklist report-config-dialog__checklist--list">
+        <label *ngFor="let account of filteredAccountOptions; trackBy: trackById">
           <input
             type="checkbox"
             [checked]="isSelected('accountIds', account.id)"
             (change)="onCheckboxListToggle('accountIds', account.id, $any($event.target).checked)"
           />
-          <span>{{ account.name }}</span>
+          <span>{{ account.label }}</span>
         </label>
       </div>
     </div>
@@ -200,8 +359,12 @@
         <button type="button" (click)="selectExpenseCategories()">Select Expense Categories</button>
         <button type="button" (click)="clearAllCategories()">Clear All</button>
       </div>
-      <div class="report-config-dialog__checklist">
-        <label *ngFor="let category of categoryOptions; trackBy: trackById">
+      <label class="report-config-dialog__filter">
+        <span>Filter categories</span>
+        <input type="search" [(ngModel)]="optionFilters.categoryIds" placeholder="Type to filter categories" />
+      </label>
+      <div class="report-config-dialog__checklist report-config-dialog__checklist--list">
+        <label *ngFor="let category of filteredCategoryOptions; trackBy: trackById">
           <input
             type="checkbox"
             [checked]="isSelected('categoryIds', category.id)"
@@ -217,14 +380,18 @@
         <button type="button" (click)="selectAllList('payeeIds')">Select All</button>
         <button type="button" (click)="clearList('payeeIds')">Clear All</button>
       </div>
-      <div class="report-config-dialog__checklist">
-        <label *ngFor="let payee of payees; trackBy: trackById">
+      <label class="report-config-dialog__filter">
+        <span>Filter payees</span>
+        <input type="search" [(ngModel)]="optionFilters.payeeIds" placeholder="Type to filter payees" />
+      </label>
+      <div class="report-config-dialog__checklist report-config-dialog__checklist--list">
+        <label *ngFor="let payee of filteredPayeeOptions; trackBy: trackById">
           <input
             type="checkbox"
             [checked]="isSelected('payeeIds', payee.id)"
             (change)="onCheckboxListToggle('payeeIds', payee.id, $any($event.target).checked)"
           />
-          <span>{{ payee.name }}</span>
+          <span>{{ payee.label }}</span>
         </label>
       </div>
     </div>
@@ -234,8 +401,12 @@
         <button type="button" (click)="selectAllList('familyMemberIds')">Select All</button>
         <button type="button" (click)="clearList('familyMemberIds')">Clear All</button>
       </div>
-      <div class="report-config-dialog__checklist">
-        <label *ngFor="let option of familyOptions; trackBy: trackById">
+      <label class="report-config-dialog__filter">
+        <span>Filter family members</span>
+        <input type="search" [(ngModel)]="optionFilters.familyMemberIds" placeholder="Type to filter family members" />
+      </label>
+      <div class="report-config-dialog__checklist report-config-dialog__checklist--list">
+        <label *ngFor="let option of filteredFamilyOptions; trackBy: trackById">
           <input
             type="checkbox"
             [checked]="isSelected('familyMemberIds', option.id)"
@@ -265,6 +436,63 @@
 </p-dialog>
 
 <p-dialog
+  [header]="selectedRowHistory ? selectedRowHistory.label + ' history' : 'Row history'"
+  [(visible)]="rowHistoryVisible"
+  [modal]="true"
+  [draggable]="false"
+  [maximizable]="true"
+  [appendTo]="'body'"
+  [style]="{ width: 'min(92rem, 96vw)' }"
+  styleClass="report-row-history-dialog"
+  (onHide)="closeRowHistory()"
+>
+  <div *ngIf="selectedRowHistory && result" class="report-row-history-dialog__body">
+    <div class="report-row-history-dialog__overview">
+      <div class="report-row-history-dialog__summary-card">
+        <div class="report-row-history-dialog__summary-label">Periods</div>
+        <div class="report-row-history-dialog__summary-value">{{ selectedRowHistory.values.length }}</div>
+      </div>
+      <div class="report-row-history-dialog__summary-card">
+        <div class="report-row-history-dialog__summary-label">Total</div>
+        <div class="report-row-history-dialog__summary-value" [class.report-table__negative]="selectedRowHistory.total < 0">
+          {{ formatCurrency(selectedRowHistory.total) }}
+        </div>
+      </div>
+      <div class="report-row-history-dialog__summary-card">
+        <div class="report-row-history-dialog__summary-label">Average</div>
+        <div class="report-row-history-dialog__summary-value" [class.report-table__negative]="rowHistoryAverage < 0">
+          {{ formatCurrency(rowHistoryAverage) }}
+        </div>
+      </div>
+    </div>
+
+    <div class="report-row-history-dialog__chart-card">
+      <label class="report-row-history-dialog__toggle">
+        <input type="checkbox" [checked]="rowHistoryTrendlineVisible" (change)="toggleRowHistoryTrendline()" />
+        <span>Show trendline</span>
+      </label>
+
+      <div *ngIf="selectedRowHistory.values.length === 0" class="report-table-card__empty">No values available for this row.</div>
+
+      <apx-chart
+        *ngIf="selectedRowHistory.values.length > 0"
+        class="report-row-history-dialog__chart"
+        [series]="rowHistoryChartOptions.series!"
+        [chart]="rowHistoryChartOptions.chart!"
+        [stroke]="rowHistoryChartOptions.stroke!"
+        [dataLabels]="rowHistoryChartOptions.dataLabels!"
+        [tooltip]="rowHistoryChartOptions.tooltip!"
+        [xaxis]="rowHistoryChartOptions.xaxis!"
+        [yaxis]="rowHistoryChartOptions.yaxis!"
+        [plotOptions]="rowHistoryChartOptions.plotOptions!"
+        [markers]="rowHistoryChartOptions.markers!"
+        [colors]="rowHistoryChartOptions.colors!"
+      ></apx-chart>
+    </div>
+  </div>
+</p-dialog>
+
+<p-dialog
   header="Save Report Configuration"
   [(visible)]="saveDialogVisible"
   [modal]="true"
@@ -283,6 +511,70 @@
       <button type="button" class="manage-button manage-button--primary" (click)="confirmSaveDialog()" [disabled]="isSaving">
         {{ isSaving ? 'Saving...' : saveDialogMode === 'save' ? 'Save' : 'Save As' }}
       </button>
+    </div>
+  </div>
+</p-dialog>
+
+<p-dialog
+  [header]="drilldownResult?.title ?? 'Report Transactions'"
+  [(visible)]="drilldownVisible"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(78rem, 96vw)' }"
+  styleClass="report-drilldown-dialog"
+  (onHide)="closeDrilldown()"
+>
+  <div *ngIf="drilldownLoading" class="report-drilldown-dialog__loading">Loading transactions...</div>
+
+  <div *ngIf="!drilldownLoading && drilldownResult" class="report-drilldown-dialog__body">
+    <div class="report-drilldown-dialog__summary">
+      <span>{{ drilldownResult.rowLabel }}</span>
+      <span>{{ drilldownResult.columnLabel ?? 'Total' }}</span>
+      <strong [class.report-table__negative]="drilldownResult.total < 0">{{ formatCurrency(drilldownResult.total) }}</strong>
+    </div>
+
+    <div *ngIf="drilldownResult.transactions.length === 0" class="report-table-card__empty">No transactions matched this report cell.</div>
+
+    <div *ngIf="drilldownResult.transactions.length > 0" class="report-drilldown-dialog__table-wrap">
+      <table class="report-drilldown-dialog__table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Account</th>
+            <th>Payee</th>
+            <th>Category</th>
+            <th>Family Member</th>
+            <th>Memo</th>
+            <th>Section</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let transaction of drilldownResult.transactions; trackBy: trackById">
+            <td>{{ transaction.date }}</td>
+            <td>{{ getAccountName(transaction.accountId) }}</td>
+            <td>{{ transaction.payeeName || 'Unassigned' }}</td>
+            <td>{{ transaction.categoryName || 'Unassigned' }}</td>
+            <td>{{ transaction.familyMemberName || 'Unassigned' }}</td>
+            <td>{{ transaction.memo || '' }}</td>
+            <td>{{ transaction.sectionLabel || '' }}</td>
+            <td
+              [class.report-table__negative]="transaction.amount < 0"
+              [attr.title]="getDrilldownCurrencyHint(transaction, drilldownResult.currencyCode)"
+            >
+              <div class="report-drilldown-dialog__amount-cell">
+                <span>{{ formatCurrency(transaction.amount) }}</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="7">Total</td>
+            <td [class.report-table__negative]="drilldownResult.total < 0">{{ formatCurrency(drilldownResult.total) }}</td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   </div>
 </p-dialog>

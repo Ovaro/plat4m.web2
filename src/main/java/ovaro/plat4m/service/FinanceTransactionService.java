@@ -23,6 +23,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ovaro.plat4m.domain.FinanceAccount;
+import ovaro.plat4m.domain.FinanceAccountType;
 import ovaro.plat4m.domain.FinanceCategory;
 import ovaro.plat4m.domain.FinanceInvestmentActivityType;
 import ovaro.plat4m.domain.FinancePayee;
@@ -31,6 +32,7 @@ import ovaro.plat4m.domain.FinanceTag;
 import ovaro.plat4m.domain.FinanceTransaction;
 import ovaro.plat4m.domain.FinanceTransactionTag;
 import ovaro.plat4m.domain.FinanceTransferLink;
+import ovaro.plat4m.domain.FinanceUserSecurity;
 import ovaro.plat4m.domain.IFinanceMonthlySummary;
 import ovaro.plat4m.domain.SourceLink;
 import ovaro.plat4m.domain.User;
@@ -41,6 +43,7 @@ import ovaro.plat4m.repository.FinanceTagRepository;
 import ovaro.plat4m.repository.FinanceTransactionRepository;
 import ovaro.plat4m.repository.FinanceTransactionTagRepository;
 import ovaro.plat4m.repository.FinanceTransferLinkRepository;
+import ovaro.plat4m.repository.FinanceUserSecurityRepository;
 import ovaro.plat4m.repository.SourceLinkRepository;
 import ovaro.plat4m.service.dto.FinanceInvestmentTransactionDTO;
 import ovaro.plat4m.service.dto.FinanceManageCategoryDTO;
@@ -66,6 +69,7 @@ public class FinanceTransactionService {
     private FinanceTagRepository tagRepository;
     private FinanceTransactionTagRepository transactionTagRepository;
     private SourceLinkRepository sourceLinkRepository;
+    private FinanceUserSecurityRepository userSecurityRepository;
     private FinanceTransactionEditorLookupCacheService editorLookupCacheService;
 
     public FinanceTransactionService(
@@ -77,6 +81,7 @@ public class FinanceTransactionService {
         FinanceTagRepository tagRepository,
         FinanceTransactionTagRepository transactionTagRepository,
         SourceLinkRepository sourceLinkRepository,
+        FinanceUserSecurityRepository userSecurityRepository,
         FinanceTransactionEditorLookupCacheService editorLookupCacheService
     ) {
         this.transactionRepository = transactionRepository;
@@ -87,6 +92,7 @@ public class FinanceTransactionService {
         this.tagRepository = tagRepository;
         this.transactionTagRepository = transactionTagRepository;
         this.sourceLinkRepository = sourceLinkRepository;
+        this.userSecurityRepository = userSecurityRepository;
         this.editorLookupCacheService = editorLookupCacheService;
     }
 
@@ -106,11 +112,25 @@ public class FinanceTransactionService {
     }
 
     public Page<FinanceTransactionRowDTO> getTransactionsPaging(User user, String accountId, Pageable pageable, String filterModel) {
-        return this.transactionRepository.findTransactionRows(user.getGuid().toString(), accountId, pageable, filterModel);
+        Page<FinanceTransactionRowDTO> page = this.transactionRepository.findTransactionRows(
+            user.getGuid().toString(),
+            accountId,
+            pageable,
+            filterModel
+        );
+        List<FinanceTransactionRowDTO> enrichedRows = enrichTransferDisplayMetadata(user, page.getContent());
+        enrichedRows = enrichSecurityNames(user, enrichedRows);
+        return new PageImpl<>(enrichedRows, pageable, page.getTotalElements());
     }
 
     public FinanceTransactionRowDTO getTransactionRow(User user, String accountId, UUID transactionId) {
-        return this.transactionRepository.findTransactionRowById(user.getGuid().toString(), accountId, transactionId);
+        FinanceTransactionRowDTO row = this.transactionRepository.findTransactionRowById(
+            user.getGuid().toString(),
+            accountId,
+            transactionId
+        );
+        row = enrichTransferDisplayMetadata(user, row);
+        return enrichSecurityName(user, row);
     }
 
     public FinanceTransactionRowDTO getLinkedTransferTransactionRow(User user, String accountId, UUID transactionId) {
@@ -263,11 +283,17 @@ public class FinanceTransactionService {
         FinanceCategory category = findUserCategory(user, categoryId);
         String userGuid = user.getGuid().toString();
         List<UUID> categoryIds = collectCategoryBranchIds(userGuid, category);
+        Map<String, Integer> accountTypesById = getAccountTypesById(userGuid);
         List<FinanceTransaction> transactions = Integer.valueOf(1).equals(category.getClassificationId())
             ? this.transactionRepository.findAllByUserGuidAndWhoIds(userGuid, categoryIds)
             : this.transactionRepository.findAllByUserGuidAndCategoryIds(userGuid, categoryIds);
 
-        return withTransactionTags(transactions.stream().map(this::mapTransactionRow).toList());
+        return withTransactionTags(
+            transactions
+                .stream()
+                .map(transaction -> mapTransactionRow(transaction, accountTypesById))
+                .toList()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -290,8 +316,14 @@ public class FinanceTransactionService {
         FinancePayee payee = findUserPayee(user, payeeId);
         String userGuid = user.getGuid().toString();
         List<String> payeeIds = collectPayeeBranchIds(userGuid, payee);
+        Map<String, Integer> accountTypesById = getAccountTypesById(userGuid);
         List<FinanceTransaction> transactions = this.transactionRepository.findAllByUserGuidAndPayeeIds(userGuid, payeeIds);
-        return withTransactionTags(transactions.stream().map(this::mapTransactionRow).toList());
+        return withTransactionTags(
+            transactions
+                .stream()
+                .map(transaction -> mapTransactionRow(transaction, accountTypesById))
+                .toList()
+        );
     }
 
     @Transactional
@@ -975,10 +1007,10 @@ public class FinanceTransactionService {
         );
     }
 
-    private FinanceTransactionRowDTO mapTransactionRow(FinanceTransaction transaction) {
+    private FinanceTransactionRowDTO mapTransactionRow(FinanceTransaction transaction, Map<String, Integer> accountTypesById) {
         FinanceTransactionRowDTO dto = new FinanceTransactionRowDTO();
         dto.setAccountId(transaction.getAccountId());
-        dto.setAmount(transaction.getAmount());
+        dto.setAmount(normalizeDisplayAmount(transaction, accountTypesById));
         dto.setPrincipalAmount(transaction.getPrincipalAmount());
         if (transaction.getCategory() != null) {
             FinanceCategory category = transaction.getCategory();
@@ -1009,6 +1041,7 @@ public class FinanceTransactionService {
         dto.setReconciled(transaction.isReconciled());
         dto.setRecurring(transaction.isRecurring());
         dto.setSecurityId(transaction.getSecurityId());
+        dto.setSecurityName(resolveSecurityName(transaction.getUserGuid(), transaction.getSecurityId()));
         dto.setSplitChild(transaction.isSplitChild());
         dto.setSplitParent(transaction.isSplitParent());
         dto.setStatementId(transaction.getStatementId());
@@ -1023,6 +1056,50 @@ public class FinanceTransactionService {
             dto.setWhoName(transaction.getWho().getName());
         }
         return dto;
+    }
+
+    private Map<String, Integer> getAccountTypesById(String userGuid) {
+        return this.accountRepository
+            .findAllByUserGuid(userGuid)
+            .stream()
+            .filter(account -> account.getId() != null)
+            .collect(
+                Collectors.toMap(account -> account.getId().toString(), FinanceAccount::getType, (left, right) -> left, LinkedHashMap::new)
+            );
+    }
+
+    private BigDecimal normalizeDisplayAmount(FinanceTransaction transaction, Map<String, Integer> accountTypesById) {
+        BigDecimal amount = transaction.getAmount();
+        if (amount == null) {
+            return null;
+        }
+        if (shouldFlipInvestmentIncomeSign(transaction, accountTypesById)) {
+            return amount.abs();
+        }
+        return amount;
+    }
+
+    private boolean shouldFlipInvestmentIncomeSign(FinanceTransaction transaction, Map<String, Integer> accountTypesById) {
+        if (
+            transaction == null ||
+            transaction.getCategory() == null ||
+            transaction.getAmount() == null ||
+            transaction.getAmount().signum() >= 0
+        ) {
+            return false;
+        }
+
+        Integer accountType = accountTypesById.get(transaction.getAccountId());
+        if (accountType == null || accountType.intValue() != FinanceAccountType.INVESTMENT.getValue()) {
+            return false;
+        }
+
+        FinanceCategory rootCategory = transaction.getCategory();
+        while (rootCategory.getParent() != null) {
+            rootCategory = rootCategory.getParent();
+        }
+
+        return "income".equalsIgnoreCase(rootCategory.getName());
     }
 
     private List<FinanceTransactionRowDTO> withTransactionTags(List<FinanceTransactionRowDTO> rows) {
@@ -1049,6 +1126,193 @@ public class FinanceTransactionService {
             row.setTagsDisplay(String.join(", ", tags));
         });
         return rows;
+    }
+
+    private FinanceTransactionRowDTO enrichSecurityName(User user, FinanceTransactionRowDTO row) {
+        if (row == null || row.getSecurityId() == null || row.getSecurityName() != null) {
+            return row;
+        }
+
+        row.setSecurityName(resolveSecurityName(user.getGuid().toString(), row.getSecurityId()));
+        return row;
+    }
+
+    private List<FinanceTransactionRowDTO> enrichSecurityNames(User user, List<FinanceTransactionRowDTO> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return rows;
+        }
+
+        List<UUID> securityIds = rows
+            .stream()
+            .map(FinanceTransactionRowDTO::getSecurityId)
+            .filter(Objects::nonNull)
+            .map(this::parseUuidQuietly)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (securityIds.isEmpty()) {
+            return rows;
+        }
+
+        Map<String, String> securityNamesById = this.userSecurityRepository
+            .findAllByUserGuidAndIdIn(user.getGuid().toString(), securityIds)
+            .stream()
+            .filter(security -> security.getId() != null)
+            .collect(Collectors.toMap(security -> security.getId().toString(), FinanceUserSecurity::getName, (left, right) -> left));
+
+        rows.forEach(row -> {
+            if (row != null && row.getSecurityId() != null && row.getSecurityName() == null) {
+                row.setSecurityName(securityNamesById.get(row.getSecurityId()));
+            }
+        });
+        return rows;
+    }
+
+    private FinanceTransactionRowDTO enrichTransferDisplayMetadata(User user, FinanceTransactionRowDTO row) {
+        if (row == null || row.getId() == null || !needsTransferDisplayMetadata(row)) {
+            return row;
+        }
+
+        UUID transactionId = parseUuidQuietly(row.getId());
+        if (transactionId == null) {
+            return row;
+        }
+
+        Optional<FinanceTransferLink> transferLink = findTransferLink(user, transactionId);
+        if (transferLink.isEmpty()) {
+            return row;
+        }
+
+        UUID counterpartId = transferLink.get().getFromId().equals(transactionId)
+            ? transferLink.get().getLinkId()
+            : transferLink.get().getFromId();
+        FinanceTransaction counterpart = this.transactionRepository
+            .findByIdAndUserGuid(counterpartId, user.getGuid().toString())
+            .orElse(null);
+        if (counterpart == null) {
+            return row;
+        }
+
+        applyTransferDisplayMetadata(row, counterpart);
+        return row;
+    }
+
+    private List<FinanceTransactionRowDTO> enrichTransferDisplayMetadata(User user, List<FinanceTransactionRowDTO> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return rows;
+        }
+
+        List<FinanceTransactionRowDTO> targetRows = rows.stream().filter(this::needsTransferDisplayMetadata).toList();
+        if (targetRows.isEmpty()) {
+            return rows;
+        }
+
+        List<UUID> transactionIds = targetRows
+            .stream()
+            .map(FinanceTransactionRowDTO::getId)
+            .map(this::parseUuidQuietly)
+            .filter(Objects::nonNull)
+            .toList();
+        if (transactionIds.isEmpty()) {
+            return rows;
+        }
+
+        List<FinanceTransferLink> transferLinks = this.transferLinkRepository.findAllByUserGuidAndTransactionIds(
+            user.getGuid().toString(),
+            transactionIds
+        );
+        if (transferLinks.isEmpty()) {
+            return rows;
+        }
+
+        Map<UUID, UUID> counterpartIdByTransactionId = new HashMap<>();
+        for (FinanceTransferLink transferLink : transferLinks) {
+            counterpartIdByTransactionId.put(transferLink.getFromId(), transferLink.getLinkId());
+            counterpartIdByTransactionId.put(transferLink.getLinkId(), transferLink.getFromId());
+        }
+
+        List<UUID> counterpartIds = transactionIds
+            .stream()
+            .map(counterpartIdByTransactionId::get)
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+        if (counterpartIds.isEmpty()) {
+            return rows;
+        }
+
+        Map<UUID, FinanceTransaction> counterpartById = this.transactionRepository
+            .findAllByUserGuidAndIdIn(user.getGuid().toString(), counterpartIds)
+            .stream()
+            .filter(transaction -> transaction.getId() != null)
+            .collect(Collectors.toMap(FinanceTransaction::getId, transaction -> transaction, (left, right) -> left));
+
+        for (FinanceTransactionRowDTO row : targetRows) {
+            UUID rowId = parseUuidQuietly(row.getId());
+            if (rowId == null) {
+                continue;
+            }
+
+            FinanceTransaction counterpart = counterpartById.get(counterpartIdByTransactionId.get(rowId));
+            if (counterpart != null) {
+                applyTransferDisplayMetadata(row, counterpart);
+            }
+        }
+
+        return rows;
+    }
+
+    private boolean needsTransferDisplayMetadata(FinanceTransactionRowDTO row) {
+        return (
+            row != null &&
+            row.getTransferredAccountId() != null &&
+            (trimToNull(row.getCategoryName()) == null || trimToNull(row.getSecurityId()) == null)
+        );
+    }
+
+    private void applyTransferDisplayMetadata(FinanceTransactionRowDTO row, FinanceTransaction counterpart) {
+        if (row == null || counterpart == null) {
+            return;
+        }
+
+        if (trimToNull(row.getCategoryName()) == null && counterpart.getCategory() != null) {
+            row.setCategoryId(counterpart.getCategory().getId().toString());
+            row.setCategoryName(counterpart.getCategory().getName());
+            if (counterpart.getCategory().getParent() != null) {
+                row.setParentCategoryId(counterpart.getCategory().getParent().getId().toString());
+                row.setParentCategoryName(counterpart.getCategory().getParent().getName());
+            }
+        }
+
+        if (trimToNull(row.getSecurityId()) == null && trimToNull(counterpart.getSecurityId()) != null) {
+            row.setSecurityId(counterpart.getSecurityId());
+        }
+    }
+
+    private String resolveSecurityName(String userGuid, String securityId) {
+        String normalizedUserGuid = trimToNull(userGuid);
+        String normalizedSecurityId = trimToNull(securityId);
+        if (normalizedUserGuid == null || normalizedSecurityId == null) {
+            return null;
+        }
+
+        UUID parsedSecurityId = parseUuidQuietly(normalizedSecurityId);
+        if (parsedSecurityId == null) {
+            return null;
+        }
+
+        return this.userSecurityRepository
+            .findByIdAndUserGuid(parsedSecurityId, normalizedUserGuid)
+            .map(FinanceUserSecurity::getName)
+            .orElse(null);
+    }
+
+    private UUID parseUuidQuietly(String value) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private List<UUID> collectCategoryBranchIds(String userGuid, FinanceCategory root) {

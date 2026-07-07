@@ -1,7 +1,7 @@
 export type ReportRowDimension = 'categoryType' | 'category' | 'subcategory';
 export type ReportColumnDimension = 'halfMonth' | 'month' | 'quarter' | 'year';
 export type ReportView = 'report' | 'bar' | 'line' | 'pie';
-export type ReportDatePreset = '1M' | '3M' | '6M' | '12M' | 'YTD' | 'ALL' | 'custom';
+export type ReportDatePreset = '1M' | '3M' | '6M' | '12M' | '2Y' | '5Y' | '7Y' | '10Y' | 'YTD' | 'ALL' | 'custom';
 
 export interface ReportConfig {
   id?: string | null;
@@ -77,6 +77,39 @@ export interface ReportResult {
   rows: ReportResultRow[];
   series: ReportResultSeries[];
   pie: ReportPieSegment[];
+}
+
+export interface ReportDrilldownRequest {
+  config: ReportConfig;
+  rowKey: string;
+  rowLabel: string;
+  columnKey: string | null;
+  columnLabel: string | null;
+}
+
+export interface ReportDrilldownTransaction {
+  id: string;
+  date: string;
+  accountId: string | null;
+  payeeName: string | null;
+  categoryName: string | null;
+  familyMemberName: string | null;
+  memo: string | null;
+  sectionLabel: string | null;
+  amount: number;
+  originalCurrencyCode: string | null;
+  originalAmount: number | null;
+}
+
+export interface ReportDrilldownResult {
+  title: string;
+  rowKey: string;
+  rowLabel: string;
+  columnKey: string | null;
+  columnLabel: string | null;
+  currencyCode: string;
+  total: number;
+  transactions: ReportDrilldownTransaction[];
 }
 
 export interface ReportFilterOption {

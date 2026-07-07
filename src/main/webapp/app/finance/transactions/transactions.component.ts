@@ -103,6 +103,7 @@ export class TransactionsComponent implements OnInit {
   readonly columnToggleOptions: TransactionColumnOption[] = [
     { id: 'date', label: 'Date', defaultVisible: true },
     { id: 'payee', label: 'Payee', defaultVisible: true },
+    { id: 'security', label: 'Security', defaultVisible: true },
     { id: 'memo', label: 'Memo', defaultVisible: false },
     { id: 'who', label: 'Who', defaultVisible: false },
     { id: 'amount', label: 'Amount', defaultVisible: false },
@@ -390,6 +391,11 @@ export class TransactionsComponent implements OnInit {
 
   onCellClicked(e: CellClickedEvent): void {
     if (!e.data) {
+      return;
+    }
+
+    if (e.colDef.colId === 'security' && e.data.securityId) {
+      void this.router.navigate(['/investment', e.data.securityId]);
       return;
     }
 
@@ -1778,6 +1784,16 @@ export class TransactionsComponent implements OnInit {
         valueGetter: params => this.getDisplayPayeeName(params.data ?? null),
       },
       {
+        colId: 'security',
+        field: 'securityName',
+        headerName: 'Security',
+        hide: !this.isColumnVisible('security'),
+        filter: 'agTextColumnFilter',
+        floatingFilter,
+        cellClass: params => (params.data?.securityId ? 'transactions-grid__security-link' : ''),
+        valueGetter: params => this.getDisplaySecurityName(params.data ?? null),
+      },
+      {
         colId: 'memo',
         field: 'memo',
         headerName: 'Memo',
@@ -1878,16 +1894,40 @@ export class TransactionsComponent implements OnInit {
       return '';
     }
 
-    if (!transaction.transferredAccountId) {
+    const storedPayeeName = this.trimToNull(transaction.payeeName ?? null);
+    const derivedDescriptor = this.getTransferPayeeDescriptor(transaction);
+    if (!transaction.transferredAccountId && storedPayeeName) {
       return transaction.payeeName ?? '';
+    }
+
+    if (derivedDescriptor) {
+      return derivedDescriptor;
     }
 
     const transferredAccountName =
       this.accounts?.find(account => account.id === transaction.transferredAccountId)?.name ?? transaction.transferredAccountId;
     const directionLabel = transaction.amount < 0 ? 'Transfer to' : 'Transfer from';
-    const payeeSuffix = transaction.payeeName ? ` (${transaction.payeeName})` : '';
+    const payeeSuffix = storedPayeeName ? ` (${storedPayeeName})` : '';
 
     return `${directionLabel}: ${transferredAccountName}${payeeSuffix}`;
+  }
+
+  private getTransferPayeeDescriptor(transaction: FinancialTransaction): string | null {
+    const categoryLabel = this.trimToNull(transaction.categoryName ?? transaction.displayCategory ?? null);
+    const securityLabel = this.trimToNull(transaction.securityName ?? transaction.securityId ?? null);
+    if (!categoryLabel && !securityLabel) {
+      return null;
+    }
+
+    return [categoryLabel, securityLabel].filter((value): value is string => !!value).join(': ');
+  }
+
+  private getDisplaySecurityName(transaction: FinancialTransaction | null): string {
+    if (!transaction?.securityId) {
+      return '';
+    }
+
+    return transaction.securityName ?? transaction.securityId;
   }
 
   private buildAccountSelectOptions(): AccountSelectGroup[] {

@@ -31,6 +31,7 @@ public class FinanceTransactionRowDTO {
     private Boolean recurring;
     private BigDecimal runningBalance;
     private String securityId;
+    private String securityName;
     private Boolean splitChild;
     private Boolean splitParent;
     private String statementId;
@@ -274,6 +275,14 @@ public class FinanceTransactionRowDTO {
 
     public void setSecurityId(String securityId) {
         this.securityId = securityId;
+    }
+
+    public String getSecurityName() {
+        return securityName;
+    }
+
+    public void setSecurityName(String securityName) {
+        this.securityName = securityName;
     }
 
     public Boolean getSplitChild() {

@@ -131,6 +131,13 @@ jhi-transactions {
   font-weight: 600;
 }
 
+:host ::ng-deep .transactions-grid__security-link {
+  color: var(--app-colours-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.12rem;
+}
+
 .transactions-import-button {
   display: inline-flex;
   align-items: center;

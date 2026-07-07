@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
-import { ReportConfig, ReportDefinition, ReportResult } from './reports.types';
+import { ReportConfig, ReportDefinition, ReportDrilldownRequest, ReportDrilldownResult, ReportResult } from './reports.types';
 
 @Injectable({ providedIn: 'root' })
 export class ReportsService {
@@ -30,5 +30,12 @@ export class ReportsService {
 
   runIncomeExpenses(config: ReportConfig): Observable<ReportResult> {
     return this.http.post<ReportResult>(this.applicationConfigService.getEndpointFor('api/reports/income-expenses/run'), config);
+  }
+
+  getIncomeExpenseDrilldown(request: ReportDrilldownRequest): Observable<ReportDrilldownResult> {
+    return this.http.post<ReportDrilldownResult>(
+      this.applicationConfigService.getEndpointFor('api/reports/income-expenses/drilldown'),
+      request,
+    );
   }
 }

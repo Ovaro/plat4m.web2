@@ -2,6 +2,7 @@ package ovaro.plat4m.repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +33,7 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
 
     Optional<FinanceTransaction> findById(UUID id);
     Optional<FinanceTransaction> findByIdAndUserGuid(UUID id, String userGuid);
+    List<FinanceTransaction> findAllByUserGuidAndIdIn(String userGuid, Collection<UUID> ids);
     List<FinanceTransaction> findAllByUserGuidAndParentIdOrderByNumberAscDateAscIdAsc(String userGuid, UUID parentId);
     void deleteAllByUserGuidAndParentId(String userGuid, UUID parentId);
 

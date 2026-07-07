@@ -21,6 +21,7 @@ import { SelectButtonModule } from 'primeng/selectbutton';
 import { TreeSelectModule } from 'primeng/treeselect';
 import { AutoCompleteCompleteEvent } from 'primeng/autocomplete';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
+import { RouterModule } from '@angular/router';
 import { FinancialTransaction } from '../finance.model';
 import { Transactions } from './transactions.service';
 import {
@@ -74,6 +75,7 @@ interface PendingTransactionTypeChange {
     InputNumberModule,
     TreeSelectModule,
     FontAwesomeModule,
+    RouterModule,
   ],
   templateUrl: './transaction-editor.component.html',
   styleUrls: ['./transaction-editor.component.scss'],
@@ -240,6 +242,14 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
 
   canOpenLinkedTransfer(): boolean {
     return !this.dialogView && !!this.transaction?.id && !!this.transaction?.transferredAccountId && !!this.currentAccountId;
+  }
+
+  getSecurityLabel(): string {
+    if (!this.transaction?.securityId) {
+      return '';
+    }
+
+    return this.transaction.securityName ?? this.transaction.securityId;
   }
 
   getPayeeLabel(): string {
@@ -1280,13 +1290,21 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
 
   private getSelectedPayeeOption(): TransactionOption | null {
     const transaction = this.transaction;
-    if (!transaction?.payeeName) {
+    if (!transaction) {
+      return null;
+    }
+
+    const displayName = this.getDisplayPayeeName(transaction);
+    const editableName = transaction.payeeName ?? '';
+    const selectedName = this.mode === 'view' ? displayName : editableName;
+
+    if (!selectedName) {
       return null;
     }
 
     return {
       id: transaction.payeeId,
-      name: this.mode === 'view' ? this.getDisplayPayeeName(transaction) : transaction.payeeName,
+      name: selectedName,
     };
   }
 
@@ -1304,16 +1322,32 @@ export class TransactionEditorComponent implements OnInit, OnChanges {
   }
 
   private getDisplayPayeeName(transaction: FinancialTransaction): string {
-    if (!transaction.transferredAccountId) {
+    const storedPayeeName = this.trimToNull(transaction.payeeName ?? null);
+    const derivedDescriptor = this.getTransferPayeeDescriptor(transaction);
+    if (!transaction.transferredAccountId && storedPayeeName) {
       return transaction.payeeName ?? '';
+    }
+
+    if (derivedDescriptor) {
+      return derivedDescriptor;
     }
 
     const transferredAccountName =
       this.accounts.find(account => account.id === transaction.transferredAccountId)?.name ?? transaction.transferredAccountId;
     const directionLabel = transaction.amount < 0 ? 'Transfer to' : 'Transfer from';
-    const payeeSuffix = transaction.payeeName ? ` (${transaction.payeeName})` : '';
+    const payeeSuffix = storedPayeeName ? ` (${storedPayeeName})` : '';
 
     return `${directionLabel}: ${transferredAccountName}${payeeSuffix}`;
+  }
+
+  private getTransferPayeeDescriptor(transaction: FinancialTransaction): string | null {
+    const categoryLabel = this.trimToNull(transaction.categoryName ?? transaction.displayCategory ?? null);
+    const securityLabel = this.trimToNull(transaction.securityName ?? transaction.securityId ?? null);
+    if (!categoryLabel && !securityLabel) {
+      return null;
+    }
+
+    return [categoryLabel, securityLabel].filter((value): value is string => !!value).join(': ');
   }
 
   private getAvailableTransferAccounts(): TransactionOption[] {

@@ -1,10 +1,12 @@
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DEFAULT_CURRENCY_CODE, Inject, LOCALE_ID, OnInit, inject } from '@angular/core';
+import { CookieService } from 'ngx-cookie';
 import { DialogModule } from 'primeng/dialog';
 import {
   ApexAxisChartSeries,
   ApexChart,
   ApexDataLabels,
   ApexLegend,
+  ApexMarkers,
   ApexPlotOptions,
   ApexStroke,
   ApexTooltip,
@@ -20,12 +22,17 @@ import { Transactions } from '../transactions/transactions.service';
 import { FinanceManageDataService } from '../manage-data/finance-manage-data.service';
 import { ManagedCategory, ManagedPayee } from '../manage-data/finance-manage-data.types';
 import { FinancialAccount } from '../finance.model';
+import { formatCurrencyAmount } from '../transaction-history-dialog.utils';
 import { TransactionTreeOption } from '../transactions/transactions.types';
 import {
   ReportConfig,
   ReportDatePreset,
   ReportDefinition,
+  ReportDrilldownTransaction,
+  ReportDrilldownResult,
   ReportFilterOption,
+  ReportResultColumn,
+  ReportResultRow,
   ReportResult,
   ReportRowDimension,
   ReportTreeOption,
@@ -35,13 +42,45 @@ import { ReportsService } from './reports.service';
 
 type ViewOption = { label: string; value: ReportView };
 type DateOption = { label: string; value: ReportDatePreset };
+type SectionFilterOption = { label: string; value: SectionFilter };
+type ChartSectionFilter = Exclude<SectionFilter, 'all'>;
+type ChartSectionFilterOption = { label: string; value: ChartSectionFilter };
 type ConfigTab = 'layout' | 'accounts' | 'categories' | 'payees' | 'family' | 'title' | 'view';
+type FilterListKey = 'accountIds' | 'categoryIds' | 'payeeIds' | 'familyMemberIds';
+type SectionFilter = 'all' | 'income' | 'expense';
+type ChartAggregateRow = {
+  label: string;
+  section: string;
+  total: number;
+  values: number[];
+};
+type PersistedIdList = {
+  mode: 'allExcept' | 'only';
+  ids: string[];
+};
+type PersistedWorkingConfig = Omit<Partial<ReportConfig>, 'accountIds' | 'categoryIds' | 'payeeIds' | 'familyMemberIds'> & {
+  accountIds?: PersistedIdList;
+  categoryIds?: PersistedIdList;
+  payeeIds?: PersistedIdList;
+  familyMemberIds?: PersistedIdList;
+};
+type PersistedReportWorkspaceState = {
+  version: 1;
+  activeConfigKey: string;
+  workingConfig: PersistedWorkingConfig | null;
+  reportRowFilter: string;
+  chartCategoryFilter: string;
+  reportSectionFilter: SectionFilter;
+  chartSectionFilter: ChartSectionFilter;
+  showChartLegend: boolean;
+};
 
 type AxisChartOptions = {
   series: ApexAxisChartSeries;
   chart: ApexChart;
   stroke: ApexStroke;
   dataLabels: ApexDataLabels;
+  legend: ApexLegend;
   tooltip: ApexTooltip;
   xaxis: ApexXAxis;
   yaxis: ApexYAxis;
@@ -59,6 +98,19 @@ type PieChartOptions = {
   colors: string[];
 };
 
+type RowHistoryChartOptions = {
+  series: ApexAxisChartSeries;
+  chart: ApexChart;
+  stroke: ApexStroke;
+  dataLabels: ApexDataLabels;
+  tooltip: ApexTooltip;
+  xaxis: ApexXAxis;
+  yaxis: ApexYAxis;
+  plotOptions: ApexPlotOptions;
+  markers: ApexMarkers;
+  colors: string[];
+};
+
 @Component({
   selector: 'jhi-income-expenses-report',
   templateUrl: './income-expenses-report.component.html',
@@ -66,6 +118,7 @@ type PieChartOptions = {
   imports: [SharedModule, DialogModule, NgApexchartsModule],
 })
 export class IncomeExpensesReportComponent implements OnInit {
+  private static readonly WORKSPACE_STORAGE_KEY = 'finance-report-income-expenses-workspace';
   protected readonly reportKey = 'income-expenses';
   protected readonly viewOptions: ViewOption[] = [
     { label: 'Report', value: 'report' },
@@ -74,16 +127,29 @@ export class IncomeExpensesReportComponent implements OnInit {
     { label: 'Pie Chart', value: 'pie' },
   ];
   protected readonly dateOptions: DateOption[] = [
-    { label: '1M', value: '1M' },
+    // { label: '1M', value: '1M' },
     { label: '3M', value: '3M' },
     { label: '6M', value: '6M' },
     { label: '12M', value: '12M' },
-    { label: 'YTD', value: 'YTD' },
+    { label: '2Y', value: '2Y' },
+    { label: '5Y', value: '5Y' },
+    // { label: '7Y', value: '7Y' },
+    { label: '10Y', value: '10Y' },
+    // { label: 'YTD', value: 'YTD' },
     { label: 'ALL', value: 'ALL' },
     { label: 'Custom', value: 'custom' },
   ];
+  protected readonly sectionFilterOptions: SectionFilterOption[] = [
+    { label: 'All', value: 'all' },
+    { label: 'Income', value: 'income' },
+    { label: 'Expense', value: 'expense' },
+  ];
+  protected readonly chartSectionFilterOptions: ChartSectionFilterOption[] = [
+    { label: 'Income', value: 'income' },
+    { label: 'Expense', value: 'expense' },
+  ];
   protected readonly rowOptions: { label: string; value: ReportRowDimension }[] = [
-    { label: 'Category Types', value: 'categoryType' },
+    { label: 'Type', value: 'categoryType' },
     { label: 'Categories', value: 'category' },
     { label: 'Subcategories', value: 'subcategory' },
   ];
@@ -126,12 +192,37 @@ export class IncomeExpensesReportComponent implements OnInit {
   protected saveName = '';
   protected activeConfigKey = 'builtin';
   protected activeConfigTab: ConfigTab = 'layout';
+  protected drilldownVisible = false;
+  protected drilldownLoading = false;
+  protected drilldownResult: ReportDrilldownResult | null = null;
+  protected rowHistoryVisible = false;
+  protected rowHistoryTrendlineVisible = false;
+  protected selectedRowHistory: ReportResultRow | null = null;
+  protected rowHistoryChartOptions: Partial<RowHistoryChartOptions> = {};
+  protected chartOptimizationSummary: string | null = null;
+  protected reportRowFilter = '';
+  protected chartCategoryFilter = '';
+  protected reportSectionFilter: SectionFilter = 'all';
+  protected chartSectionFilter: ChartSectionFilter = 'income';
+  protected showChartLegend = false;
+  protected readonly optionFilters: Record<FilterListKey, string> = {
+    accountIds: '',
+    categoryIds: '',
+    payeeIds: '',
+    familyMemberIds: '',
+  };
 
   private readonly reportsService = inject(ReportsService);
   private readonly accountListService = inject(AccountList);
   private readonly manageDataService = inject(FinanceManageDataService);
   private readonly transactionsService = inject(Transactions);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
+  private readonly cookieService = inject(CookieService);
+
+  constructor(
+    @Inject(LOCALE_ID) private readonly locale: string,
+    @Inject(DEFAULT_CURRENCY_CODE) private readonly defaultCurrencyCode: string,
+  ) {}
 
   ngOnInit(): void {
     this.load();
@@ -155,8 +246,79 @@ export class IncomeExpensesReportComponent implements OnInit {
     return !!this.result && this.result.rows.length > 0;
   }
 
-  get selectedConfigName(): string {
-    return this.workingConfig?.builtin ? 'Default' : (this.workingConfig?.name ?? 'Default');
+  get filteredResultRows(): ReportResultRow[] {
+    if (!this.result) {
+      return [];
+    }
+
+    const query = this.reportRowFilter.trim().toLowerCase();
+    return this.result.rows
+      .filter(row => this.matchesSectionFilter(row))
+      .filter(row =>
+        !query
+          ? true
+          : [row.label, row.groupLabel, row.parentLabel, row.rowType]
+              .filter(Boolean)
+              .some(value => String(value).toLowerCase().includes(query)),
+      );
+  }
+
+  get filteredChartRows(): ReportResultRow[] {
+    if (!this.result) {
+      return [];
+    }
+
+    const query = this.chartCategoryFilter.trim().toLowerCase();
+    return this.result.rows
+      .filter(row => !row.subtotal && !row.grandTotal && row.rowType !== 'sectionTotal' && row.rowType !== 'net')
+      .filter(row => this.matchesSectionFilter(row, this.activeChartSectionFilter))
+      .filter(row =>
+        !query
+          ? true
+          : [row.label, row.groupLabel, row.parentLabel].filter(Boolean).some(value => String(value).toLowerCase().includes(query)),
+      );
+  }
+
+  get hasFilteredAxisSeries(): boolean {
+    return (this.axisChartOptions.series?.length ?? 0) > 0;
+  }
+
+  get hasFilteredPieSegments(): boolean {
+    return (this.pieChartOptions.series?.length ?? 0) > 0;
+  }
+
+  get activeChartSectionFilter(): SectionFilter {
+    return this.workingConfig?.defaultView === 'bar' || this.workingConfig?.defaultView === 'pie'
+      ? this.chartSectionFilter
+      : this.reportSectionFilter;
+  }
+
+  setReportSectionFilter(filter: SectionFilter): void {
+    this.reportSectionFilter = filter;
+    this.syncCharts();
+    this.saveWorkspaceState();
+  }
+
+  setChartSectionFilter(filter: ChartSectionFilter): void {
+    this.chartSectionFilter = filter;
+    this.syncCharts();
+    this.saveWorkspaceState();
+  }
+
+  clearChartCategoryFilter(): void {
+    this.chartCategoryFilter = '';
+    this.syncCharts();
+    this.saveWorkspaceState();
+  }
+
+  onChartCategoryFilterChanged(): void {
+    this.syncCharts();
+    this.saveWorkspaceState();
+  }
+
+  onChartLegendChanged(): void {
+    this.syncCharts();
+    this.saveWorkspaceState();
   }
 
   load(): void {
@@ -190,6 +352,7 @@ export class IncomeExpensesReportComponent implements OnInit {
 
         this.workingConfig = this.enrichDefaultConfig(this.definition.defaultConfig);
         this.activeConfigKey = 'builtin';
+        this.restoreWorkspaceState();
         this.syncCharts();
         this.isLoading = false;
         this.runReport();
@@ -215,6 +378,7 @@ export class IncomeExpensesReportComponent implements OnInit {
       this.workingConfig.startDate = startDate;
       this.workingConfig.endDate = endDate;
     }
+    this.saveWorkspaceState();
     this.runReport();
   }
 
@@ -224,9 +388,19 @@ export class IncomeExpensesReportComponent implements OnInit {
     }
     this.workingConfig.defaultView = option.value;
     this.syncCharts();
+    this.saveWorkspaceState();
+  }
+
+  onRowDimensionChanged(value: ReportRowDimension | null): void {
+    if (!value || !this.workingConfig || this.workingConfig.rowDimension === value) {
+      return;
+    }
+    this.workingConfig.rowDimension = value;
+    this.onConfigFieldChanged();
   }
 
   onCustomDatesChanged(): void {
+    this.saveWorkspaceState();
     this.runReport();
   }
 
@@ -244,6 +418,7 @@ export class IncomeExpensesReportComponent implements OnInit {
     }
 
     this.activeConfigTab = 'layout';
+    this.saveWorkspaceState();
     this.runReport();
   }
 
@@ -261,10 +436,11 @@ export class IncomeExpensesReportComponent implements OnInit {
   }
 
   onConfigFieldChanged(): void {
+    this.saveWorkspaceState();
     this.runReport();
   }
 
-  onCheckboxListToggle(listKey: 'accountIds' | 'categoryIds' | 'payeeIds' | 'familyMemberIds', id: string, checked: boolean): void {
+  onCheckboxListToggle(listKey: FilterListKey, id: string, checked: boolean): void {
     if (!this.workingConfig) {
       return;
     }
@@ -275,6 +451,7 @@ export class IncomeExpensesReportComponent implements OnInit {
       current.delete(id);
     }
     this.workingConfig[listKey] = Array.from(current);
+    this.saveWorkspaceState();
     this.runReport();
   }
 
@@ -283,6 +460,7 @@ export class IncomeExpensesReportComponent implements OnInit {
       return;
     }
     this.workingConfig.categoryIds = this.categoryOptions.map(option => option.id);
+    this.saveWorkspaceState();
     this.runReport();
   }
 
@@ -291,6 +469,7 @@ export class IncomeExpensesReportComponent implements OnInit {
       return;
     }
     this.workingConfig.categoryIds = this.categoryOptions.filter(option => option.rootType === 'Income').map(option => option.id);
+    this.saveWorkspaceState();
     this.runReport();
   }
 
@@ -299,6 +478,7 @@ export class IncomeExpensesReportComponent implements OnInit {
       return;
     }
     this.workingConfig.categoryIds = this.categoryOptions.filter(option => option.rootType === 'Expense').map(option => option.id);
+    this.saveWorkspaceState();
     this.runReport();
   }
 
@@ -307,22 +487,25 @@ export class IncomeExpensesReportComponent implements OnInit {
       return;
     }
     this.workingConfig.categoryIds = [];
+    this.saveWorkspaceState();
     this.runReport();
   }
 
-  selectAllList(listKey: 'accountIds' | 'payeeIds' | 'familyMemberIds'): void {
+  selectAllList(listKey: Exclude<FilterListKey, 'categoryIds'>): void {
     if (!this.workingConfig) {
       return;
     }
     this.workingConfig[listKey] = this.getOptionsForList(listKey).map(option => option.id);
+    this.saveWorkspaceState();
     this.runReport();
   }
 
-  clearList(listKey: 'accountIds' | 'payeeIds' | 'familyMemberIds'): void {
+  clearList(listKey: Exclude<FilterListKey, 'categoryIds'>): void {
     if (!this.workingConfig) {
       return;
     }
     this.workingConfig[listKey] = [];
+    this.saveWorkspaceState();
     this.runReport();
   }
 
@@ -367,7 +550,7 @@ export class IncomeExpensesReportComponent implements OnInit {
       return;
     }
 
-    const payload = this.cloneConfig(this.workingConfig);
+    const payload = this.buildExecutionConfig(this.workingConfig);
     payload.name = trimmedName;
     payload.builtin = false;
     payload.editable = true;
@@ -392,6 +575,7 @@ export class IncomeExpensesReportComponent implements OnInit {
         this.activeConfigKey = config.id ?? 'builtin';
         this.saveDialogVisible = false;
         this.isSaving = false;
+        this.saveWorkspaceState();
         this.changeDetectorRef.markForCheck();
       },
       error: error => {
@@ -406,6 +590,8 @@ export class IncomeExpensesReportComponent implements OnInit {
     if (!this.workingConfig) {
       return;
     }
+
+    this.saveWorkspaceState();
 
     if (this.shouldShowEmptyState()) {
       this.result = this.buildLocalEmptyResult();
@@ -443,8 +629,108 @@ export class IncomeExpensesReportComponent implements OnInit {
     return this.result.showPercentOfTotal ? `${(percentValue * 100).toFixed(1)}%` : this.formatCurrency(value);
   }
 
+  openCellDrilldown(row: ReportResultRow, column?: ReportResultColumn): void {
+    if (!this.workingConfig) {
+      return;
+    }
+
+    this.drilldownVisible = true;
+    this.drilldownLoading = true;
+    this.drilldownResult = null;
+
+    this.reportsService
+      .getIncomeExpenseDrilldown({
+        config: this.buildExecutionConfig(this.workingConfig),
+        rowKey: row.key,
+        rowLabel: row.label,
+        columnKey: column?.key ?? null,
+        columnLabel: column?.label ?? 'Total',
+      })
+      .subscribe({
+        next: result => {
+          this.drilldownResult = result;
+          this.drilldownLoading = false;
+          this.changeDetectorRef.markForCheck();
+        },
+        error: error => {
+          this.errorMessage = this.getErrorMessage(error, 'Loading the report transactions failed.');
+          this.drilldownLoading = false;
+          this.drilldownVisible = false;
+          this.changeDetectorRef.markForCheck();
+        },
+      });
+  }
+
+  closeDrilldown(): void {
+    this.drilldownVisible = false;
+    this.drilldownLoading = false;
+    this.drilldownResult = null;
+  }
+
+  openRowHistory(row: ReportResultRow): void {
+    if (!this.result || this.result.columns.length === 0) {
+      return;
+    }
+    this.selectedRowHistory = row;
+    this.rowHistoryTrendlineVisible = false;
+    this.rowHistoryVisible = true;
+    this.syncRowHistoryChart();
+  }
+
+  closeRowHistory(): void {
+    this.rowHistoryVisible = false;
+    this.rowHistoryTrendlineVisible = false;
+    this.selectedRowHistory = null;
+    this.rowHistoryChartOptions = {};
+  }
+
+  toggleRowHistoryTrendline(): void {
+    this.rowHistoryTrendlineVisible = !this.rowHistoryTrendlineVisible;
+    this.syncRowHistoryChart();
+  }
+
+  get rowHistoryAverage(): number {
+    if (!this.selectedRowHistory || this.selectedRowHistory.values.length === 0) {
+      return 0;
+    }
+    return this.selectedRowHistory.total / this.selectedRowHistory.values.length;
+  }
+
+  getAccountName(accountId: string | null | undefined): string {
+    if (!accountId) {
+      return 'Unassigned';
+    }
+    return this.accounts.find(account => account.id === accountId)?.name ?? accountId;
+  }
+
   isSelected(listKey: 'accountIds' | 'categoryIds' | 'payeeIds' | 'familyMemberIds', id: string): boolean {
     return !!this.workingConfig?.[listKey].includes(id);
+  }
+
+  clearOptionFilter(listKey: FilterListKey): void {
+    this.optionFilters[listKey] = '';
+  }
+
+  get filteredAccountOptions(): ReportFilterOption[] {
+    return this.filterOptions(
+      this.accounts.map(account => ({ id: account.id, label: account.name })),
+      this.optionFilters.accountIds,
+    );
+  }
+
+  get filteredCategoryOptions(): ReportFilterOption[] {
+    return this.filterOptions(this.categoryOptions, this.optionFilters.categoryIds);
+  }
+
+  get filteredPayeeOptions(): ReportFilterOption[] {
+    return this.filterOptions(
+      this.payees.map(payee => ({ id: payee.id, label: payee.name })),
+      this.optionFilters.payeeIds,
+    );
+  }
+
+  get filteredFamilyOptions(): ReportFilterOption[] {
+    return this.filterOptions(this.familyOptions, this.optionFilters.familyMemberIds);
   }
 
   trackById(_index: number, item: { id?: string | null; key?: string }): string {
@@ -530,6 +816,27 @@ export class IncomeExpensesReportComponent implements OnInit {
     };
   }
 
+  private buildExecutionConfig(config: ReportConfig): ReportConfig {
+    const clone = this.cloneConfig(config);
+    clone.accountIds = this.compactExecutionIds(
+      clone.accountIds,
+      this.accounts.map(account => account.id),
+    );
+    clone.categoryIds = this.compactExecutionIds(
+      clone.categoryIds,
+      this.categoryOptions.map(option => option.id),
+    );
+    clone.payeeIds = this.compactExecutionIds(
+      clone.payeeIds,
+      this.payees.map(payee => payee.id),
+    );
+    clone.familyMemberIds = this.compactExecutionIds(
+      clone.familyMemberIds,
+      this.familyOptions.map(option => option.id),
+    );
+    return clone;
+  }
+
   private resolvePresetDates(preset: Exclude<ReportDatePreset, 'custom'>): [string, string] {
     const endDate = new Date();
     const startDate = new Date(endDate);
@@ -549,6 +856,22 @@ export class IncomeExpensesReportComponent implements OnInit {
         break;
       case '12M':
         startDate.setFullYear(startDate.getFullYear() - 1);
+        startDate.setDate(startDate.getDate() + 1);
+        break;
+      case '2Y':
+        startDate.setFullYear(startDate.getFullYear() - 2);
+        startDate.setDate(startDate.getDate() + 1);
+        break;
+      case '5Y':
+        startDate.setFullYear(startDate.getFullYear() - 5);
+        startDate.setDate(startDate.getDate() + 1);
+        break;
+      case '7Y':
+        startDate.setFullYear(startDate.getFullYear() - 7);
+        startDate.setDate(startDate.getDate() + 1);
+        break;
+      case '10Y':
+        startDate.setFullYear(startDate.getFullYear() - 10);
         startDate.setDate(startDate.getDate() + 1);
         break;
       case 'YTD':
@@ -596,20 +919,35 @@ export class IncomeExpensesReportComponent implements OnInit {
   private syncCharts(): void {
     const columnLabels = this.result?.columns.map(column => column.label) ?? [];
     const palette = ['#1f4c7a', '#4f8fba', '#7bb4d8', '#c65d3b', '#e8a25c', '#6b8f71', '#9ab87a'];
+    const filteredRows = this.filteredChartRows;
+    const filteredSeries = this.buildAxisChartSeries(filteredRows, columnLabels.length);
+    const allowedSeriesNames = new Set(filteredSeries.map(series => series.name));
+    const filteredPie = (this.result?.pie ?? []).filter(segment => allowedSeriesNames.has(segment.label));
 
     this.axisChartOptions = {
-      series: (this.result?.series ?? []).map(series => ({ name: series.name, data: series.data })),
+      series: filteredSeries.map(series => ({ name: series.name, data: series.data })),
       chart: {
         type: this.workingConfig?.defaultView === 'line' ? 'line' : 'bar',
         toolbar: { show: false },
         height: 380,
+        animations: {
+          enabled: this.workingConfig?.defaultView !== 'bar' || filteredSeries.length * columnLabels.length <= 220,
+        },
       },
       stroke: {
         curve: 'smooth',
         width: this.workingConfig?.defaultView === 'line' ? 3 : 1,
       },
       dataLabels: { enabled: false },
-      tooltip: { y: { formatter: value => this.formatCurrency(Number(value ?? 0)) } },
+      legend: { show: this.showChartLegend, position: 'right' },
+      tooltip: {
+        y: {
+          formatter: value => this.formatCurrency(Number(value ?? 0)),
+          title: {
+            formatter: seriesName => this.resolveChartTooltipLabel(seriesName),
+          },
+        },
+      },
       xaxis: { categories: columnLabels },
       yaxis: {
         labels: {
@@ -626,21 +964,444 @@ export class IncomeExpensesReportComponent implements OnInit {
     };
 
     this.pieChartOptions = {
-      series: (this.result?.pie ?? []).map(segment => segment.value),
-      chart: { type: 'pie', height: 380 },
-      labels: (this.result?.pie ?? []).map(segment => segment.label),
-      legend: { position: 'bottom' },
+      series: filteredPie.map(segment => segment.value),
+      chart: { type: 'donut', height: 380 },
+      labels: filteredPie.map(segment => segment.label),
+      legend: { position: 'right', show: this.showChartLegend },
       dataLabels: { enabled: true },
+      tooltip: {
+        y: {
+          formatter: value => this.formatCurrency(Number(value ?? 0)),
+          title: {
+            formatter: seriesName => this.resolveChartTooltipLabel(seriesName),
+          },
+        },
+      },
+      colors: palette,
+    };
+
+    this.syncRowHistoryChart();
+  }
+
+  private buildAxisChartSeries(rows: ReportResultRow[], columnCount: number): { name: string; data: number[] }[] {
+    const baseRows: ChartAggregateRow[] = rows.map(row => ({
+      label: row.label,
+      section: this.resolveRowSection(row),
+      total: row.total,
+      values: [...row.values],
+    }));
+
+    if (this.workingConfig?.defaultView !== 'bar') {
+      this.chartOptimizationSummary = null;
+      return baseRows.map(row => ({ name: row.label, data: row.values }));
+    }
+
+    if (!this.shouldOptimizeBarChart(baseRows.length, columnCount)) {
+      this.chartOptimizationSummary = null;
+      return baseRows.map(row => ({ name: row.label, data: row.values }));
+    }
+
+    let aggregatedRows = this.rollUpBarChartRows(baseRows);
+    let summary = this.buildBarRollupSummary();
+
+    if (aggregatedRows.length > 14) {
+      aggregatedRows = this.collapseMinorBarChartRows(aggregatedRows, 12);
+      summary += ' Minor groups are combined into Other.';
+    }
+
+    this.chartOptimizationSummary = summary;
+    return aggregatedRows.map(row => ({ name: row.label, data: row.values }));
+  }
+
+  private shouldOptimizeBarChart(rowCount: number, columnCount: number): boolean {
+    return columnCount > 24 || rowCount > 18 || rowCount * columnCount > 260;
+  }
+
+  private rollUpBarChartRows(rows: ChartAggregateRow[]): ChartAggregateRow[] {
+    if (!this.workingConfig || rows.length === 0 || this.workingConfig.rowDimension === 'categoryType') {
+      return rows;
+    }
+
+    const sourceRows = new Map(this.filteredChartRows.map(row => [row.label, row] as const));
+    const rollups = new Map<string, ChartAggregateRow>();
+
+    for (const row of rows) {
+      const sourceRow = sourceRows.get(row.label);
+      const rollupLabel =
+        this.workingConfig.rowDimension === 'subcategory'
+          ? (sourceRow?.groupLabel ?? sourceRow?.parentLabel ?? row.label)
+          : this.formatSectionLabel(row.section);
+      const key = `${row.section}::${rollupLabel}`;
+      const existing = rollups.get(key);
+
+      if (existing) {
+        existing.total += row.total;
+        existing.values = existing.values.map((value, index) => value + (row.values[index] ?? 0));
+      } else {
+        rollups.set(key, {
+          label: rollupLabel,
+          section: row.section,
+          total: row.total,
+          values: [...row.values],
+        });
+      }
+    }
+
+    return Array.from(rollups.values()).sort((left, right) => {
+      const sectionCompare = this.compareSectionOrder(left.section, right.section);
+      if (sectionCompare !== 0) {
+        return sectionCompare;
+      }
+      return Math.abs(right.total) - Math.abs(left.total);
+    });
+  }
+
+  private collapseMinorBarChartRows(rows: ChartAggregateRow[], maxRows: number): ChartAggregateRow[] {
+    const rowsBySection = new Map<string, ChartAggregateRow[]>();
+    for (const row of rows) {
+      const sectionRows = rowsBySection.get(row.section) ?? [];
+      sectionRows.push(row);
+      rowsBySection.set(row.section, sectionRows);
+    }
+
+    const sections = Array.from(rowsBySection.entries()).sort(([left], [right]) => this.compareSectionOrder(left, right));
+    const preservedPerSection = Math.max(1, Math.floor(maxRows / Math.max(1, sections.length)));
+    const collapsedRows: ChartAggregateRow[] = [];
+
+    for (const [section, sectionRows] of sections) {
+      const ordered = [...sectionRows].sort((left, right) => Math.abs(right.total) - Math.abs(left.total));
+      const keep = ordered.slice(0, preservedPerSection);
+      const remainder = ordered.slice(preservedPerSection);
+      collapsedRows.push(...keep);
+
+      if (remainder.length > 0) {
+        const otherValues = new Array(ordered[0]?.values.length ?? 0).fill(0);
+        let otherTotal = 0;
+        for (const row of remainder) {
+          otherTotal += row.total;
+          row.values.forEach((value, index) => {
+            otherValues[index] += value ?? 0;
+          });
+        }
+
+        collapsedRows.push({
+          label: `Other ${this.formatSectionLabel(section)}`,
+          section,
+          total: otherTotal,
+          values: otherValues,
+        });
+      }
+    }
+
+    return collapsedRows;
+  }
+
+  private buildBarRollupSummary(): string {
+    if (!this.workingConfig) {
+      return 'Bar chart simplified for performance.';
+    }
+
+    if (this.workingConfig.rowDimension === 'subcategory') {
+      return 'Bar chart simplified to categories for performance.';
+    }
+
+    if (this.workingConfig.rowDimension === 'category') {
+      return 'Bar chart simplified to category types for performance.';
+    }
+
+    return 'Bar chart simplified for performance.';
+  }
+
+  private resolveRowSection(row: Pick<ReportResultRow, 'parentLabel' | 'groupLabel' | 'label'>): string {
+    const section = String(row.parentLabel ?? row.groupLabel ?? row.label ?? '')
+      .trim()
+      .toLowerCase();
+    return section === 'income' ? 'income' : 'expense';
+  }
+
+  private compareSectionOrder(left: string, right: string): number {
+    const rank = (section: string): number => (section === 'income' ? 0 : 1);
+    return rank(left) - rank(right);
+  }
+
+  private formatSectionLabel(section: string): string {
+    return section === 'income' ? 'Income' : 'Expense';
+  }
+
+  private syncRowHistoryChart(): void {
+    if (!this.result || !this.selectedRowHistory) {
+      this.rowHistoryChartOptions = {};
+      return;
+    }
+
+    const labels = this.result.columns.map(column => column.label);
+    const values = this.selectedRowHistory.values.map(value => Number(value ?? 0));
+    const series: ApexAxisChartSeries = [
+      {
+        name: this.selectedRowHistory.label,
+        data: values,
+        type: 'bar',
+      } as ApexAxisChartSeries[number],
+    ];
+
+    const trendlineValues = this.rowHistoryTrendlineVisible ? this.buildTrendlineValues(values) : null;
+    if (trendlineValues) {
+      series.push({
+        name: this.buildTrendlineLabel(values, trendlineValues),
+        data: trendlineValues,
+        type: 'line',
+      } as ApexAxisChartSeries[number]);
+    }
+
+    this.rowHistoryChartOptions = {
+      series,
+      chart: {
+        type: 'line',
+        height: 320,
+        toolbar: { show: false },
+        zoom: { enabled: false },
+        animations: { enabled: false },
+      },
+      stroke: {
+        curve: 'smooth',
+        width: trendlineValues ? [0, 3] : [0],
+      },
+      markers: {
+        size: trendlineValues ? [0, 3] : [0],
+        hover: { sizeOffset: 2 },
+      },
+      dataLabels: { enabled: false },
       tooltip: {
         y: {
           formatter: value => this.formatCurrency(Number(value ?? 0)),
         },
       },
-      colors: palette,
+      xaxis: { categories: labels },
+      yaxis: {
+        labels: {
+          formatter: value => this.formatCurrency(Number(value ?? 0)),
+        },
+      },
+      plotOptions: {
+        bar: {
+          columnWidth: '58%',
+          borderRadius: 4,
+        },
+      },
+      colors: ['#1f4c7a', '#c65d3b'],
     };
   }
 
-  private getOptionsForList(listKey: 'accountIds' | 'payeeIds' | 'familyMemberIds'): ReportFilterOption[] {
+  private restoreWorkspaceState(): void {
+    const rawValue = this.readWorkspaceState();
+    if (!rawValue || !this.workingConfig) {
+      return;
+    }
+
+    try {
+      const state = JSON.parse(rawValue) as PersistedReportWorkspaceState;
+      if (state.version !== 1) {
+        return;
+      }
+
+      this.reportRowFilter = state.reportRowFilter ?? '';
+      this.chartCategoryFilter = state.chartCategoryFilter ?? '';
+      this.reportSectionFilter = state.reportSectionFilter ?? 'all';
+      this.chartSectionFilter = state.chartSectionFilter ?? 'income';
+      this.showChartLegend = !!state.showChartLegend;
+
+      const baseConfig =
+        state.activeConfigKey && state.activeConfigKey !== 'builtin'
+          ? this.savedConfigs.find(config => config.id === state.activeConfigKey)
+          : null;
+
+      if (baseConfig) {
+        this.activeConfigKey = state.activeConfigKey;
+        this.workingConfig = this.cloneConfig(baseConfig);
+      }
+
+      if (state.workingConfig) {
+        this.workingConfig = this.mergePersistedConfig(this.workingConfig, state.workingConfig);
+      }
+    } catch {
+      // Ignore invalid cookie data and fall back to the default state.
+    }
+  }
+
+  private saveWorkspaceState(): void {
+    const state: PersistedReportWorkspaceState = {
+      version: 1,
+      activeConfigKey: this.activeConfigKey,
+      workingConfig: this.buildPersistedConfig(),
+      reportRowFilter: this.reportRowFilter,
+      chartCategoryFilter: this.chartCategoryFilter,
+      reportSectionFilter: this.reportSectionFilter,
+      chartSectionFilter: this.chartSectionFilter,
+      showChartLegend: this.showChartLegend,
+    };
+
+    this.writeWorkspaceState(JSON.stringify(state));
+  }
+
+  private readWorkspaceState(): string | null {
+    const storage = this.getStorage();
+    const storedValue = storage?.getItem(IncomeExpensesReportComponent.WORKSPACE_STORAGE_KEY);
+    if (storedValue) {
+      this.clearLegacyWorkspaceCookie();
+      return storedValue;
+    }
+
+    const legacyCookie = this.cookieService.get(IncomeExpensesReportComponent.WORKSPACE_STORAGE_KEY);
+    if (!legacyCookie) {
+      return null;
+    }
+
+    this.writeWorkspaceState(legacyCookie);
+    this.clearLegacyWorkspaceCookie();
+    return legacyCookie;
+  }
+
+  private writeWorkspaceState(value: string): void {
+    const storage = this.getStorage();
+    if (!storage) {
+      return;
+    }
+
+    try {
+      storage.setItem(IncomeExpensesReportComponent.WORKSPACE_STORAGE_KEY, value);
+    } catch {
+      // Ignore storage quota and browser storage errors.
+    }
+  }
+
+  private clearLegacyWorkspaceCookie(): void {
+    this.cookieService.remove(IncomeExpensesReportComponent.WORKSPACE_STORAGE_KEY);
+  }
+
+  private getStorage(): Storage | null {
+    try {
+      return typeof window !== 'undefined' ? window.localStorage : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private buildPersistedConfig(): PersistedWorkingConfig | null {
+    if (!this.workingConfig) {
+      return null;
+    }
+
+    return {
+      id: this.workingConfig.id ?? null,
+      reportKey: this.workingConfig.reportKey,
+      name: this.workingConfig.name,
+      title: this.workingConfig.title,
+      rowDimension: this.workingConfig.rowDimension,
+      columnDimension: this.workingConfig.columnDimension,
+      showPercentOfTotal: this.workingConfig.showPercentOfTotal,
+      defaultView: this.workingConfig.defaultView,
+      datePreset: this.workingConfig.datePreset,
+      startDate: this.workingConfig.startDate,
+      endDate: this.workingConfig.endDate,
+      builtin: this.workingConfig.builtin,
+      editable: this.workingConfig.editable,
+      accountIds: this.encodePersistedIdList(
+        this.workingConfig.accountIds,
+        this.accounts.map(account => account.id),
+      ),
+      categoryIds: this.encodePersistedIdList(
+        this.workingConfig.categoryIds,
+        this.categoryOptions.map(option => option.id),
+      ),
+      payeeIds: this.encodePersistedIdList(
+        this.workingConfig.payeeIds,
+        this.payees.map(payee => payee.id),
+      ),
+      familyMemberIds: this.encodePersistedIdList(
+        this.workingConfig.familyMemberIds,
+        this.familyOptions.map(option => option.id),
+      ),
+    };
+  }
+
+  private mergePersistedConfig(current: ReportConfig, persisted: PersistedWorkingConfig): ReportConfig {
+    return {
+      ...current,
+      ...persisted,
+      id: persisted.id ?? current.id ?? null,
+      accountIds: persisted.accountIds
+        ? this.decodePersistedIdList(
+            persisted.accountIds,
+            this.accounts.map(account => account.id),
+          )
+        : [...current.accountIds],
+      categoryIds: persisted.categoryIds
+        ? this.decodePersistedIdList(
+            persisted.categoryIds,
+            this.categoryOptions.map(option => option.id),
+          )
+        : [...current.categoryIds],
+      payeeIds: persisted.payeeIds
+        ? this.decodePersistedIdList(
+            persisted.payeeIds,
+            this.payees.map(payee => payee.id),
+          )
+        : [...current.payeeIds],
+      familyMemberIds: persisted.familyMemberIds
+        ? this.decodePersistedIdList(
+            persisted.familyMemberIds,
+            this.familyOptions.map(option => option.id),
+          )
+        : [...current.familyMemberIds],
+      startDate: persisted.startDate ?? current.startDate ?? null,
+      endDate: persisted.endDate ?? current.endDate ?? null,
+    };
+  }
+
+  private encodePersistedIdList(selectedIds: string[], allIds: string[]): PersistedIdList {
+    const selectedSet = new Set(selectedIds);
+    const normalizedSelected = allIds.filter(id => selectedSet.has(id));
+    const excluded = allIds.filter(id => !selectedSet.has(id));
+
+    if (excluded.length < normalizedSelected.length) {
+      return {
+        mode: 'allExcept',
+        ids: excluded,
+      };
+    }
+
+    return {
+      mode: 'only',
+      ids: normalizedSelected,
+    };
+  }
+
+  private decodePersistedIdList(persisted: PersistedIdList, allIds: string[]): string[] {
+    if (persisted.mode === 'allExcept') {
+      const excluded = new Set(persisted.ids);
+      return allIds.filter(id => !excluded.has(id));
+    }
+
+    const allowed = new Set(allIds);
+    return persisted.ids.filter(id => allowed.has(id));
+  }
+
+  private compactExecutionIds(selectedIds: string[], allIds: string[]): string[] {
+    if (selectedIds.length === 0 || allIds.length === 0) {
+      return [...selectedIds];
+    }
+
+    const available = new Set(allIds);
+    const normalizedSelected = selectedIds.filter(id => available.has(id));
+    if (normalizedSelected.length !== allIds.length) {
+      return normalizedSelected;
+    }
+
+    const selectedSet = new Set(normalizedSelected);
+    return allIds.every(id => selectedSet.has(id)) ? [] : normalizedSelected;
+  }
+
+  private getOptionsForList(listKey: Exclude<FilterListKey, 'categoryIds'>): ReportFilterOption[] {
     if (listKey === 'accountIds') {
       return this.accounts.map(account => ({ id: account.id, label: account.name }));
     }
@@ -654,14 +1415,94 @@ export class IncomeExpensesReportComponent implements OnInit {
     return date.toISOString().slice(0, 10);
   }
 
-  private formatCurrency(value: number): string {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: this.result?.currencyCode ?? 'AUD',
-      currencyDisplay: 'narrowSymbol',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value ?? 0);
+  private filterOptions(options: ReportFilterOption[], query: string): ReportFilterOption[] {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return options;
+    }
+
+    return options.filter(option => option.label.toLowerCase().includes(normalizedQuery));
+  }
+
+  formatCurrency(value: number): string {
+    return formatCurrencyAmount(value ?? 0, this.locale, this.result?.currencyCode ?? this.defaultCurrencyCode);
+  }
+
+  formatCurrencyWithCode(value: number, currencyCode: string): string {
+    return formatCurrencyAmount(value ?? 0, this.locale, currencyCode || this.defaultCurrencyCode);
+  }
+
+  isForeignCurrencyDrilldownTransaction(transaction: ReportDrilldownTransaction, baseCurrencyCode: string | null | undefined): boolean {
+    const originalCurrencyCode = transaction.originalCurrencyCode?.trim();
+    const normalizedBaseCurrency = (baseCurrencyCode ?? this.defaultCurrencyCode).trim();
+    return !!originalCurrencyCode && originalCurrencyCode !== normalizedBaseCurrency;
+  }
+
+  getDrilldownCurrencyHint(transaction: ReportDrilldownTransaction, baseCurrencyCode: string | null | undefined): string | null {
+    if (!this.isForeignCurrencyDrilldownTransaction(transaction, baseCurrencyCode) || transaction.originalAmount == null) {
+      return null;
+    }
+
+    const currencyCode = transaction.originalCurrencyCode?.trim() || this.defaultCurrencyCode;
+    return `Original amount (${currencyCode}): ${this.formatCurrencyWithCode(transaction.originalAmount, currencyCode)}`;
+  }
+
+  private matchesSectionFilter(row: ReportResultRow, filter: SectionFilter = this.reportSectionFilter): boolean {
+    if (filter === 'all') {
+      return true;
+    }
+
+    const section = String(row.parentLabel ?? row.groupLabel ?? row.label ?? '')
+      .trim()
+      .toLowerCase();
+
+    if (filter === 'income') {
+      return section === 'income' || row.key === 'section-total:income';
+    }
+
+    return section === 'expense' || section === 'expenses' || row.key === 'section-total:expense' || row.key === 'section-total:expenses';
+  }
+
+  private resolveChartTooltipLabel(label: string): string {
+    if (this.workingConfig?.rowDimension !== 'subcategory') {
+      return label;
+    }
+
+    const matchingRow = this.filteredChartRows.find(row => row.label === label);
+    if (!matchingRow?.groupLabel) {
+      return label;
+    }
+
+    return `${matchingRow.groupLabel} / ${matchingRow.label}`;
+  }
+
+  private buildTrendlineValues(values: number[]): number[] | null {
+    if (values.length < 2) {
+      return null;
+    }
+
+    const count = values.length;
+    const sumX = values.reduce((sum, _value, index) => sum + index, 0);
+    const sumY = values.reduce((sum, value) => sum + value, 0);
+    const sumXY = values.reduce((sum, value, index) => sum + index * value, 0);
+    const sumXX = values.reduce((sum, _value, index) => sum + index * index, 0);
+    const denominator = count * sumXX - sumX * sumX;
+
+    if (denominator === 0) {
+      return null;
+    }
+
+    const slope = (count * sumXY - sumX * sumY) / denominator;
+    const intercept = (sumY - slope * sumX) / count;
+    return values.map((_value, index) => slope * index + intercept);
+  }
+
+  private buildTrendlineLabel(values: number[], trendlineValues: number[]): string {
+    const meanY = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const ssTot = values.reduce((sum, value) => sum + (value - meanY) ** 2, 0);
+    const ssRes = values.reduce((sum, value, index) => sum + (value - trendlineValues[index]) ** 2, 0);
+    const rSquared = ssTot === 0 ? 1 : Math.max(0, 1 - ssRes / ssTot);
+    return `Trendline (R² ${rSquared.toFixed(2)})`;
   }
 
   private getErrorMessage(error: any, fallback: string): string {

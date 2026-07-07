@@ -104,6 +104,13 @@
         >
           Open linked
         </button>
+        <a
+          *ngIf="transaction && transaction.securityId"
+          class="transaction-editor__security-tag"
+          [routerLink]="['/investment', transaction.securityId]"
+        >
+          {{ getSecurityLabel() }}
+        </a>
       </div>
     </label>
 

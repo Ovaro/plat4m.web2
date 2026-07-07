@@ -2,9 +2,20 @@ package ovaro.plat4m.service.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.EnumSet;
+import java.util.Set;
+import ovaro.plat4m.domain.FinanceInvestmentActivityType;
 import ovaro.plat4m.domain.FinanceTransaction;
 
 public class FinanceInvestmentTransactionDTO {
+
+    private static final Set<FinanceInvestmentActivityType> POSITIVE_REINVESTMENT_TYPES = EnumSet.of(
+        FinanceInvestmentActivityType.DIVDEND_REINVESTMENT,
+        FinanceInvestmentActivityType.REINVEST_DIVIDEND_COMBINED,
+        FinanceInvestmentActivityType.REINVEST_INTEREST,
+        FinanceInvestmentActivityType.REINVEST_L_TERM_CG_DIST,
+        FinanceInvestmentActivityType.REINVEST_S_TERM_CG_DIST
+    );
 
     FinanceTransaction transaction;
     LocalDate date;
@@ -16,11 +27,22 @@ public class FinanceInvestmentTransactionDTO {
 
     public FinanceInvestmentTransactionDTO(FinanceTransaction txn) {
         this.transaction = txn;
-        type = transaction.getInvestmentActivityType().name();
+        FinanceInvestmentActivityType investmentActivityType = transaction.getInvestmentActivityType();
+        type = investmentActivityType.name();
         price = transaction.getPrice();
         quantity = transaction.getQuantity();
-        amount = transaction.getAmount();
+        amount = normalizeDisplayAmount(transaction.getAmount(), investmentActivityType);
         date = transaction.getDate();
+    }
+
+    private BigDecimal normalizeDisplayAmount(BigDecimal rawAmount, FinanceInvestmentActivityType investmentActivityType) {
+        if (rawAmount == null) {
+            return null;
+        }
+        if (investmentActivityType != null && POSITIVE_REINVESTMENT_TYPES.contains(investmentActivityType)) {
+            return rawAmount.abs();
+        }
+        return rawAmount;
     }
 
     public FinanceTransaction getTransaction() {
@@ -76,5 +98,4 @@ public class FinanceInvestmentTransactionDTO {
     // public void setCurrencyCode(String currencyCode) {
     //     this.currencyCode = currencyCode;
     // }
-
 }

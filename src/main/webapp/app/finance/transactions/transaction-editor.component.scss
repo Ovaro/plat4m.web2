@@ -410,6 +410,26 @@
   white-space: nowrap;
 }
 
+.transaction-editor__security-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.22rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(31, 76, 122, 0.1);
+  color: var(--app-colours-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.transaction-editor__security-tag:hover {
+  background: rgba(31, 76, 122, 0.16);
+  text-decoration: none;
+}
+
 :host-context(.theme-dark) .transaction-editor__summary {
   border-color: var(--app-colours-border-low-dark);
   background: color-mix(in srgb, var(--app-colours-background-med-dark) 82%, black);

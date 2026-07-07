@@ -8,17 +8,28 @@ import java.time.Month;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ovaro.plat4m.domain.FinanceAccount;
+import ovaro.plat4m.domain.FinanceAccountType;
 import ovaro.plat4m.domain.FinanceCategory;
 import ovaro.plat4m.domain.FinanceTransaction;
+import ovaro.plat4m.domain.FinanceTransferLink;
+import ovaro.plat4m.domain.FinanceUserSecurity;
 import ovaro.plat4m.domain.User;
 import ovaro.plat4m.domain.UserReportConfig;
+import ovaro.plat4m.repository.FinanceAccountRepository;
 import ovaro.plat4m.repository.FinanceTransactionRepository;
+import ovaro.plat4m.repository.FinanceTransferLinkRepository;
+import ovaro.plat4m.repository.FinanceUserSecurityRepository;
 import ovaro.plat4m.repository.UserReportConfigRepository;
 import ovaro.plat4m.repository.UserRepository;
 import ovaro.plat4m.security.SecurityUtils;
+import ovaro.plat4m.service.dto.IncomeExpenseReportDrilldownDTO;
+import ovaro.plat4m.service.dto.IncomeExpenseReportDrilldownRequestDTO;
 import ovaro.plat4m.service.dto.IncomeExpenseReportResultDTO;
 import ovaro.plat4m.service.dto.ReportConfigDTO;
 import ovaro.plat4m.service.dto.ReportDefinitionDTO;
@@ -35,18 +46,27 @@ public class ReportsService {
 
     private final UserReportConfigRepository userReportConfigRepository;
     private final UserRepository userRepository;
+    private final FinanceAccountRepository financeAccountRepository;
     private final FinanceTransactionRepository financeTransactionRepository;
+    private final FinanceTransferLinkRepository financeTransferLinkRepository;
+    private final FinanceUserSecurityRepository financeUserSecurityRepository;
     private final ObjectMapper objectMapper;
 
     public ReportsService(
         UserReportConfigRepository userReportConfigRepository,
         UserRepository userRepository,
+        FinanceAccountRepository financeAccountRepository,
         FinanceTransactionRepository financeTransactionRepository,
+        FinanceTransferLinkRepository financeTransferLinkRepository,
+        FinanceUserSecurityRepository financeUserSecurityRepository,
         ObjectMapper objectMapper
     ) {
         this.userReportConfigRepository = userReportConfigRepository;
         this.userRepository = userRepository;
+        this.financeAccountRepository = financeAccountRepository;
         this.financeTransactionRepository = financeTransactionRepository;
+        this.financeTransferLinkRepository = financeTransferLinkRepository;
+        this.financeUserSecurityRepository = financeUserSecurityRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -127,15 +147,38 @@ public class ReportsService {
         Set<String> selectedFamilyMemberIds = new LinkedHashSet<>(normalizedConfig.getFamilyMemberIds());
         Set<String> selectedAccountIds = new LinkedHashSet<>(normalizedConfig.getAccountIds());
         Set<String> selectedPayeeIds = new LinkedHashSet<>(normalizedConfig.getPayeeIds());
+        Map<String, Integer> accountTypesById = getAccountTypesById(user.getGuid().toString());
 
         List<FinanceTransaction> rawTransactions = financeTransactionRepository.findReportTransactions(
             user.getGuid().toString(),
             dateRange.start(),
             dateRange.end()
         );
+        Map<UUID, BigDecimal> transferDerivedBaseAmounts = resolveTransferDerivedBaseAmounts(
+            user.getGuid().toString(),
+            user.getLocalCurrency(),
+            rawTransactions
+        );
+        Map<UUID, FinanceTransaction> transferCounterpartsByTransactionId = resolveTransferCounterpartsByTransactionId(
+            user.getGuid().toString(),
+            rawTransactions
+        );
+        Map<String, String> securityNamesById = resolveSecurityNamesById(
+            user.getGuid().toString(),
+            rawTransactions,
+            transferCounterpartsByTransactionId
+        );
         List<ReportTransaction> transactions = rawTransactions
             .stream()
-            .map(this::mapReportTransaction)
+            .map(transaction ->
+                mapReportTransaction(
+                    transaction,
+                    accountTypesById,
+                    transferDerivedBaseAmounts,
+                    transferCounterpartsByTransactionId,
+                    securityNamesById
+                )
+            )
             .filter(Objects::nonNull)
             .filter(transaction ->
                 matchesFilters(transaction, selectedAccountIds, selectedCategoryIds, selectedPayeeIds, selectedFamilyMemberIds)
@@ -145,6 +188,96 @@ public class ReportsService {
         List<Bucket> buckets = buildBuckets(dateRange.start(), dateRange.end(), normalizedConfig.getColumnDimension());
         AggregationContext context = aggregateRows(normalizedConfig.getRowDimension(), buckets, transactions);
         return buildResult(normalizedConfig, user, dateRange, buckets, context);
+    }
+
+    @Transactional(readOnly = true)
+    public IncomeExpenseReportDrilldownDTO getIncomeExpenseDrilldown(IncomeExpenseReportDrilldownRequestDTO request) {
+        if (request == null || request.getConfig() == null) {
+            throw new BadRequestAlertException("A report configuration is required", "reports", "missingconfig");
+        }
+        if (request.getRowKey() == null || request.getRowKey().isBlank()) {
+            throw new BadRequestAlertException("A report row is required", "reports", "missingrowkey");
+        }
+
+        ReportConfigDTO config = normalizeForExecution(request.getConfig());
+        validateRunPayload(config);
+        User user = getCurrentUser(getCurrentUserLogin());
+        LocalDateRange dateRange = resolveDateRange(config.getDatePreset(), config.getStartDate(), config.getEndDate());
+
+        Set<String> selectedCategoryIds = new LinkedHashSet<>(config.getCategoryIds());
+        Set<String> selectedFamilyMemberIds = new LinkedHashSet<>(config.getFamilyMemberIds());
+        Set<String> selectedAccountIds = new LinkedHashSet<>(config.getAccountIds());
+        Set<String> selectedPayeeIds = new LinkedHashSet<>(config.getPayeeIds());
+        Map<String, Integer> accountTypesById = getAccountTypesById(user.getGuid().toString());
+
+        List<FinanceTransaction> rawTransactions = financeTransactionRepository
+            .findReportTransactions(user.getGuid().toString(), dateRange.start(), dateRange.end())
+            .stream()
+            .toList();
+        Map<UUID, BigDecimal> transferDerivedBaseAmounts = resolveTransferDerivedBaseAmounts(
+            user.getGuid().toString(),
+            user.getLocalCurrency(),
+            rawTransactions
+        );
+        Map<UUID, FinanceTransaction> transferCounterpartsByTransactionId = resolveTransferCounterpartsByTransactionId(
+            user.getGuid().toString(),
+            rawTransactions
+        );
+        Map<String, String> securityNamesById = resolveSecurityNamesById(
+            user.getGuid().toString(),
+            rawTransactions,
+            transferCounterpartsByTransactionId
+        );
+
+        List<ReportTransaction> mappedTransactions = rawTransactions
+            .stream()
+            .map(transaction ->
+                mapReportTransaction(
+                    transaction,
+                    accountTypesById,
+                    transferDerivedBaseAmounts,
+                    transferCounterpartsByTransactionId,
+                    securityNamesById
+                )
+            )
+            .filter(Objects::nonNull)
+            .filter(transaction ->
+                matchesFilters(transaction, selectedAccountIds, selectedCategoryIds, selectedPayeeIds, selectedFamilyMemberIds)
+            )
+            .toList();
+
+        List<Bucket> buckets = buildBuckets(dateRange.start(), dateRange.end(), config.getColumnDimension());
+        String columnKey = request.getColumnKey() == null || request.getColumnKey().isBlank() ? null : request.getColumnKey().trim();
+
+        List<IncomeExpenseReportDrilldownDTO.TransactionDTO> drilldownTransactions = mappedTransactions
+            .stream()
+            .filter(transaction -> matchesRowSelection(transaction, config.getRowDimension(), request.getRowKey()))
+            .filter(transaction -> matchesBucketSelection(transaction, buckets, columnKey))
+            .map(transaction -> mapDrilldownTransaction(transaction, request.getRowKey()))
+            .sorted(
+                Comparator.comparing(IncomeExpenseReportDrilldownDTO.TransactionDTO::getDate)
+                    .thenComparing(transaction -> defaultIfBlank(transaction.getPayeeName(), ""))
+                    .thenComparing(transaction -> defaultIfBlank(transaction.getCategoryName(), ""))
+            )
+            .toList();
+
+        BigDecimal total = drilldownTransactions
+            .stream()
+            .map(IncomeExpenseReportDrilldownDTO.TransactionDTO::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        IncomeExpenseReportDrilldownDTO response = new IncomeExpenseReportDrilldownDTO();
+        response.setTitle(
+            defaultIfBlank(request.getRowLabel(), "Transactions") + " - " + defaultIfBlank(request.getColumnLabel(), "Total")
+        );
+        response.setRowKey(request.getRowKey());
+        response.setRowLabel(defaultIfBlank(request.getRowLabel(), "Transactions"));
+        response.setColumnKey(columnKey);
+        response.setColumnLabel(defaultIfBlank(request.getColumnLabel(), "Total"));
+        response.setCurrencyCode(user.getLocalCurrency() == null || user.getLocalCurrency().isBlank() ? "AUD" : user.getLocalCurrency());
+        response.setTransactions(drilldownTransactions);
+        response.setTotal(total);
+        return response;
     }
 
     private IncomeExpenseReportResultDTO buildResult(
@@ -166,9 +299,23 @@ public class ReportsService {
         result.setGrandTotal(context.grandTotal());
 
         List<BigDecimal> columnTotals = new ArrayList<>(Collections.nCopies(buckets.size(), BigDecimal.ZERO));
+        List<BigDecimal> incomeColumnTotals = new ArrayList<>(Collections.nCopies(buckets.size(), BigDecimal.ZERO));
+        List<BigDecimal> expenseColumnTotals = new ArrayList<>(Collections.nCopies(buckets.size(), BigDecimal.ZERO));
+        BigDecimal incomeTotal = BigDecimal.ZERO;
+        BigDecimal expenseTotal = BigDecimal.ZERO;
         for (AggregatedRow row : context.leafRows()) {
             for (int i = 0; i < row.values().size(); i++) {
                 columnTotals.set(i, columnTotals.get(i).add(row.values().get(i)));
+                if (isIncomeRow(row)) {
+                    incomeColumnTotals.set(i, incomeColumnTotals.get(i).add(row.values().get(i)));
+                } else if (isExpenseRow(row)) {
+                    expenseColumnTotals.set(i, expenseColumnTotals.get(i).add(row.values().get(i)));
+                }
+            }
+            if (isIncomeRow(row)) {
+                incomeTotal = incomeTotal.add(row.total());
+            } else if (isExpenseRow(row)) {
+                expenseTotal = expenseTotal.add(row.total());
             }
         }
 
@@ -186,10 +333,32 @@ public class ReportsService {
         result.setColumns(columns);
 
         List<IncomeExpenseReportResultDTO.RowDTO> rows = new ArrayList<>();
+        String currentSection = null;
         for (AggregatedRow aggregatedRow : context.displayRows()) {
+            String rowSection = normalizeSectionLabel(
+                firstPresent(aggregatedRow.parentLabel(), aggregatedRow.groupLabel(), aggregatedRow.label())
+            );
+            if (currentSection != null && !currentSection.equals(rowSection)) {
+                rows.add(
+                    toSectionTotalRow(
+                        currentSection,
+                        incomeColumnTotals,
+                        expenseColumnTotals,
+                        incomeTotal,
+                        expenseTotal,
+                        context.grandTotal()
+                    )
+                );
+            }
             rows.add(toRowDto(aggregatedRow, columnTotals, context.grandTotal()));
+            currentSection = rowSection;
         }
-        rows.add(toGrandTotalRow(columnTotals, context.grandTotal()));
+        if (currentSection != null) {
+            rows.add(
+                toSectionTotalRow(currentSection, incomeColumnTotals, expenseColumnTotals, incomeTotal, expenseTotal, context.grandTotal())
+            );
+        }
+        rows.add(toIncomeLessExpensesRow(incomeColumnTotals, expenseColumnTotals, incomeTotal, expenseTotal, context.grandTotal()));
         result.setRows(rows);
 
         result.setSeries(
@@ -249,17 +418,59 @@ public class ReportsService {
         return row;
     }
 
-    private IncomeExpenseReportResultDTO.RowDTO toGrandTotalRow(List<BigDecimal> columnTotals, BigDecimal grandTotal) {
+    private IncomeExpenseReportResultDTO.RowDTO toSectionTotalRow(
+        String section,
+        List<BigDecimal> incomeColumnTotals,
+        List<BigDecimal> expenseColumnTotals,
+        BigDecimal incomeTotal,
+        BigDecimal expenseTotal,
+        BigDecimal grandTotal
+    ) {
         IncomeExpenseReportResultDTO.RowDTO row = new IncomeExpenseReportResultDTO.RowDTO();
-        row.setKey("grand-total");
-        row.setLabel("Grand Total");
-        row.setGrandTotal(true);
-        row.setRowType("grandTotal");
-        row.setTotal(grandTotal);
-        row.setPercentOfTotal(grandTotal.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : BigDecimal.ONE);
-        row.setValues(columnTotals);
+        boolean income = "income".equals(section);
+        List<BigDecimal> sectionValues = income ? incomeColumnTotals : expenseColumnTotals;
+        BigDecimal sectionTotal = income ? incomeTotal : expenseTotal;
+        String sectionLabel = income ? "Income Total" : "Expense Total";
+
+        row.setKey("section-total:" + section);
+        row.setLabel(sectionLabel);
+        row.setGrandTotal(false);
+        row.setRowType("sectionTotal");
+        row.setTotal(sectionTotal);
+        row.setPercentOfTotal(percent(sectionTotal, grandTotal));
+        row.setValues(sectionValues);
         row.setValuePercents(
-            columnTotals
+            sectionValues
+                .stream()
+                .map(value -> percent(value, grandTotal))
+                .toList()
+        );
+        return row;
+    }
+
+    private IncomeExpenseReportResultDTO.RowDTO toIncomeLessExpensesRow(
+        List<BigDecimal> incomeColumnTotals,
+        List<BigDecimal> expenseColumnTotals,
+        BigDecimal incomeTotal,
+        BigDecimal expenseTotal,
+        BigDecimal grandTotal
+    ) {
+        List<BigDecimal> netValues = new ArrayList<>(incomeColumnTotals.size());
+        for (int i = 0; i < incomeColumnTotals.size(); i++) {
+            netValues.add(incomeColumnTotals.get(i).subtract(expenseColumnTotals.get(i)));
+        }
+        BigDecimal netTotal = incomeTotal.subtract(expenseTotal);
+
+        IncomeExpenseReportResultDTO.RowDTO row = new IncomeExpenseReportResultDTO.RowDTO();
+        row.setKey("income-less-expenses");
+        row.setLabel("Income less Expenses");
+        row.setGrandTotal(false);
+        row.setRowType("net");
+        row.setTotal(netTotal);
+        row.setPercentOfTotal(percent(netTotal, grandTotal));
+        row.setValues(netValues);
+        row.setValuePercents(
+            netValues
                 .stream()
                 .map(value -> percent(value, grandTotal))
                 .toList()
@@ -315,7 +526,8 @@ public class ReportsService {
 
         List<MutableRow> leafRows = new ArrayList<>(rows.values());
         leafRows.sort(
-            Comparator.comparing((MutableRow row) -> row.parentLabel() == null ? "" : row.parentLabel(), String.CASE_INSENSITIVE_ORDER)
+            Comparator.comparingInt((MutableRow row) -> groupSortRank(row.parentLabel(), row.groupLabel(), row.label()))
+                .thenComparing((MutableRow row) -> row.parentLabel() == null ? "" : row.parentLabel(), String.CASE_INSENSITIVE_ORDER)
                 .thenComparing(row -> row.groupLabel() == null ? "" : row.groupLabel(), String.CASE_INSENSITIVE_ORDER)
                 .thenComparing(MutableRow::label, String.CASE_INSENSITIVE_ORDER)
         );
@@ -505,11 +717,77 @@ public class ReportsService {
         return dimension + ":" + start;
     }
 
-    private ReportTransaction mapReportTransaction(FinanceTransaction transaction) {
-        if (transaction == null || transaction.getDate() == null || transaction.getCategory() == null) {
-            return null;
+    private boolean matchesRowSelection(ReportTransaction transaction, String rowDimension, String rowKey) {
+        if ("grand-total".equals(rowKey)) {
+            return true;
         }
-        if (transaction.isTransfer() || transaction.isInvestment()) {
+        if ("section-total:income".equals(rowKey)) {
+            return isIncomeTransaction(transaction);
+        }
+        if ("section-total:expense".equals(rowKey) || "section-total:expenses".equals(rowKey)) {
+            return isExpenseTransaction(transaction);
+        }
+        if ("income-less-expenses".equals(rowKey)) {
+            return isIncomeTransaction(transaction) || isExpenseTransaction(transaction);
+        }
+
+        RowDescriptor descriptor = describeRow(rowDimension, transaction);
+        if (descriptor == null) {
+            return false;
+        }
+        if (rowKey.startsWith("subtotal:")) {
+            return rowKey.equals(descriptor.subtotalKey());
+        }
+        return rowKey.equals(descriptor.rowKey());
+    }
+
+    private boolean matchesBucketSelection(ReportTransaction transaction, List<Bucket> buckets, String columnKey) {
+        if (columnKey == null) {
+            return true;
+        }
+        for (Bucket bucket : buckets) {
+            if (
+                columnKey.equals(bucket.key()) &&
+                (transaction.date().isEqual(bucket.start()) || transaction.date().isAfter(bucket.start())) &&
+                (transaction.date().isEqual(bucket.end()) || transaction.date().isBefore(bucket.end()))
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private IncomeExpenseReportDrilldownDTO.TransactionDTO mapDrilldownTransaction(ReportTransaction transaction, String rowKey) {
+        IncomeExpenseReportDrilldownDTO.TransactionDTO dto = new IncomeExpenseReportDrilldownDTO.TransactionDTO();
+        dto.setId(transaction.id());
+        dto.setDate(transaction.date());
+        dto.setAccountId(transaction.accountId());
+        dto.setPayeeName(transaction.payeeName());
+        dto.setCategoryName(transaction.displayCategoryLabel());
+        dto.setFamilyMemberName(transaction.familyMemberName());
+        dto.setMemo(transaction.memo());
+        dto.setSectionLabel(transaction.rootLabel());
+        dto.setAmount(contributionAmountForRow(transaction, rowKey));
+        dto.setOriginalCurrencyCode(transaction.originalCurrencyCode());
+        dto.setOriginalAmount(transaction.originalAmount());
+        return dto;
+    }
+
+    private BigDecimal contributionAmountForRow(ReportTransaction transaction, String rowKey) {
+        if ("income-less-expenses".equals(rowKey) && isExpenseTransaction(transaction)) {
+            return transaction.value().negate();
+        }
+        return transaction.value();
+    }
+
+    private ReportTransaction mapReportTransaction(
+        FinanceTransaction transaction,
+        Map<String, Integer> accountTypesById,
+        Map<UUID, BigDecimal> transferDerivedBaseAmounts,
+        Map<UUID, FinanceTransaction> transferCounterpartsByTransactionId,
+        Map<String, String> securityNamesById
+    ) {
+        if (transaction == null || transaction.getDate() == null || transaction.getCategory() == null) {
             return null;
         }
         FinanceCategory category = transaction.getCategory();
@@ -533,12 +811,34 @@ public class ReportsService {
             level3 = null;
         }
 
-        BigDecimal value = transaction.getAmountBase() != null ? transaction.getAmountBase().abs() : transaction.getAmount().abs();
+        if (transaction.isTransfer() && !shouldIncludeTransferTransaction(transaction, root, accountTypesById)) {
+            return null;
+        }
+
+        FinanceTransaction transferCounterpart =
+            transaction.getId() == null ? null : transferCounterpartsByTransactionId.get(transaction.getId());
+        String resolvedSecurityId = defaultIfBlank(
+            transaction.getSecurityId(),
+            transferCounterpart == null ? null : transferCounterpart.getSecurityId()
+        );
+        String resolvedSecurityName = defaultIfBlank(
+            resolvedSecurityId == null ? null : securityNamesById.get(resolvedSecurityId),
+            resolvedSecurityId
+        );
+        BigDecimal value = normalizeReportAmount(transaction, transferDerivedBaseAmounts);
         return new ReportTransaction(
+            transaction.getId().toString(),
             transaction.getDate(),
             value,
             transaction.getAccountId(),
+            buildDisplayPayeeName(
+                transaction,
+                level3 != null ? level3.getName() : (level2 != null ? level2.getName() : root.getName()),
+                resolvedSecurityName
+            ),
             transaction.getPayeeId(),
+            transaction.getMemo(),
+            transaction.getWho() == null ? null : transaction.getWho().getName(),
             transaction.getWho() == null ? null : transaction.getWho().getId().toString(),
             category.getId().toString(),
             root.getName().toLowerCase(Locale.ROOT),
@@ -546,8 +846,266 @@ public class ReportsService {
             level2 == null ? null : level2.getId().toString(),
             level2 == null ? null : level2.getName(),
             level3 == null ? null : level3.getId().toString(),
-            level3 == null ? null : level3.getName()
+            level3 == null ? null : level3.getName(),
+            level3 != null ? level3.getName() : (level2 != null ? level2.getName() : root.getName()),
+            resolvedSecurityName,
+            transaction.getCurrencyCode(),
+            normalizeOriginalAmount(transaction)
         );
+    }
+
+    private String buildDisplayPayeeName(FinanceTransaction transaction, String displayCategoryLabel, String securityName) {
+        if (transaction == null) {
+            return null;
+        }
+
+        String storedPayeeName = defaultIfBlank(transaction.getPayeeName(), null);
+        if (!transaction.isTransfer() && storedPayeeName != null) {
+            return transaction.getPayeeName();
+        }
+
+        String categoryLabel = defaultIfBlank(displayCategoryLabel, null);
+        String resolvedSecurityName = defaultIfBlank(securityName, null);
+        if (categoryLabel != null || resolvedSecurityName != null) {
+            return Stream.of(categoryLabel, resolvedSecurityName).filter(Objects::nonNull).collect(Collectors.joining(": "));
+        }
+
+        return storedPayeeName;
+    }
+
+    private boolean shouldIncludeTransferTransaction(
+        FinanceTransaction transaction,
+        FinanceCategory rootCategory,
+        Map<String, Integer> accountTypesById
+    ) {
+        Integer accountType = accountTypesById.get(transaction.getAccountId());
+        if (accountType == null || accountType.intValue() != FinanceAccountType.INVESTMENT.getValue()) {
+            return false;
+        }
+
+        return "income".equalsIgnoreCase(rootCategory.getName());
+    }
+
+    private BigDecimal normalizeReportAmount(FinanceTransaction transaction, Map<UUID, BigDecimal> transferDerivedBaseAmounts) {
+        if (transaction == null) {
+            return BigDecimal.ZERO;
+        }
+        if (transaction.getAmountBase() != null) {
+            return transaction.getAmountBase().abs();
+        }
+        if (transaction.getId() != null) {
+            BigDecimal transferDerivedAmount = transferDerivedBaseAmounts.get(transaction.getId());
+            if (transferDerivedAmount != null) {
+                return transferDerivedAmount.abs();
+            }
+        }
+        if (transaction.getAmount() != null && transaction.getRateToBase() != null && Double.compare(transaction.getRateToBase(), 0d) > 0) {
+            return transaction.getAmount().multiply(BigDecimal.valueOf(transaction.getRateToBase())).abs();
+        }
+        return transaction.getAmount() == null ? BigDecimal.ZERO : transaction.getAmount().abs();
+    }
+
+    private BigDecimal normalizeOriginalAmount(FinanceTransaction transaction) {
+        if (transaction == null) {
+            return BigDecimal.ZERO;
+        }
+        if (transaction.getAmount() != null) {
+            return transaction.getAmount().abs();
+        }
+        return BigDecimal.ZERO;
+    }
+
+    private Map<UUID, BigDecimal> resolveTransferDerivedBaseAmounts(
+        String userGuid,
+        String baseCurrencyCode,
+        List<FinanceTransaction> transactions
+    ) {
+        if (transactions.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        String normalizedBaseCurrencyCode = defaultIfBlank(baseCurrencyCode, "AUD");
+        Map<UUID, FinanceTransaction> transactionsById = new LinkedHashMap<>();
+        Set<UUID> unresolvedTransactionIds = new LinkedHashSet<>();
+
+        for (FinanceTransaction transaction : transactions) {
+            if (transaction.getId() != null) {
+                transactionsById.put(transaction.getId(), transaction);
+            }
+            if (shouldResolveBaseAmountFromTransfer(transaction, normalizedBaseCurrencyCode)) {
+                unresolvedTransactionIds.add(transaction.getId());
+            }
+        }
+
+        if (unresolvedTransactionIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<FinanceTransferLink> candidateLinks = financeTransferLinkRepository
+            .findAllByUserGuid(userGuid)
+            .stream()
+            .filter(link -> unresolvedTransactionIds.contains(link.getFromId()) || unresolvedTransactionIds.contains(link.getLinkId()))
+            .toList();
+
+        Set<UUID> counterpartIds = new LinkedHashSet<>();
+        for (FinanceTransferLink link : candidateLinks) {
+            if (unresolvedTransactionIds.contains(link.getFromId())) {
+                counterpartIds.add(link.getLinkId());
+            }
+            if (unresolvedTransactionIds.contains(link.getLinkId())) {
+                counterpartIds.add(link.getFromId());
+            }
+        }
+
+        if (!counterpartIds.isEmpty()) {
+            financeTransactionRepository
+                .findAllByUserGuidAndIdIn(userGuid, counterpartIds)
+                .forEach(counterpart -> transactionsById.putIfAbsent(counterpart.getId(), counterpart));
+        }
+
+        Map<UUID, BigDecimal> derivedAmounts = new HashMap<>();
+        for (FinanceTransferLink link : candidateLinks) {
+            registerTransferDerivedAmount(link.getFromId(), link.getLinkId(), transactionsById, normalizedBaseCurrencyCode, derivedAmounts);
+            registerTransferDerivedAmount(link.getLinkId(), link.getFromId(), transactionsById, normalizedBaseCurrencyCode, derivedAmounts);
+        }
+
+        return derivedAmounts;
+    }
+
+    private Map<UUID, FinanceTransaction> resolveTransferCounterpartsByTransactionId(
+        String userGuid,
+        List<FinanceTransaction> transactions
+    ) {
+        if (transactions.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<UUID> transactionIds = transactions.stream().map(FinanceTransaction::getId).filter(Objects::nonNull).toList();
+        if (transactionIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<FinanceTransferLink> transferLinks = financeTransferLinkRepository.findAllByUserGuidAndTransactionIds(
+            userGuid,
+            transactionIds
+        );
+        if (transferLinks.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<UUID, UUID> counterpartIdByTransactionId = new LinkedHashMap<>();
+        Set<UUID> counterpartIds = new LinkedHashSet<>();
+        for (FinanceTransferLink transferLink : transferLinks) {
+            counterpartIdByTransactionId.put(transferLink.getFromId(), transferLink.getLinkId());
+            counterpartIdByTransactionId.put(transferLink.getLinkId(), transferLink.getFromId());
+            counterpartIds.add(transferLink.getFromId());
+            counterpartIds.add(transferLink.getLinkId());
+        }
+
+        Map<UUID, FinanceTransaction> transactionsById = financeTransactionRepository
+            .findAllByUserGuidAndIdIn(userGuid, counterpartIds)
+            .stream()
+            .filter(transaction -> transaction.getId() != null)
+            .collect(Collectors.toMap(FinanceTransaction::getId, transaction -> transaction, (left, right) -> left, LinkedHashMap::new));
+
+        Map<UUID, FinanceTransaction> counterpartsByTransactionId = new LinkedHashMap<>();
+        for (Map.Entry<UUID, UUID> entry : counterpartIdByTransactionId.entrySet()) {
+            FinanceTransaction counterpart = transactionsById.get(entry.getValue());
+            if (counterpart != null) {
+                counterpartsByTransactionId.put(entry.getKey(), counterpart);
+            }
+        }
+        return counterpartsByTransactionId;
+    }
+
+    private Map<String, String> resolveSecurityNamesById(
+        String userGuid,
+        List<FinanceTransaction> transactions,
+        Map<UUID, FinanceTransaction> transferCounterpartsByTransactionId
+    ) {
+        Set<UUID> securityIds = new LinkedHashSet<>();
+        transactions.forEach(transaction -> addSecurityId(securityIds, transaction == null ? null : transaction.getSecurityId()));
+        transferCounterpartsByTransactionId
+            .values()
+            .forEach(transaction -> addSecurityId(securityIds, transaction == null ? null : transaction.getSecurityId()));
+        if (securityIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return financeUserSecurityRepository
+            .findAllByUserGuidAndIdIn(userGuid, securityIds)
+            .stream()
+            .filter(security -> security.getId() != null)
+            .collect(
+                Collectors.toMap(
+                    security -> security.getId().toString(),
+                    FinanceUserSecurity::getName,
+                    (left, right) -> left,
+                    LinkedHashMap::new
+                )
+            );
+    }
+
+    private void addSecurityId(Set<UUID> securityIds, String securityId) {
+        if (securityId == null || securityId.isBlank()) {
+            return;
+        }
+
+        try {
+            securityIds.add(UUID.fromString(securityId));
+        } catch (IllegalArgumentException ignored) {
+            // Ignore malformed security ids.
+        }
+    }
+
+    private void registerTransferDerivedAmount(
+        UUID sourceTransactionId,
+        UUID counterpartTransactionId,
+        Map<UUID, FinanceTransaction> transactionsById,
+        String baseCurrencyCode,
+        Map<UUID, BigDecimal> derivedAmounts
+    ) {
+        FinanceTransaction sourceTransaction = transactionsById.get(sourceTransactionId);
+        if (!shouldResolveBaseAmountFromTransfer(sourceTransaction, baseCurrencyCode)) {
+            return;
+        }
+
+        FinanceTransaction counterpartTransaction = transactionsById.get(counterpartTransactionId);
+        if (counterpartTransaction == null) {
+            return;
+        }
+
+        BigDecimal counterpartBaseAmount = counterpartTransaction.getAmountBase();
+        if (counterpartBaseAmount != null) {
+            derivedAmounts.put(sourceTransactionId, counterpartBaseAmount.abs());
+            return;
+        }
+
+        if (sameCurrency(counterpartTransaction.getCurrencyCode(), baseCurrencyCode) && counterpartTransaction.getAmount() != null) {
+            derivedAmounts.put(sourceTransactionId, counterpartTransaction.getAmount().abs());
+        }
+    }
+
+    private boolean shouldResolveBaseAmountFromTransfer(FinanceTransaction transaction, String baseCurrencyCode) {
+        return (
+            transaction != null &&
+            transaction.getId() != null &&
+            transaction.getAmountBase() == null &&
+            transaction.getAmount() != null &&
+            !sameCurrency(transaction.getCurrencyCode(), baseCurrencyCode)
+        );
+    }
+
+    private boolean sameCurrency(String left, String right) {
+        return defaultIfBlank(left, "").equalsIgnoreCase(defaultIfBlank(right, ""));
+    }
+
+    private Map<String, Integer> getAccountTypesById(String userGuid) {
+        return financeAccountRepository
+            .findAllByUserGuid(userGuid)
+            .stream()
+            .filter(account -> account.getId() != null)
+            .collect(LinkedHashMap::new, (map, account) -> map.put(account.getId().toString(), account.getType()), LinkedHashMap::putAll);
     }
 
     private boolean matchesFilters(
@@ -722,6 +1280,10 @@ public class ReportsService {
             case "3M" -> new LocalDateRange(today.minusMonths(3).plusDays(1), today);
             case "6M" -> new LocalDateRange(today.minusMonths(6).plusDays(1), today);
             case "12M" -> new LocalDateRange(today.minusMonths(12).plusDays(1), today);
+            case "2Y" -> new LocalDateRange(today.minusYears(2).plusDays(1), today);
+            case "5Y" -> new LocalDateRange(today.minusYears(5).plusDays(1), today);
+            case "7Y" -> new LocalDateRange(today.minusYears(7).plusDays(1), today);
+            case "10Y" -> new LocalDateRange(today.minusYears(10).plusDays(1), today);
             case "YTD" -> new LocalDateRange(LocalDate.of(today.getYear(), 1, 1), today);
             case "ALL" -> new LocalDateRange(LocalDate.of(2000, 1, 1), today);
             default -> throw new BadRequestAlertException("Unsupported date preset", "reports", "invaliddatepreset");
@@ -751,6 +1313,54 @@ public class ReportsService {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
+    private boolean isIncomeRow(AggregatedRow row) {
+        return "income".equals(normalizeSectionLabel(firstPresent(row.parentLabel(), row.groupLabel(), row.label())));
+    }
+
+    private boolean isExpenseRow(AggregatedRow row) {
+        String section = normalizeSectionLabel(firstPresent(row.parentLabel(), row.groupLabel(), row.label()));
+        return "expense".equals(section) || "expenses".equals(section);
+    }
+
+    private boolean isIncomeTransaction(ReportTransaction transaction) {
+        return "income".equals(normalizeSectionLabel(transaction.rootLabel()));
+    }
+
+    private boolean isExpenseTransaction(ReportTransaction transaction) {
+        String section = normalizeSectionLabel(transaction.rootLabel());
+        return "expense".equals(section) || "expenses".equals(section);
+    }
+
+    private String firstPresent(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String normalizeSectionLabel(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private int groupSortRank(String parentLabel, String groupLabel, String label) {
+        String candidate =
+            parentLabel != null && !parentLabel.isBlank()
+                ? parentLabel
+                : (groupLabel != null && !groupLabel.isBlank() ? groupLabel : label);
+
+        if (candidate == null) {
+            return 99;
+        }
+
+        return switch (candidate.trim().toLowerCase(Locale.ROOT)) {
+            case "income" -> 0;
+            case "expense", "expenses" -> 1;
+            default -> 99;
+        };
+    }
+
     private LocalDate min(LocalDate left, LocalDate right) {
         return left.isBefore(right) ? left : right;
     }
@@ -776,10 +1386,14 @@ public class ReportsService {
     private record Bucket(String key, String label, LocalDate start, LocalDate end) {}
 
     private record ReportTransaction(
+        String id,
         LocalDate date,
         BigDecimal value,
         String accountId,
+        String payeeName,
         String payeeId,
+        String memo,
+        String familyMemberName,
         String familyMemberId,
         String categoryId,
         String rootKey,
@@ -787,7 +1401,11 @@ public class ReportsService {
         String level2Id,
         String level2Label,
         String level3Id,
-        String level3Label
+        String level3Label,
+        String displayCategoryLabel,
+        String securityName,
+        String originalCurrencyCode,
+        BigDecimal originalAmount
     ) {}
 
     private record RowDescriptor(

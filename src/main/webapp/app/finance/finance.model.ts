@@ -205,6 +205,8 @@ export class FinancialTransaction {
     public tagsDisplay?: string | null,
     public whoId?: string | null,
     public whoName?: string | null,
+    public securityId?: string | null,
+    public securityName?: string | null,
     public accountId?: string | null,
     public importId?: string | null,
   ) {}

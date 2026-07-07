@@ -22,4 +22,13 @@ public interface FinanceTransferLinkRepository extends JpaRepository<FinanceTran
     Optional<FinanceTransferLink> findByUserGuidAndFromIdAndLinkId(String userGuid, UUID fromId, UUID linkId);
 
     List<FinanceTransferLink> findAllByUserGuid(String userGuid);
+
+    @Query(
+        "select x from FinanceTransferLink x " +
+            "where x.userGuid = :userGuid and (x.fromId in :transactionIds or x.linkId in :transactionIds)"
+    )
+    List<FinanceTransferLink> findAllByUserGuidAndTransactionIds(
+        @Param("userGuid") String userGuid,
+        @Param("transactionIds") List<UUID> transactionIds
+    );
 }
