@@ -31,6 +31,7 @@ import ovaro.plat4m.domain.FinanceUserSecurity;
 import ovaro.plat4m.domain.User;
 import ovaro.plat4m.repository.FinanceSecurityPriceRepository;
 import ovaro.plat4m.security.SecurityUtils;
+import ovaro.plat4m.service.FinanceLotService;
 import ovaro.plat4m.service.FinanceSecurityIntegrationService;
 import ovaro.plat4m.service.FinanceSecurityPriceRefreshService;
 import ovaro.plat4m.service.FinanceSecurityService;
@@ -39,6 +40,7 @@ import ovaro.plat4m.service.UserService;
 import ovaro.plat4m.service.dto.FinanceInvestmentSnapshotDetails;
 import ovaro.plat4m.service.dto.FinanceInvestmentSummaryDTO;
 import ovaro.plat4m.service.dto.FinanceInvestmentTransactionDTO;
+import ovaro.plat4m.service.dto.FinanceLotGroupDTO;
 import ovaro.plat4m.service.dto.FinanceSecurityPriceRefreshRequestDTO;
 import ovaro.plat4m.service.dto.FinanceSecurityPriceRefreshResultDTO;
 import ovaro.plat4m.service.dto.FinanceSecurityPriceUpdateDTO;
@@ -56,6 +58,7 @@ public class FinanceSecurityResource {
     private FinanceSecurityService financeSecurityService;
     private FinanceTransactionService financeTransactionService;
     private FinanceSecurityIntegrationService financeSecurityIntegrationService;
+    private FinanceLotService financeLotService;
     private final FinanceSecurityPriceRefreshService financeSecurityPriceRefreshService;
     private final FinanceSecurityPriceRepository financeSecurityPriceRepository;
     private final UserService userService;
@@ -65,6 +68,7 @@ public class FinanceSecurityResource {
         FinanceSecurityService financeSecurityService,
         FinanceTransactionService financeTransactionService,
         FinanceSecurityIntegrationService financeSecurityIntegrationService,
+        FinanceLotService financeLotService,
         FinanceSecurityPriceRefreshService financeSecurityPriceRefreshService,
         FinanceSecurityPriceRepository financeSecurityPriceRepository
     ) {
@@ -72,6 +76,7 @@ public class FinanceSecurityResource {
         this.financeSecurityIntegrationService = financeSecurityIntegrationService;
         this.userService = userService;
         this.financeTransactionService = financeTransactionService;
+        this.financeLotService = financeLotService;
         this.financeSecurityPriceRefreshService = financeSecurityPriceRefreshService;
         this.financeSecurityPriceRepository = financeSecurityPriceRepository;
     }
@@ -252,6 +257,15 @@ public class FinanceSecurityResource {
             this.financeSecurityService.removeClosedTransactions(dtos);
         }
         return dtos;
+    }
+
+    @GetMapping("/investment/{id}/lots")
+    public List<FinanceLotGroupDTO> investmentLots(@PathVariable String id) {
+        try {
+            return this.financeLotService.getLots(getCurrentUser(), id);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        }
     }
 
     /**

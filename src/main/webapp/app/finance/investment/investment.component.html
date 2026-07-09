@@ -39,6 +39,7 @@
               <button type="button" class="investment-actions-menu__item" role="menuitem" (click)="openPriceDialog()">
                 Maintain prices
               </button>
+              <button type="button" class="investment-actions-menu__item" role="menuitem" (click)="openLotsDialog()">View lots</button>
               <button
                 type="button"
                 class="investment-actions-menu__item"
@@ -207,6 +208,60 @@
       <button type="button" class="manage-button manage-button--danger" (click)="deleteStoredPrice()" [disabled]="isPriceSaving">
         Delete
       </button>
+    </div>
+  </p-dialog>
+
+  <p-dialog
+    header="Lots"
+    [(visible)]="lotsDialogVisible"
+    [modal]="true"
+    [draggable]="false"
+    [style]="{ width: 'min(72rem, 96vw)' }"
+    styleClass="investment-lots-dialog"
+  >
+    <div class="investment-prices-dialog__toolbar">
+      <div>
+        <div class="manage-table__primary">{{ holding?.name || 'Selected holding' }}</div>
+      </div>
+    </div>
+
+    <div *ngIf="lotsErrorMessage" class="manage-alert">{{ lotsErrorMessage }}</div>
+    <div *ngIf="isLotsLoading" class="manage-empty">Loading lots...</div>
+    <div *ngIf="!isLotsLoading && lotGroups.length === 0" class="manage-empty">No lots found.</div>
+
+    <div *ngFor="let group of lotGroups" class="manage-card investment-lot-group">
+      <div class="investment-lot-group__header">
+        <div>
+          <div class="manage-table__primary">Original lot</div>
+          <div class="manage-table__secondary">
+            {{ group.originalLot.openDate || group.originalLot.buyDate | date }} · {{ group.originalLot.quantity | number }} units
+          </div>
+        </div>
+        <div *ngIf="group.remainingLot" class="investment-lot-group__remaining">
+          <div class="manage-table__primary">Remaining lot</div>
+          <div class="manage-table__secondary">
+            {{ group.remainingLot.quantity | number }} units
+            <span *ngIf="group.remainingLot.openDate"> · Opened {{ group.remainingLot.openDate | date }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="manage-table manage-table--investment-lots">
+        <div class="manage-table__row manage-table__row--header">
+          <div>Open</div>
+          <div>Close</div>
+          <div>Quantity</div>
+          <div>Account</div>
+          <div>Status</div>
+        </div>
+        <div *ngFor="let lot of group.lots" class="manage-table__row">
+          <div>{{ lot.openDate || lot.buyDate | date }}</div>
+          <div>{{ lot.closeDate || lot.sellDate | date }}</div>
+          <div>{{ lot.quantity | number }}</div>
+          <div>{{ lot.accountName || 'Unknown' }}</div>
+          <div>{{ lot.closeDate ? 'Closed' : 'Open' }}</div>
+        </div>
+      </div>
     </div>
   </p-dialog>
 

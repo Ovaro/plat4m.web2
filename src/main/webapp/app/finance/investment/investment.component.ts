@@ -6,6 +6,7 @@ import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { InvestmentTransactions } from './investment.service';
 import {
   FinanceInvestmentSnapshotDetails,
+  FinanceLotGroup,
   FinanceResourceSnapshots,
   FinanceSecurityHolding,
   FinanceSecurityStoredPrice,
@@ -82,11 +83,15 @@ export class InvestmentComponent {
   private readonly _quoteRefreshMessage = signal<string | null>(null);
   protected actionsMenuOpen = false;
   protected priceDialogVisible = false;
+  protected lotsDialogVisible = false;
   protected priceDeleteDialogVisible = false;
   protected isPricesLoading = false;
+  protected isLotsLoading = false;
   protected isPriceSaving = false;
   protected priceErrorMessage: string | null = null;
+  protected lotsErrorMessage: string | null = null;
   protected storedPrices: FinanceSecurityStoredPrice[] = [];
+  protected lotGroups: FinanceLotGroup[] = [];
   protected editingStoredPrice: FinanceSecurityStoredPrice | null = null;
   protected deleteStoredPriceCandidate: FinanceSecurityStoredPrice | null = null;
   protected readonly priceForm = new FormGroup({
@@ -528,6 +533,15 @@ export class InvestmentComponent {
     this.loadStoredPrices();
   }
 
+  openLotsDialog(): void {
+    if (!this.securityId) {
+      return;
+    }
+    this.actionsMenuOpen = false;
+    this.lotsDialogVisible = true;
+    this.loadLots();
+  }
+
   toggleActionsMenu(): void {
     this.actionsMenuOpen = !this.actionsMenuOpen;
   }
@@ -648,6 +662,24 @@ export class InvestmentComponent {
     }
     this.loadSummary(this.securityId);
     this.loadHistory();
+  }
+
+  private loadLots(): void {
+    if (!this.securityId) {
+      return;
+    }
+    this.isLotsLoading = true;
+    this.lotsErrorMessage = null;
+    this.investmentTransactions.getLots(this.securityId).subscribe({
+      next: lots => {
+        this.lotGroups = lots;
+        this.isLotsLoading = false;
+      },
+      error: (error: HttpErrorResponse) => {
+        this.lotsErrorMessage = this.getQuoteRefreshErrorMessage(error);
+        this.isLotsLoading = false;
+      },
+    });
   }
 
   private getQuoteRefreshErrorMessage(error: HttpErrorResponse): string {

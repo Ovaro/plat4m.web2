@@ -319,6 +319,30 @@ export interface FinanceSecurityStoredPriceUpdate {
   comment: string | null;
 }
 
+export interface FinanceLotView {
+  id: string;
+  quantity: number | null;
+  lotType: number | null;
+  accountId: string | null;
+  accountName: string | null;
+  securityId: string | null;
+  securityName: string | null;
+  buyDate: string | null;
+  sellDate: string | null;
+  openDate: string | null;
+  closeDate: string | null;
+  buyTransactionId: string | null;
+  sellTransactionId: string | null;
+  openTransactionId: string | null;
+  closeTransactionId: string | null;
+}
+
+export interface FinanceLotGroup {
+  originalLot: FinanceLotView;
+  remainingLot: FinanceLotView | null;
+  lots: FinanceLotView[];
+}
+
 export class FinanceResource {
   constructor(
     public id: string,

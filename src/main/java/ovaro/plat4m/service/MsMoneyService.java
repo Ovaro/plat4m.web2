@@ -9,6 +9,7 @@ import com.le.sunriise.currency.FXUtil;
 import com.le.sunriise.mnyobject.Currency;
 import com.le.sunriise.mnyobject.FinancialInstitution;
 import com.le.sunriise.mnyobject.InvestmentTransaction;
+import com.le.sunriise.mnyobject.Lot;
 import com.le.sunriise.mnyobject.Security;
 import com.le.sunriise.mnyobject.TransactionSplit;
 import com.le.sunriise.mnyobject.TransferLink;
@@ -16,6 +17,7 @@ import com.le.sunriise.mnyobject.impl.CategoryImplUtil;
 import com.le.sunriise.mnyobject.impl.CurrencyImplUtil;
 import com.le.sunriise.mnyobject.impl.FinancialInstitutionImplUtil;
 import com.le.sunriise.mnyobject.impl.InvestmentTransactionImplUtil;
+import com.le.sunriise.mnyobject.impl.LotImplUtil;
 import com.le.sunriise.mnyobject.impl.PayeeImplUtil;
 import com.le.sunriise.mnyobject.impl.SecurityImplUtil;
 import com.le.sunriise.mnyobject.impl.TransactionImplUtil;
@@ -50,6 +52,7 @@ import ovaro.plat4m.domain.FinanceCurrency;
 import ovaro.plat4m.domain.FinanceFX;
 import ovaro.plat4m.domain.FinanceImportStatus;
 import ovaro.plat4m.domain.FinanceInstitution;
+import ovaro.plat4m.domain.FinanceLot;
 import ovaro.plat4m.domain.FinancePayee;
 import ovaro.plat4m.domain.FinanceSecurity;
 import ovaro.plat4m.domain.FinanceSecurityPrice;
@@ -66,6 +69,7 @@ import ovaro.plat4m.repository.FinanceCategoryRepository;
 import ovaro.plat4m.repository.FinanceCurrencyRepository;
 import ovaro.plat4m.repository.FinanceFXRepository;
 import ovaro.plat4m.repository.FinanceInstitutionRepository;
+import ovaro.plat4m.repository.FinanceLotRepository;
 import ovaro.plat4m.repository.FinancePayeeRepository;
 import ovaro.plat4m.repository.FinanceSecurityPriceRepository;
 import ovaro.plat4m.repository.FinanceSecurityRepository;
@@ -97,6 +101,7 @@ public class MsMoneyService {
     private FinanceSecurityPriceRepository securityPriceRepository;
     private FinanceInstitutionRepository fiRepository;
     private FinanceTransferLinkRepository transferLinkRepository;
+    private FinanceLotRepository lotRepository;
 
     private FinanceSecurityService securityService;
     private FinanceTransactionEditorLookupCacheService editorLookupCacheService;
@@ -111,6 +116,7 @@ public class MsMoneyService {
     public static final String TABLE_SECURITY_PRICE = "SP";
     public static final String TABLE_FI = "FI";
     public static final String TABLE_XFER = "fin_xfer";
+    public static final String TABLE_LOT = "LOT";
 
     // STOMP for import status websocket
     private final SimpMessageSendingOperations messagingTemplate;
@@ -131,6 +137,7 @@ public class MsMoneyService {
         FinanceSecurityPriceRepository securityPriceRepository,
         FinanceInstitutionRepository fiRepository,
         FinanceTransferLinkRepository transferLinkRepository,
+        FinanceLotRepository lotRepository,
         FinanceSecurityService securityService,
         FinanceTransactionEditorLookupCacheService editorLookupCacheService,
         SimpMessageSendingOperations messagingTemplate
@@ -148,6 +155,7 @@ public class MsMoneyService {
         this.securityPriceRepository = securityPriceRepository;
         this.fiRepository = fiRepository;
         this.transferLinkRepository = transferLinkRepository;
+        this.lotRepository = lotRepository;
         this.securityService = securityService;
         this.editorLookupCacheService = editorLookupCacheService;
         this.messagingTemplate = messagingTemplate;
@@ -258,6 +266,14 @@ public class MsMoneyService {
                 currencies
             );
             removeDeletedTransactions(sw, user, fis, oDB, source);
+            processImportStatusEvent(user, fis);
+
+            //
+            // Lot Sync
+            //
+            monitor.setCurrentTask("Sync Lots");
+            fis = syncLots(sw, user, oDB, source);
+            removeDeletedLots(sw, user, oDB, source);
             processImportStatusEvent(user, fis);
 
             // Update last sync time
@@ -1719,7 +1735,135 @@ public class MsMoneyService {
         sw.stop();
     }
 
+    public FinanceImportStatus syncLots(StopWatch sw, User user, OpenedDb oDB, Source source) throws IOException {
+        sw.start("syncLots");
+        FinanceImportStatus fiStatus = new FinanceImportStatus();
+        fiStatus.setTaskName("Sync Lots");
+
+        Map<Integer, Lot> sourceLots = LotImplUtil.getLots(oDB.getDb());
+        Map<String, SourceLink> lotSourceLinks = getSourceLinksForType(user, source, TABLE_LOT);
+        Map<String, SourceLink> transactionSourceLinks = getSourceLinksForType(user, source, TABLE_TRN);
+        Map<String, SourceLink> accountSourceLinks = getSourceLinksForType(user, source, TABLE_ACCOUNT);
+        Map<String, SourceLink> securitySourceLinks = getSourceLinksForType(user, source, TABLE_SECURITY);
+
+        List<ImportedLotItem> importedLots = new ArrayList<>(sourceLots.size());
+        for (Lot sourceLot : sourceLots.values()) {
+            fiStatus.setNumInput(fiStatus.getNumInput() + 1);
+
+            if (
+                source.getLastSyncDateTime() != null &&
+                sourceLot.getSerialDate() != null &&
+                !source
+                    .getLastSyncDateTime()
+                    .isBefore(ZonedDateTime.ofInstant(sourceLot.getSerialDate().toInstant(), ZoneId.systemDefault()))
+            ) {
+                continue;
+            }
+
+            SourceLink sourceLink = lotSourceLinks.get(sourceLot.getId().toString());
+            FinanceLot financeLot = null;
+            if (sourceLink != null) {
+                financeLot = lotRepository.findById(UUID.fromString(sourceLink.getLocalId())).orElse(null);
+            }
+
+            if (financeLot == null) {
+                financeLot = new FinanceLot();
+                financeLot.setUserGuid(user.getGuid().toString());
+                fiStatus.setNumCreated(fiStatus.getNumCreated() + 1);
+            } else {
+                fiStatus.setNumUpdated(fiStatus.getNumUpdated() + 1);
+            }
+
+            updateLot(financeLot, sourceLot, user, transactionSourceLinks, accountSourceLinks, securitySourceLinks, lotSourceLinks);
+            importedLots.add(new ImportedLotItem(financeLot, sourceLot));
+        }
+
+        if (!importedLots.isEmpty()) {
+            List<FinanceLot> savedLots = lotRepository.saveAll(
+                importedLots
+                    .stream()
+                    .map(item -> item.financeLot)
+                    .toList()
+            );
+            List<SourceLink> newSourceLinks = new ArrayList<>();
+            for (int i = 0; i < savedLots.size(); i++) {
+                FinanceLot savedLot = savedLots.get(i);
+                Lot sourceLot = importedLots.get(i).sourceLot;
+                if (!lotSourceLinks.containsKey(sourceLot.getId().toString())) {
+                    SourceLink newSourceLink = createSourceLink(
+                        user,
+                        source,
+                        savedLot.getId().toString(),
+                        sourceLot.getId().toString(),
+                        trimSguid(sourceLot.getGuid()),
+                        TABLE_LOT,
+                        true
+                    );
+                    newSourceLinks.add(newSourceLink);
+                    lotSourceLinks.put(newSourceLink.getSourceId(), newSourceLink);
+                }
+            }
+            if (!newSourceLinks.isEmpty()) {
+                sourceLinkRepository.saveAll(newSourceLinks);
+            }
+
+            List<FinanceLot> relationshipUpdates = new ArrayList<>();
+            for (ImportedLotItem importedLot : importedLots) {
+                if (importedLot.sourceLot.getLotOpenId() == null || importedLot.financeLot.getLotOpenId() != null) {
+                    continue;
+                }
+                UUID resolvedLotOpenId = resolveLinkedUuid(lotSourceLinks, importedLot.sourceLot.getLotOpenId());
+                if (resolvedLotOpenId != null) {
+                    importedLot.financeLot.setLotOpenId(resolvedLotOpenId);
+                    relationshipUpdates.add(importedLot.financeLot);
+                }
+            }
+            if (!relationshipUpdates.isEmpty()) {
+                lotRepository.saveAll(relationshipUpdates);
+            }
+        }
+
+        sw.stop();
+        fiStatus.setDuration(sw.getLastTaskTimeMillis());
+        fiStatus.setTaskFinished(true);
+        return fiStatus;
+    }
+
+    public void removeDeletedLots(StopWatch sw, User user, OpenedDb oDB, Source source) throws IOException {
+        sw.start("removeDeletedLots");
+
+        Map<String, SourceLink> lotSourceLinks = getSourceLinksForType(user, source, TABLE_LOT);
+        Map<Integer, Lot> sourceLots = LotImplUtil.getLots(oDB.getDb());
+        for (Integer sourceLotId : sourceLots.keySet()) {
+            lotSourceLinks.remove(sourceLotId.toString());
+        }
+
+        if (!lotSourceLinks.isEmpty()) {
+            List<UUID> lotIds = new ArrayList<>(lotSourceLinks.size());
+            List<Long> sourceLinkIds = new ArrayList<>(lotSourceLinks.size());
+            for (SourceLink sourceLink : lotSourceLinks.values()) {
+                lotIds.add(UUID.fromString(sourceLink.getLocalId()));
+                sourceLinkIds.add(sourceLink.getId());
+            }
+            lotRepository.deleteAllById(lotIds);
+            sourceLinkRepository.deleteAllById(sourceLinkIds);
+        }
+
+        sw.stop();
+    }
+
     private static int ITERATION = 0;
+
+    private static class ImportedLotItem {
+
+        private final FinanceLot financeLot;
+        private final Lot sourceLot;
+
+        private ImportedLotItem(FinanceLot financeLot, Lot sourceLot) {
+            this.financeLot = financeLot;
+            this.sourceLot = sourceLot;
+        }
+    }
 
     private static class ImportedTransactionItem {
 
@@ -2627,6 +2771,68 @@ public class MsMoneyService {
             pendingSplits
         );
         return txn;
+    }
+
+    private void updateLot(
+        FinanceLot financeLot,
+        Lot sourceLot,
+        User user,
+        Map<String, SourceLink> transactionSourceLinks,
+        Map<String, SourceLink> accountSourceLinks,
+        Map<String, SourceLink> securitySourceLinks,
+        Map<String, SourceLink> lotSourceLinks
+    ) {
+        financeLot.setUserGuid(user.getGuid().toString());
+        financeLot.setSourceId(sourceLot.getId());
+        financeLot.setMasterGuid(trimSguid(sourceLot.getGuid()));
+        financeLot.setBuyTransactionId(resolveLinkedUuid(transactionSourceLinks, sourceLot.getBuyTrnId()));
+        financeLot.setSellTransactionId(resolveLinkedUuid(transactionSourceLinks, sourceLot.getSellTrnId()));
+        financeLot.setQuantity(sourceLot.getQuantity());
+        financeLot.setAccountId(resolveLinkedLocalId(accountSourceLinks, sourceLot.getAccountId()));
+        financeLot.setSecurityId(resolveLinkedLocalId(securitySourceLinks, sourceLot.getSecurityId()));
+        financeLot.setBuyDate(normalizeLotDate(sourceLot.getBuyDate()));
+        financeLot.setSellDate(normalizeLotDate(sourceLot.getSellDate()));
+        financeLot.setLotOpenId(resolveLinkedUuid(lotSourceLinks, sourceLot.getLotOpenId()));
+        financeLot.setLotType(sourceLot.getLott());
+        financeLot.setOpenTransactionId(resolveLinkedUuid(transactionSourceLinks, sourceLot.getOpenTrnId()));
+        financeLot.setCloseTransactionId(resolveLinkedUuid(transactionSourceLinks, sourceLot.getCloseTrnId()));
+        financeLot.setOpenDate(normalizeLotDate(sourceLot.getOpenDate()));
+        financeLot.setCloseDate(normalizeLotDate(sourceLot.getCloseDate()));
+        financeLot.setSerialDateTime(
+            sourceLot.getSerialDate() != null
+                ? ZonedDateTime.ofInstant(sourceLot.getSerialDate().toInstant(), ZoneId.systemDefault())
+                : null
+        );
+    }
+
+    private LocalDate normalizeLotDate(java.util.Date sourceDate) {
+        if (sourceDate == null) {
+            return null;
+        }
+        LocalDate localDate = LocalDate.ofInstant(sourceDate.toInstant(), ZoneId.systemDefault());
+        if (localDate.getYear() == 10000 && localDate.getMonthValue() == 2 && localDate.getDayOfMonth() == 28) {
+            return null;
+        }
+        return localDate;
+    }
+
+    private UUID resolveLinkedUuid(Map<String, SourceLink> sourceLinks, Integer sourceId) {
+        if (sourceId == null) {
+            return null;
+        }
+        SourceLink sourceLink = sourceLinks.get(sourceId.toString());
+        if (sourceLink == null || sourceLink.getLocalId() == null) {
+            return null;
+        }
+        return UUID.fromString(sourceLink.getLocalId());
+    }
+
+    private String resolveLinkedLocalId(Map<String, SourceLink> sourceLinks, Integer sourceId) {
+        if (sourceId == null) {
+            return null;
+        }
+        SourceLink sourceLink = sourceLinks.get(sourceId.toString());
+        return sourceLink != null ? sourceLink.getLocalId() : null;
     }
 
     public Map<String, FinanceCurrency> getCurrenciesFromDB() {

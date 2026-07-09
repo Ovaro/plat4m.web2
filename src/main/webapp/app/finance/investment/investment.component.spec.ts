@@ -78,6 +78,47 @@ describe('InvestmentComponent', () => {
     createStoredPrice: vitest.fn(() => of({ id: 'price-2', symbol: 'BHP', date: '2026-06-19', price: 26.1, comment: null })),
     updateStoredPrice: vitest.fn(() => of({ id: 'price-1', symbol: 'BHP', date: '2026-06-18', price: 25.6, comment: 'Adjusted' })),
     deleteStoredPrice: vitest.fn(() => of(void 0)),
+    getLots: vitest.fn(() =>
+      of([
+        {
+          originalLot: {
+            id: 'lot-1',
+            quantity: 10,
+            lotType: 0,
+            accountId: 'account-1',
+            accountName: 'Brokerage',
+            securityId: 'security-1',
+            securityName: 'BHP Group',
+            buyDate: '2026-01-10',
+            sellDate: null,
+            openDate: '2026-01-10',
+            closeDate: null,
+            buyTransactionId: 'txn-1',
+            sellTransactionId: null,
+            openTransactionId: 'txn-1',
+            closeTransactionId: null,
+          },
+          remainingLot: {
+            id: 'lot-1',
+            quantity: 10,
+            lotType: 0,
+            accountId: 'account-1',
+            accountName: 'Brokerage',
+            securityId: 'security-1',
+            securityName: 'BHP Group',
+            buyDate: '2026-01-10',
+            sellDate: null,
+            openDate: '2026-01-10',
+            closeDate: null,
+            buyTransactionId: 'txn-1',
+            sellTransactionId: null,
+            openTransactionId: 'txn-1',
+            closeTransactionId: null,
+          },
+          lots: [],
+        },
+      ]),
+    ),
   };
 
   const themeServiceMock = {
@@ -148,6 +189,14 @@ describe('InvestmentComponent', () => {
     expect(component.storedPrices).toHaveLength(1);
     expect(component.priceForm.controls.date.value).toBe(new Intl.DateTimeFormat('en-CA').format(new Date()));
     expect(component.priceForm.controls.price.value).toBeNull();
+  });
+
+  it('loads lots when opening the lots dialog', () => {
+    component.openLotsDialog();
+
+    expect(investmentTransactionsMock.getLots).toHaveBeenCalledWith('security-1');
+    expect(component.lotsDialogVisible).toBe(true);
+    expect(component.lotGroups).toHaveLength(1);
   });
 
   it('populates the editor when a historical price is selected', () => {

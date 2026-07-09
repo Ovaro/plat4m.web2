@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
 import {
   FinanceInvestmentSnapshotDetails,
+  FinanceLotGroup,
   FinanceResourceSnapshots,
   FinanceSecurityStoredPrice,
   FinanceSecurityStoredPriceUpdate,
@@ -93,5 +94,9 @@ export class InvestmentTransactions {
 
   deleteStoredPrice(userSecurityId: string, priceId: string): Observable<void> {
     return this.http.delete<void>(this.applicationConfigService.getEndpointFor(`api/investment/${userSecurityId}/prices/${priceId}`));
+  }
+
+  getLots(userSecurityId: string): Observable<FinanceLotGroup[]> {
+    return this.http.get<FinanceLotGroup[]>(this.applicationConfigService.getEndpointFor(`api/investment/${userSecurityId}/lots`));
   }
 }

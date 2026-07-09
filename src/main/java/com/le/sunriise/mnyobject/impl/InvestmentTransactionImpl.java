@@ -28,6 +28,8 @@ public class InvestmentTransactionImpl implements InvestmentTransaction {
 
     private Double quantity;
 
+    private Integer lott;
+
     /*
      * (non-Javadoc)
      *
@@ -91,5 +93,13 @@ public class InvestmentTransactionImpl implements InvestmentTransaction {
     @Override
     public void setQuantity(Double quantity) {
         this.quantity = quantity;
+    }
+
+    public Integer getLott() {
+        return lott;
+    }
+
+    public void setLott(Integer lott) {
+        this.lott = lott;
     }
 }

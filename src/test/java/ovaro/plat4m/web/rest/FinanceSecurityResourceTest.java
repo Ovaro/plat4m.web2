@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import ovaro.plat4m.domain.User;
 import ovaro.plat4m.repository.FinanceSecurityPriceRepository;
+import ovaro.plat4m.service.FinanceLotService;
 import ovaro.plat4m.service.FinanceSecurityIntegrationService;
 import ovaro.plat4m.service.FinanceSecurityPriceRefreshService;
 import ovaro.plat4m.service.FinanceSecurityService;
@@ -49,6 +50,9 @@ class FinanceSecurityResourceTest {
     private FinanceSecurityPriceRefreshService financeSecurityPriceRefreshService;
 
     @Mock
+    private FinanceLotService financeLotService;
+
+    @Mock
     private FinanceSecurityPriceRepository financeSecurityPriceRepository;
 
     private MockMvc mockMvc;
@@ -61,6 +65,7 @@ class FinanceSecurityResourceTest {
             financeSecurityService,
             financeTransactionService,
             financeSecurityIntegrationService,
+            financeLotService,
             financeSecurityPriceRefreshService,
             financeSecurityPriceRepository
         );

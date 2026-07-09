@@ -161,7 +161,7 @@ public class MynViewer {
 
     private TableRowSorter<TableModel> sorter;
 
-    private boolean allowTableSorting = false;
+    private boolean allowTableSorting = true;
 
     private JCheckBox filterOnSelectedColumnCheckBox;
 

@@ -31,4 +31,8 @@ public interface InvestmentTransaction {
     public abstract Double getQuantity();
 
     public abstract void setQuantity(Double quantity);
+
+    public abstract void setLott(Integer lott);
+
+    public abstract Integer getLott();
 }

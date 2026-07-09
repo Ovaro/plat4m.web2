@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet author="codex" id="20260709000200-1">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="fin_lot" columnName="source_id"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="fin_lot">
+            <column name="source_id" type="INT"/>
+        </addColumn>
+
+        <createIndex indexName="IDX_fin_lot_source_id" tableName="fin_lot">
+            <column name="source_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

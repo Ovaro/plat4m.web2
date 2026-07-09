@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet author="codex" id="20260709000100-1">
+        <createTable tableName="fin_lot">
+            <column name="id" type="UUID">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="fin_lotPK"/>
+            </column>
+            <column name="user_guid" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="buy_transaction_id" type="UUID"/>
+            <column name="sell_transaction_id" type="UUID"/>
+            <column name="quantity" type="FLOAT8"/>
+            <column name="account_id" type="VARCHAR(255)"/>
+            <column name="security_id" type="VARCHAR(255)"/>
+            <column name="buy_date" type="date"/>
+            <column name="sell_date" type="date"/>
+            <column name="lot_open_id" type="UUID"/>
+            <column name="lot_type" type="INTEGER"/>
+            <column name="open_transaction_id" type="UUID"/>
+            <column name="close_transaction_id" type="UUID"/>
+            <column name="open_date" type="date"/>
+            <column name="close_date" type="date"/>
+            <column name="master_guid" type="VARCHAR(255)"/>
+            <column name="serial_date_time" type="TIMESTAMP WITHOUT TIME ZONE"/>
+        </createTable>
+
+        <addUniqueConstraint tableName="fin_lot" columnNames="master_guid" constraintName="UK_fin_lot_master_guid"/>
+
+        <createIndex indexName="IDX_fin_lot_user_guid" tableName="fin_lot">
+            <column name="user_guid"/>
+        </createIndex>
+
+        <createIndex indexName="IDX_fin_lot_security_id" tableName="fin_lot">
+            <column name="security_id"/>
+        </createIndex>
+
+        <createIndex indexName="IDX_fin_lot_account_id" tableName="fin_lot">
+            <column name="account_id"/>
+        </createIndex>
+
+        <createIndex indexName="IDX_fin_lot_lot_open_id" tableName="fin_lot">
+            <column name="lot_open_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>
