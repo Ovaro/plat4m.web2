@@ -4,7 +4,13 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ThemeChangeEvent, ThemeService } from 'app/layouts/main/theme.service';
 import { InvestmentPortfolio } from './investment-portfolio.service';
 import {
+  CustomPortfolio,
+  CustomPortfolioAccountOption,
+  CustomPortfolioOptions,
+  CustomPortfolioSecurityOption,
+  CustomPortfolioStrategy,
   FinanceInvestmentSnapshotDetails,
+  PortfolioTrade,
   FinanceResourceSnapshots,
   FinanceSecurityHolding,
   FinancialAccount,
@@ -40,6 +46,7 @@ import { DialogModule } from 'primeng/dialog';
 import { DeltaValueComponent } from 'app/shared/delta-value/delta-value.component';
 import { AlertService } from 'app/core/util/alert.service';
 import { FinanceSecurityPriceRefreshItem, FinanceSecurityPriceRefreshResult } from '../finance.model';
+import { InvestmentTradesComponent } from './investment-trades.component';
 
 interface GroupData {
   [name: string]: FinanceSecurityHolding[] | null;
@@ -51,9 +58,56 @@ interface Group {
   groups: GroupData | null;
 }
 
+type HoldingSortColumn =
+  | 'symbol'
+  | 'name'
+  | 'price'
+  | 'periodChange'
+  | 'quantity'
+  | 'value'
+  | 'capitalInvested'
+  | 'capitalGain'
+  | 'income'
+  | 'currencyGain'
+  | 'totalReturn';
+
+interface AccountSelectGroup {
+  label: string;
+  items: PortfolioSelectOption[];
+}
+
+interface PortfolioSelectOption {
+  id: string;
+  name: string;
+  type: 'account' | 'portfolio';
+  sourceId: string | null;
+}
+
+interface InvestmentSelectOption {
+  id: string;
+  name: string;
+  symbol: string;
+  accountName: string;
+  closed: boolean;
+}
+
 interface PieChartData {
   series: number[];
   labels: string[];
+}
+
+interface InvestmentPortfolioScreenState {
+  selectedViewId?: string | null;
+  accountId?: string | null;
+  customPortfolioId?: string | null;
+  includeClosedPositions?: boolean;
+  showAnnotations?: boolean;
+  selectedGroupValue?: string | null;
+  selectedPeriodValue?: string | null;
+  selectedInvestmentName?: string | null;
+  activeTab?: string | null;
+  holdingSortColumn?: HoldingSortColumn | null;
+  holdingSortDirection?: 'asc' | 'desc' | null;
 }
 
 export type ChartOptions = {
@@ -97,15 +151,16 @@ export type TreeMapChartOptions = {
   selector: 'jhi-investment-portfolio',
   templateUrl: './investment-portfolio.component.html',
   styleUrls: ['./investment-portfolio.component.scss'],
-  imports: [SharedModule, RouterModule, NgApexchartsModule, SkeletonModule, DialogModule],
+  imports: [SharedModule, RouterModule, NgApexchartsModule, SkeletonModule, DialogModule, InvestmentTradesComponent],
 })
 export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
   static COOKIE_SHOW_CLOSED = 'show-closed-state';
   static PERIOD_DEFAULT_COOKIE_ID = 'period-default';
+  static SCREEN_STATE_COOKIE_ID = 'investment-portfolio-screen-state';
 
   static ALL_ACCOUNTS: FinancialAccount = {
     id: '',
-    name: 'All',
+    name: 'All Investment Accounts',
     type: -1,
     accountType: 'All',
     currencyCode: '',
@@ -133,6 +188,8 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
 
   private readonly _accountId = signal<string | null>(null);
   private readonly _account = signal<FinancialAccount | null>(null);
+  private readonly _customPortfolioId = signal<string | null>(null);
+  private readonly _selectedViewId = signal('account:');
   groupings: Group[];
 
   private readonly _includeClosedPositions = signal(false);
@@ -156,8 +213,32 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
 
   // Data that gets displayed in the grid
   private readonly _holdings = signal<FinanceSecurityHolding[] | null>(null);
+  private readonly _investmentSelectOptions = signal<InvestmentSelectOption[]>([]);
+  private readonly _selectedInvestmentId = signal<string | null>(null);
 
   private readonly _accounts = signal<FinancialAccount[] | null>(null);
+  private readonly _customPortfolios = signal<CustomPortfolio[]>([]);
+  customPortfolioOptions: CustomPortfolioOptions = { securities: [], accounts: [] };
+  accountSelectOptions: AccountSelectGroup[] = [];
+  portfolioDialogVisible = false;
+  portfolioDialogMode: 'create' | 'edit' = 'create';
+  portfolioForm: CustomPortfolio = this.emptyPortfolioForm();
+  portfolioExpectedReturnPercent = 7.5;
+  portfolioSaving = false;
+  portfolioError: string | null = null;
+  portfolioHideClosedAndZeroOptions = true;
+  protected holdingSortColumn: HoldingSortColumn = 'name';
+  protected holdingSortDirection: 'asc' | 'desc' = 'asc';
+  readonly portfolioStrategyOptions: { label: string; value: CustomPortfolioStrategy }[] = [
+    { label: 'Growth', value: 'GROWTH' },
+    { label: 'Income', value: 'INCOME' },
+    { label: 'Balanced', value: 'BALANCED' },
+    { label: 'Defensive', value: 'DEFENSIVE' },
+    { label: 'Speculative', value: 'SPECULATIVE' },
+    { label: 'Thematic', value: 'THEMATIC' },
+    { label: 'Index/Core', value: 'INDEX_CORE' },
+    { label: 'Custom', value: 'CUSTOM' },
+  ];
 
   private readonly _summaries = signal<FinanceInvestmentSnapshotDetails[] | null>(null);
 
@@ -169,8 +250,11 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
   private readonly _quoteRefreshMessage = signal<string | null>(null);
   private readonly _quoteRefreshDialogVisible = signal(false);
   private readonly _quoteRefreshResult = signal<FinanceSecurityPriceRefreshResult | null>(null);
+  private readonly _isLoadingTrades = signal(false);
   private quoteRefreshPollHandle: ReturnType<typeof setTimeout> | null = null;
   private completedRefreshJobId: string | null = null;
+
+  trades: PortfolioTrade[] = [];
 
   /* Charts */
   @ViewChild('pieChart', { static: false }) pieChart!: ChartComponent;
@@ -265,6 +349,14 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     this._isApplyingQuoteRefreshResults.set(value);
   }
 
+  get isLoadingTrades(): boolean {
+    return this._isLoadingTrades();
+  }
+
+  set isLoadingTrades(value: boolean) {
+    this._isLoadingTrades.set(value);
+  }
+
   get accountId(): string | null {
     return this._accountId();
   }
@@ -279,6 +371,22 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
 
   set account(value: FinancialAccount | null) {
     this._account.set(value);
+  }
+
+  get customPortfolioId(): string | null {
+    return this._customPortfolioId();
+  }
+
+  set customPortfolioId(value: string | null) {
+    this._customPortfolioId.set(value);
+  }
+
+  get selectedViewId(): string {
+    return this._selectedViewId();
+  }
+
+  set selectedViewId(value: string | null) {
+    this._selectedViewId.set(value ?? 'account:');
   }
 
   get includeClosedPositions(): boolean {
@@ -337,12 +445,38 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     this._holdings.set(value);
   }
 
+  get investmentSelectOptions(): InvestmentSelectOption[] {
+    return this._investmentSelectOptions();
+  }
+
+  set investmentSelectOptions(value: InvestmentSelectOption[]) {
+    this._investmentSelectOptions.set(value ?? []);
+  }
+
+  get selectedInvestmentId(): string | null {
+    return this._selectedInvestmentId();
+  }
+
+  set selectedInvestmentId(value: string | null) {
+    this._selectedInvestmentId.set(value);
+  }
+
   get accounts(): FinancialAccount[] | null {
     return this._accounts();
   }
 
   set accounts(value: FinancialAccount[] | null) {
     this._accounts.set(value);
+    this.accountSelectOptions = this.buildAccountSelectOptions(value, this.customPortfolios);
+  }
+
+  get customPortfolios(): CustomPortfolio[] {
+    return this._customPortfolios();
+  }
+
+  set customPortfolios(value: CustomPortfolio[]) {
+    this._customPortfolios.set(value ?? []);
+    this.accountSelectOptions = this.buildAccountSelectOptions(this.accounts, value ?? []);
   }
 
   get summaries(): FinanceInvestmentSnapshotDetails[] | null {
@@ -444,7 +578,7 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     //, private commonControllerServices:CommonControllerServices
     this.groupings = [
       { name: 'Holdings', value: 'holdings', groups: null },
-      { name: 'Portfolio', value: 'portfolio', groups: null },
+      { name: 'Account', value: 'portfolio', groups: null },
       { name: 'Type', value: 'type', groups: null },
       { name: 'Sector', value: 'sector', groups: null },
       { name: 'Industry', value: 'industry', groups: null },
@@ -526,12 +660,6 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
 
     //this.title = this.commonControllerServices.getPageTitle(this.router.routerState.snapshot.root);
 
-    this.route.params.subscribe(params => {
-      if (params['id']) {
-        this.accountId = params['id'];
-      }
-    });
-
     this.accountService.getByType(5).subscribe({
       next: (res: FinancialAccount[]) => {
         this.accounts = res;
@@ -543,6 +671,8 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
       },
       // error: () => (),
     });
+    this.loadCustomPortfolios();
+    this.loadCustomPortfolioOptions();
 
     const showClosedState = this.getCookie(InvestmentPortfolioComponent.COOKIE_SHOW_CLOSED);
 
@@ -629,11 +759,36 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
 
     this.pieChartOptions.tooltip = {
       enabled: true,
-      y: {
-        // eslint-disable-next-line object-shorthand
-        formatter: function (val: number, ops: any): string {
-          return ptr.currencyFormatter(val); //, ptr.currencyFormatter(ops.value)]; // + '<br>' + String(op.value)
-        },
+      custom: function ({ series, seriesIndex, w }): string {
+        const values = Array.isArray(series) ? series : [];
+        const value = typeof values[seriesIndex] === 'number' ? values[seriesIndex] : 0;
+        const total = values.reduce((sum: number, item: number) => sum + item, 0);
+        const percentage = total > 0 ? (value / total) * 100 : 0;
+        const label = Array.isArray(w?.globals?.labels) ? (w.globals.labels[seriesIndex] ?? '') : '';
+
+        return `
+          <div
+            class="apexcharts-tooltip-box"
+            style="
+              background: var(--ps-surface-raised, #ffffff);
+              color: var(--ps-text-primary, #0f172a);
+              border: 1px solid var(--ps-surface-border-subtle, rgba(148, 163, 184, 0.35));
+              border-radius: 0.75rem;
+              box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+              padding: 0.5rem 0.75rem;
+            "
+          >
+            <div class="apexcharts-tooltip-title" style="margin-bottom: 0.35rem; color: var(--ps-text-primary, #0f172a);"><b>${label}</b></div>
+            <div class="apexcharts-tooltip-series-group apexcharts-active tooltip-series-group" style="display: flex;">
+              <span class="apexcharts-tooltip-marker" style="background-color: ${w.globals.colors[seriesIndex]}"></span>
+              <div class="apexcharts-tooltip-text" style="color: var(--ps-text-primary, #0f172a);">
+                <div class="apexcharts-tooltip-y-group" style="color: var(--ps-text-primary, #0f172a);">
+                  <span class="apexcharts-tooltip-text-y-value" style="color: var(--ps-text-primary, #0f172a);">${ptr.currencyFormatter(value)} (${percentage.toFixed(2)}%)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
       },
     };
 
@@ -746,8 +901,20 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
         }
       }
     }
+    this.restoreScreenState();
+
+    this.route.params.subscribe(params => {
+      if (params['id']) {
+        this.accountId = params['id'];
+        this.selectedViewId = `account:${params['id']}`;
+        this.customPortfolioId = null;
+        this.account = this.accountId ? this.getAccount(this.accountId) : null;
+        this.saveScreenState();
+      }
+    });
 
     this.resumeActiveQuoteRefresh();
+    this.loadInvestmentSelectOptions();
     this.load();
     this.applyThemeToCharts();
   }
@@ -794,18 +961,26 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
   }
 
   onChangeAccount(event: any): void {
-    if (this.accountId || this.accountId === '') {
-      this.account = this.getAccount(this.accountId);
-      this.load();
-      // Clear Groups
-      this.clearGroupCache();
+    const selectedValue = (event?.value as string | null) ?? this.selectedViewId;
+    this.applySelectedView(selectedValue);
+    this.saveScreenState();
+    this.load();
+    this.clearGroupCache();
+  }
+
+  onChangeInvestment(event: any): void {
+    const selectedInvestmentId = (event?.value as string | null) ?? this.selectedInvestmentId;
+    if (!selectedInvestmentId) {
+      return;
     }
+    this.navigateToInvestment(selectedInvestmentId);
   }
 
   onChangeGrouping(event: any): void {
     const nextGroup = event?.value as Group | null | undefined;
     if (nextGroup) {
       this.selectedGroup = nextGroup;
+      this.saveScreenState();
     }
 
     if (this.holdings && this.selectedGroup) {
@@ -828,6 +1003,7 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     this.zone.run(() => {
       this.comparisonPortfolio = null;
       this.saveCookie(InvestmentPortfolioComponent.PERIOD_DEFAULT_COOKIE_ID, this.selectedPeriod.value);
+      this.saveScreenState();
       if (this.holdings) {
         //this.processPeriod(this.selectedGroup, this.holdings);
 
@@ -842,8 +1018,8 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  loadComparisons(acId: string) {
-    this.investmentService.getSummaries(acId, this.includeClosedPositions, this.selectedPeriod.value).subscribe({
+  loadComparisons(acId: string | null) {
+    this.investmentService.getSummaries(acId, true, this.selectedPeriod.value, this.customPortfolioId).subscribe({
       next: (res: InvestmentPortfolioDetails) => {
         this.comparisonPortfolio = res;
       },
@@ -854,6 +1030,7 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
   clickTab(tabName: string): void {
     // // console.log('activetab pre: ' + this.activetab);
     this.activeTab = tabName;
+    this.saveScreenState();
     if (this.activeTab === 'treemap') {
       this.setTreemapSeries(this.processTreemapData());
     } else if (this.activeTab === 'history') {
@@ -866,7 +1043,10 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     // eslint-disable-next-line no-console
     console.log('event: ' + JSON.stringify(selectedDataPoint));
 
-    this.zone.run(() => (this.selectedInvestmentName = this.pieChartOptions.labels![selectedDataPoint]));
+    this.zone.run(() => {
+      this.selectedInvestmentName = this.pieChartOptions.labels![selectedDataPoint];
+      this.saveScreenState();
+    });
   }
 
   getAccount(id: string): FinancialAccount | null {
@@ -882,6 +1062,332 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
       return true;
     });
     return val;
+  }
+
+  selectedCustomPortfolio(): CustomPortfolio | null {
+    if (!this.customPortfolioId) {
+      return null;
+    }
+    return this.customPortfolios.find(portfolio => portfolio.id === this.customPortfolioId) ?? null;
+  }
+
+  private applySelectedView(selectedValue: string): void {
+    this.selectedViewId = selectedValue;
+    if (selectedValue.startsWith('portfolio:')) {
+      this.customPortfolioId = selectedValue.replace('portfolio:', '') || null;
+      this.accountId = null;
+      this.account = null;
+      return;
+    }
+
+    const accountId = selectedValue.replace('account:', '');
+    this.customPortfolioId = null;
+    this.accountId = accountId;
+    this.account = this.getAccount(accountId);
+  }
+
+  private loadCustomPortfolios(): void {
+    this.investmentService.getCustomPortfolios().subscribe({
+      next: portfolios => {
+        this.customPortfolios = portfolios ?? [];
+        if (this.customPortfolioId && !this.customPortfolios.some(portfolio => portfolio.id === this.customPortfolioId)) {
+          this.applySelectedView('account:');
+          this.saveScreenState();
+        }
+      },
+    });
+  }
+
+  private loadCustomPortfolioOptions(): void {
+    this.investmentService.getCustomPortfolioOptions().subscribe({
+      next: options => {
+        this.customPortfolioOptions = options ?? { securities: [], accounts: [] };
+      },
+    });
+  }
+
+  openCreatePortfolioDialog(): void {
+    this.portfolioDialogMode = 'create';
+    this.portfolioForm = this.emptyPortfolioForm();
+    this.portfolioExpectedReturnPercent = 7.5;
+    this.portfolioHideClosedAndZeroOptions = true;
+    this.portfolioError = null;
+    this.portfolioDialogVisible = true;
+  }
+
+  openEditPortfolioDialog(): void {
+    const portfolio = this.selectedCustomPortfolio();
+    if (!portfolio) {
+      return;
+    }
+    this.portfolioDialogMode = 'edit';
+    this.portfolioForm = {
+      ...portfolio,
+      securityIds: [...(portfolio.securityIds ?? [])],
+      accountIds: [...(portfolio.accountIds ?? [])],
+    };
+    this.portfolioExpectedReturnPercent = Number(((portfolio.expectedReturnCagr ?? 0.075) * 100).toFixed(4));
+    this.portfolioHideClosedAndZeroOptions = true;
+    this.portfolioError = null;
+    this.portfolioDialogVisible = true;
+  }
+
+  savePortfolio(): void {
+    this.portfolioError = null;
+    if (!this.portfolioForm.name || this.portfolioForm.name.trim().length === 0) {
+      this.portfolioError = 'Portfolio name is required.';
+      return;
+    }
+    if (
+      this.portfolioForm.strategy === 'CUSTOM' &&
+      (!this.portfolioForm.customStrategy || this.portfolioForm.customStrategy.trim().length === 0)
+    ) {
+      this.portfolioError = 'Custom strategy is required.';
+      return;
+    }
+
+    const payload: CustomPortfolio = {
+      ...this.portfolioForm,
+      name: this.portfolioForm.name.trim(),
+      description: this.portfolioForm.description?.trim() || null,
+      customStrategy: this.portfolioForm.strategy === 'CUSTOM' ? this.portfolioForm.customStrategy?.trim() || null : null,
+      expectedReturnCagr: Number(this.portfolioExpectedReturnPercent || 0) / 100,
+      securityIds: [...(this.portfolioForm.securityIds ?? [])],
+      accountIds: [...(this.portfolioForm.accountIds ?? [])],
+    };
+
+    this.portfolioSaving = true;
+    const request =
+      this.portfolioDialogMode === 'edit' && payload.id
+        ? this.investmentService.updateCustomPortfolio(payload)
+        : this.investmentService.createCustomPortfolio(payload);
+    request.subscribe({
+      next: saved => {
+        this.portfolioSaving = false;
+        this.portfolioDialogVisible = false;
+        this.loadCustomPortfolios();
+        this.loadCustomPortfolioOptions();
+        this.applySelectedView(`portfolio:${saved.id}`);
+        this.saveScreenState();
+        this.clearGroupCache();
+        this.load();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.portfolioSaving = false;
+        this.portfolioError = this.getQuoteRefreshErrorMessage(error);
+      },
+    });
+  }
+
+  deleteSelectedPortfolio(): void {
+    const portfolio = this.selectedCustomPortfolio();
+    if (!portfolio?.id) {
+      return;
+    }
+    this.portfolioSaving = true;
+    this.investmentService.deleteCustomPortfolio(portfolio.id).subscribe({
+      next: () => {
+        this.portfolioSaving = false;
+        this.portfolioDialogVisible = false;
+        this.applySelectedView('account:');
+        this.saveScreenState();
+        this.loadCustomPortfolios();
+        this.clearGroupCache();
+        this.load();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.portfolioSaving = false;
+        this.portfolioError = this.getQuoteRefreshErrorMessage(error);
+      },
+    });
+  }
+
+  onStrategyChange(): void {
+    if (this.portfolioForm.strategy !== 'CUSTOM') {
+      this.portfolioForm.customStrategy = null;
+    }
+  }
+
+  isSecuritySelected(security: CustomPortfolioSecurityOption): boolean {
+    return this.portfolioForm.securityIds?.includes(security.id) ?? false;
+  }
+
+  filteredPortfolioSecurities(): CustomPortfolioSecurityOption[] {
+    if (!this.portfolioHideClosedAndZeroOptions) {
+      return this.customPortfolioOptions.securities;
+    }
+    return this.customPortfolioOptions.securities.filter(
+      security => this.isSecuritySelected(security) || Number(security.currentQuantity ?? 0) > 0,
+    );
+  }
+
+  toggleSecurity(security: CustomPortfolioSecurityOption, selected: boolean): void {
+    this.portfolioForm.securityIds = this.toggleId(this.portfolioForm.securityIds, security.id, selected);
+  }
+
+  isCashAccountSelected(account: CustomPortfolioAccountOption): boolean {
+    return this.portfolioForm.accountIds?.includes(account.id) ?? false;
+  }
+
+  filteredPortfolioCashAccounts(): CustomPortfolioAccountOption[] {
+    if (!this.portfolioHideClosedAndZeroOptions) {
+      return this.customPortfolioOptions.accounts;
+    }
+    return this.customPortfolioOptions.accounts.filter(
+      account => this.isCashAccountSelected(account) || (!account.closed && Number(account.currentBalance ?? 0) !== 0),
+    );
+  }
+
+  toggleCashAccount(account: CustomPortfolioAccountOption, selected: boolean): void {
+    this.portfolioForm.accountIds = this.toggleId(this.portfolioForm.accountIds, account.id, selected);
+  }
+
+  isCashHolding(holding: FinanceSecurityHolding): boolean {
+    return holding.positionType === 'cash';
+  }
+
+  holdingDisplaySymbol(holding: FinanceSecurityHolding): string {
+    return this.isCashHolding(holding) ? 'Cash' : holding.userSymbol || holding.symbol;
+  }
+
+  holdingDisplayType(holding: FinanceSecurityHolding): string {
+    return this.isCashHolding(holding) ? 'Cash' : holding.typeName;
+  }
+
+  sortHoldings(column: HoldingSortColumn): void {
+    if (this.holdingSortColumn === column) {
+      this.holdingSortDirection = this.holdingSortDirection === 'asc' ? 'desc' : 'asc';
+      this.saveScreenState();
+      return;
+    }
+    this.holdingSortColumn = column;
+    this.holdingSortDirection = this.defaultHoldingSortDirection(column);
+    this.saveScreenState();
+  }
+
+  holdingSortIndicator(column: HoldingSortColumn): string {
+    if (this.holdingSortColumn !== column) {
+      return '';
+    }
+    return this.holdingSortDirection === 'asc' ? '^' : 'v';
+  }
+
+  sortedHoldings(holdings: FinanceSecurityHolding[] | null): FinanceSecurityHolding[] {
+    const direction = this.holdingSortDirection === 'asc' ? 1 : -1;
+    return [...(holdings ?? [])].sort((left, right) => this.compareHoldingValues(left, right) * direction);
+  }
+
+  private defaultHoldingSortDirection(column: HoldingSortColumn): 'asc' | 'desc' {
+    return ['periodChange', 'quantity', 'value', 'capitalInvested', 'capitalGain', 'income', 'currencyGain', 'totalReturn'].includes(column)
+      ? 'desc'
+      : 'asc';
+  }
+
+  private compareHoldingValues(left: FinanceSecurityHolding, right: FinanceSecurityHolding): number {
+    const leftValue = this.getHoldingSortValue(left);
+    const rightValue = this.getHoldingSortValue(right);
+
+    if (leftValue == null && rightValue == null) {
+      return this.holdingDisplaySymbol(left).localeCompare(this.holdingDisplaySymbol(right));
+    }
+    if (leftValue == null) {
+      return 1;
+    }
+    if (rightValue == null) {
+      return -1;
+    }
+    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+      const difference = leftValue - rightValue;
+      return difference === 0 ? this.holdingDisplaySymbol(left).localeCompare(this.holdingDisplaySymbol(right)) : difference;
+    }
+    return String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' });
+  }
+
+  private getHoldingSortValue(holding: FinanceSecurityHolding): string | number | null {
+    if (this.holdingSortColumn === 'symbol') {
+      return this.holdingDisplaySymbol(holding);
+    }
+    if (this.holdingSortColumn === 'name') {
+      return holding.name;
+    }
+    if (this.holdingSortColumn === 'price') {
+      return this.isCashHolding(holding) ? null : (holding.price ?? null);
+    }
+    if (this.holdingSortColumn === 'periodChange') {
+      return this.holdingPeriodChange(holding);
+    }
+    if (this.holdingSortColumn === 'quantity') {
+      return this.isCashHolding(holding) ? null : (holding.quantity ?? null);
+    }
+    if (this.holdingSortColumn === 'value') {
+      return this.getHoldingLocalValue(holding);
+    }
+    if (this.holdingSortColumn === 'capitalInvested') {
+      return this.holdingCapitalInvested(holding);
+    }
+    if (this.holdingSortColumn === 'capitalGain') {
+      return this.holdingCapitalGain(holding);
+    }
+    if (this.holdingSortColumn === 'income') {
+      return this.holdingIncome(holding);
+    }
+    if (this.holdingSortColumn === 'currencyGain') {
+      return this.holdingCurrencyGain(holding);
+    }
+    return this.holdingTotalReturn(holding);
+  }
+
+  private holdingPeriodChange(holding: FinanceSecurityHolding): number | null {
+    if (this.isCashHolding(holding)) {
+      return holding.cashReturnPercent ?? null;
+    }
+    const comparisonPrice = this.findComparison(holding.id)?.price;
+    if (comparisonPrice == null || comparisonPrice === 0 || holding.price == null) {
+      return null;
+    }
+    return (holding.price - comparisonPrice) / comparisonPrice;
+  }
+
+  private isHoldingSortColumn(value: unknown): value is HoldingSortColumn {
+    return (
+      typeof value === 'string' &&
+      [
+        'symbol',
+        'name',
+        'price',
+        'periodChange',
+        'quantity',
+        'value',
+        'capitalInvested',
+        'capitalGain',
+        'income',
+        'currencyGain',
+        'totalReturn',
+      ].includes(value)
+    );
+  }
+
+  private emptyPortfolioForm(): CustomPortfolio {
+    return {
+      id: null,
+      name: '',
+      description: null,
+      strategy: 'BALANCED',
+      customStrategy: null,
+      expectedReturnCagr: 0.075,
+      securityIds: [],
+      accountIds: [],
+    };
+  }
+
+  private toggleId(ids: string[] | null | undefined, id: string, selected: boolean): string[] {
+    const current = new Set(ids ?? []);
+    if (selected) {
+      current.add(id);
+    } else {
+      current.delete(id);
+    }
+    return [...current];
   }
 
   currencyFormatterMethod(element: any): string {
@@ -925,7 +1431,8 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     if (acId === '') {
       acId = null;
     }
-    this.investmentService.get(acId, this.includeClosedPositions).subscribe({
+    this.loadTrades(acId);
+    this.investmentService.get(acId, this.includeClosedPositions, this.customPortfolioId, this.getPeriodString()).subscribe({
       next: (res: FinanceSecurityHolding[]) => {
         this.isLoading = false;
         this.holdings = res;
@@ -943,8 +1450,34 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  private loadInvestmentSelectOptions(): void {
+    this.investmentService.get(null, true, null, '').subscribe({
+      next: holdings => {
+        this.investmentSelectOptions = this.buildInvestmentSelectOptions(holdings ?? []);
+      },
+      error: () => {
+        this.investmentSelectOptions = [];
+      },
+    });
+  }
+
+  loadTrades(accountId: string | null): void {
+    this.isLoadingTrades = true;
+    this.investmentService.getTrades(accountId, this.includeClosedPositions, this.customPortfolioId).subscribe({
+      next: (res: PortfolioTrade[]) => {
+        this.isLoadingTrades = false;
+        this.trades = res ?? [];
+      },
+      error: () => {
+        this.isLoadingTrades = false;
+        this.trades = [];
+      },
+    });
+  }
+
   onChangePositionsSwitch(event: any): void {
     this.saveCookie(InvestmentPortfolioComponent.COOKIE_SHOW_CLOSED, this.includeClosedPositions);
+    this.saveScreenState();
     this.load();
   }
 
@@ -1200,6 +1733,7 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
   }
 
   onChangeAnnotationsSwitch(event: any): void {
+    this.saveScreenState();
     if (this.showAnnotations) {
       this.historyChartOptions.annotations = this.processAnnotations(this.portfolioValueHistoryItems!);
     } else {
@@ -1213,13 +1747,78 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private buildAccountSelectOptions(accounts: FinancialAccount[] | null, portfolios: CustomPortfolio[]): AccountSelectGroup[] {
+    const accountItems = (accounts ?? []).map(account => ({
+      id: `account:${account.id ?? ''}`,
+      name: account.name,
+      type: 'account' as const,
+      sourceId: account.id || null,
+    }));
+    const groups: AccountSelectGroup[] = [
+      {
+        label: 'Investment Accounts',
+        items: accountItems,
+      },
+    ];
+    if (portfolios.length > 0) {
+      groups.push({
+        label: 'Custom Portfolios',
+        items: portfolios.map(portfolio => ({
+          id: `portfolio:${portfolio.id}`,
+          name: portfolio.name,
+          type: 'portfolio' as const,
+          sourceId: portfolio.id,
+        })),
+      });
+    }
+    return groups;
+  }
+
+  private buildInvestmentSelectOptions(holdings: FinanceSecurityHolding[]): InvestmentSelectOption[] {
+    const optionById = new Map<string, InvestmentSelectOption>();
+    holdings
+      .filter(holding => holding.id && holding.positionType !== 'cash')
+      .forEach(holding => {
+        const existing = optionById.get(holding.id);
+        const closed = this.isInvestmentHoldingClosed(holding);
+        if (existing) {
+          existing.closed = existing.closed && closed;
+          return;
+        }
+        optionById.set(holding.id, {
+          id: holding.id,
+          name: holding.name,
+          symbol: holding.userSymbol || holding.symbol,
+          accountName: holding.accountName,
+          closed,
+        });
+      });
+
+    return [...optionById.values()].sort((left, right) => {
+      if (left.closed !== right.closed) {
+        return left.closed ? 1 : -1;
+      }
+      return left.name.localeCompare(right.name);
+    });
+  }
+
+  isInvestmentHoldingClosed(holding: FinanceSecurityHolding | InvestmentSelectOption | null): boolean {
+    if (!holding) {
+      return false;
+    }
+    if ('closed' in holding) {
+      return holding.closed;
+    }
+    return Math.abs(holding.quantity ?? 0) < 0.000001;
+  }
+
   loadSummaries(): void {
     this.isLoadingSummaries = true;
     let acId = this.accountId;
     if (acId === '') {
       acId = null;
     }
-    this.investmentService.getSummaries(acId, this.includeClosedPositions, '').subscribe({
+    this.investmentService.getSummaries(acId, this.includeClosedPositions, '', this.customPortfolioId).subscribe({
       next: (res: InvestmentPortfolioDetails) => {
         this.isLoadingSummaries = false;
         this.summaries = res.summaries;
@@ -1293,6 +1892,12 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     let value = 0;
 
     allHoldings.forEach(element => {
+      if (this.isCashHolding(element)) {
+        if (income || totalReturn) {
+          value += this.getCashInterestLocalValue(element);
+        }
+        return;
+      }
       // eslint-disable-next-line  @typescript-eslint/no-unnecessary-condition
       let fi = this.findSummary(element.id); //FinanceInvestmentSnapshotDetails
       if (fi) {
@@ -1313,12 +1918,116 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     return value;
   }
 
+  holdingCapitalInvested(holding: FinanceSecurityHolding): number | null {
+    return this.isCashHolding(holding) ? null : (this.findSummary(holding.id)?.totalCapitalInvested ?? null);
+  }
+
+  holdingCapitalGain(holding: FinanceSecurityHolding): number | null {
+    return this.isCashHolding(holding) ? null : (this.findSummary(holding.id)?.totalCapitalGain ?? null);
+  }
+
+  holdingIncome(holding: FinanceSecurityHolding): number | null {
+    return this.isCashHolding(holding) ? this.getCashInterestLocalValue(holding) : (this.findSummary(holding.id)?.totalIncome ?? null);
+  }
+
+  holdingCurrencyGain(holding: FinanceSecurityHolding): number | null {
+    return this.isCashHolding(holding) ? null : (this.findSummary(holding.id)?.totalCurrencyGain ?? null);
+  }
+
+  holdingTotalReturn(holding: FinanceSecurityHolding): number | null {
+    return this.isCashHolding(holding) ? this.getCashInterestLocalValue(holding) : (this.findSummary(holding.id)?.totalReturn ?? null);
+  }
+
+  private getCashInterestLocalValue(holding: FinanceSecurityHolding): number {
+    const cashInterest = Number(holding.cashInterest ?? 0);
+    const fxRate = Number(holding.fxRateToLocal ?? 0);
+    const localValue = fxRate !== 0 ? cashInterest * fxRate : cashInterest;
+    return Number.isFinite(localValue) ? localValue : 0;
+  }
+
   getCookie(key: string): any {
     return this.cookieService.get(key);
   }
 
   saveCookie(key: string, value: any): void {
     return this.cookieService.put(key, value);
+  }
+
+  private saveScreenState(): void {
+    const state: InvestmentPortfolioScreenState = {
+      selectedViewId: this.selectedViewId,
+      accountId: this.accountId,
+      customPortfolioId: this.customPortfolioId,
+      includeClosedPositions: this.includeClosedPositions,
+      showAnnotations: this.showAnnotations,
+      selectedGroupValue: this.selectedGroup.value,
+      selectedPeriodValue: this.selectedPeriod.value,
+      selectedInvestmentName: this.selectedInvestmentName,
+      activeTab: this.activeTab,
+      holdingSortColumn: this.holdingSortColumn,
+      holdingSortDirection: this.holdingSortDirection,
+    };
+    this.saveCookie(InvestmentPortfolioComponent.SCREEN_STATE_COOKIE_ID, JSON.stringify(state));
+  }
+
+  private restoreScreenState(): void {
+    const stateCookie = this.getCookie(InvestmentPortfolioComponent.SCREEN_STATE_COOKIE_ID);
+    if (!stateCookie) {
+      return;
+    }
+
+    let state: InvestmentPortfolioScreenState;
+    try {
+      state = JSON.parse(stateCookie) as InvestmentPortfolioScreenState;
+    } catch {
+      return;
+    }
+
+    if (typeof state.includeClosedPositions === 'boolean') {
+      this.includeClosedPositions = state.includeClosedPositions;
+    }
+    if (typeof state.showAnnotations === 'boolean') {
+      this.showAnnotations = state.showAnnotations;
+    }
+    if (state.selectedPeriodValue !== undefined) {
+      const period = this.periods.find(candidate => candidate.value === state.selectedPeriodValue);
+      if (period) {
+        this.selectedPeriod = period;
+      }
+    }
+    if (state.selectedGroupValue) {
+      const group = this.groupings.find(candidate => candidate.value === state.selectedGroupValue);
+      if (group) {
+        this.selectedGroup = group;
+      }
+    }
+    if (state.activeTab) {
+      this.activeTab = state.activeTab;
+    }
+    if (state.selectedInvestmentName !== undefined) {
+      this.selectedInvestmentName = state.selectedInvestmentName ?? null;
+    }
+    if (this.isHoldingSortColumn(state.holdingSortColumn)) {
+      this.holdingSortColumn = state.holdingSortColumn;
+    }
+    if (state.holdingSortDirection === 'asc' || state.holdingSortDirection === 'desc') {
+      this.holdingSortDirection = state.holdingSortDirection;
+    }
+
+    const restoredViewId = state.selectedViewId ?? this.buildViewIdFromState(state);
+    if (restoredViewId) {
+      this.applySelectedView(restoredViewId);
+    }
+  }
+
+  private buildViewIdFromState(state: InvestmentPortfolioScreenState): string | null {
+    if (state.customPortfolioId) {
+      return `portfolio:${state.customPortfolioId}`;
+    }
+    if (state.accountId !== undefined && state.accountId !== null) {
+      return `account:${state.accountId}`;
+    }
+    return null;
   }
 
   processPieChartData(): void {
@@ -1637,31 +2346,33 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
     if (acId === '') {
       acId = null;
     }
-    this.investmentService.getPortfolioHistory(acId, this.includeClosedPositions, this.getPeriodString()).subscribe({
-      next: (res: FinanceResourceSnapshots[]) => {
-        // eslint-disable-next-line no-console
-        console.log('Done Loading History');
-        this.isHistoryLoaded = true;
-        this.isLoadingHistory = false;
-        this.portfolioValueHistoryItems = res;
-        //this.historyChartOptions.series = this.configureHistorySeriesPerHolding(this.portfolioValueHistoryItems!, 'xy');
+    this.investmentService
+      .getPortfolioHistory(acId, this.includeClosedPositions, this.getPeriodString(), this.customPortfolioId)
+      .subscribe({
+        next: (res: FinanceResourceSnapshots[]) => {
+          // eslint-disable-next-line no-console
+          console.log('Done Loading History');
+          this.isHistoryLoaded = true;
+          this.isLoadingHistory = false;
+          this.portfolioValueHistoryItems = res;
+          //this.historyChartOptions.series = this.configureHistorySeriesPerHolding(this.portfolioValueHistoryItems!, 'xy');
 
-        // this.selectedGroup.groups
-        if (this.selectedGroup.groups != null) {
-          this.setHistorySeries(this.configureHistorySeriesByGroup(this.selectedGroup.groups, this.portfolioValueHistoryItems));
-        } else {
-          this.setHistorySeries(this.configureHistorySeriesNoGrouping(this.portfolioValueHistoryItems));
-        }
+          // this.selectedGroup.groups
+          if (this.selectedGroup.groups != null) {
+            this.setHistorySeries(this.configureHistorySeriesByGroup(this.selectedGroup.groups, this.portfolioValueHistoryItems));
+          } else {
+            this.setHistorySeries(this.configureHistorySeriesNoGrouping(this.portfolioValueHistoryItems));
+          }
 
-        if (this.showAnnotations) {
-          this.setHistoryAnnotations(this.processAnnotations(this.portfolioValueHistoryItems));
-        } else {
-          this.setHistoryAnnotations({});
-        }
-        this.refreshHistoryChart();
-      },
-      error: () => ((this.isLoadingHistory = false), (this.isHistoryLoaded = true), (this.showHistoryChart = false)),
-    });
+          if (this.showAnnotations) {
+            this.setHistoryAnnotations(this.processAnnotations(this.portfolioValueHistoryItems));
+          } else {
+            this.setHistoryAnnotations({});
+          }
+          this.refreshHistoryChart();
+        },
+        error: () => ((this.isLoadingHistory = false), (this.isHistoryLoaded = true), (this.showHistoryChart = false)),
+      });
   }
 
   public isNaN(num: unknown): boolean {

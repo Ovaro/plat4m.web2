@@ -9,27 +9,39 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StopWatch;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import ovaro.plat4m.domain.FinanceUserSecurity;
 import ovaro.plat4m.domain.User;
 import ovaro.plat4m.security.SecurityUtils;
 import ovaro.plat4m.service.FinanceAccountService;
+import ovaro.plat4m.service.FinanceCustomPortfolioService;
+import ovaro.plat4m.service.FinancePortfolioTradeService;
 import ovaro.plat4m.service.FinanceSecurityService;
 import ovaro.plat4m.service.UserService;
+import ovaro.plat4m.service.dto.FinanceCustomPortfolioDTO;
+import ovaro.plat4m.service.dto.FinanceCustomPortfolioOptionsDTO;
 import ovaro.plat4m.service.dto.FinanceIndicatorDTO;
 import ovaro.plat4m.service.dto.FinanceIndicatorsDTO;
 import ovaro.plat4m.service.dto.FinanceInvestmentPortfolioSummaryDTO;
 import ovaro.plat4m.service.dto.FinanceInvestmentSnapshotDetails;
+import ovaro.plat4m.service.dto.FinancePortfolioTradeDTO;
 import ovaro.plat4m.service.dto.FinanceSecurityHoldingDTO;
 import ovaro.plat4m.service.dto.FinanceSnapshotWithComparison;
 import ovaro.plat4m.service.dto.FinanceSnapshotsPerResourceDTO;
@@ -44,65 +56,132 @@ public class FinancePortfoliosResource {
     private final Logger log = LoggerFactory.getLogger(FinanceSecurityResource.class);
     private FinanceSecurityService financeSecurityService;
     private FinanceAccountService financeAccountService;
+    private FinancePortfolioTradeService financePortfolioTradeService;
+    private FinanceCustomPortfolioService financeCustomPortfolioService;
     private final UserService userService;
 
     public FinancePortfoliosResource(
         UserService userService,
         FinanceSecurityService financeSecurityService,
-        FinanceAccountService financeAccountService
+        FinanceAccountService financeAccountService,
+        FinancePortfolioTradeService financePortfolioTradeService,
+        FinanceCustomPortfolioService financeCustomPortfolioService
     ) {
         this.financeSecurityService = financeSecurityService;
         this.userService = userService;
         this.financeAccountService = financeAccountService;
+        this.financePortfolioTradeService = financePortfolioTradeService;
+        this.financeCustomPortfolioService = financeCustomPortfolioService;
+    }
+
+    @GetMapping("/custom-portfolios")
+    public List<FinanceCustomPortfolioDTO> customPortfolios() {
+        return financeCustomPortfolioService.findAll(currentUser());
+    }
+
+    @GetMapping("/custom-portfolios/{id}")
+    public FinanceCustomPortfolioDTO customPortfolio(@PathVariable UUID id) {
+        return financeCustomPortfolioService.findOne(currentUser(), id);
+    }
+
+    @PostMapping("/custom-portfolios")
+    public ResponseEntity<FinanceCustomPortfolioDTO> createCustomPortfolio(@RequestBody FinanceCustomPortfolioDTO dto) {
+        try {
+            return new ResponseEntity<>(financeCustomPortfolioService.create(currentUser(), dto), HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    @PutMapping("/custom-portfolios/{id}")
+    public FinanceCustomPortfolioDTO updateCustomPortfolio(@PathVariable UUID id, @RequestBody FinanceCustomPortfolioDTO dto) {
+        try {
+            return financeCustomPortfolioService.update(currentUser(), id, dto);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    @DeleteMapping("/custom-portfolios/{id}")
+    public ResponseEntity<Void> deleteCustomPortfolio(@PathVariable UUID id) {
+        financeCustomPortfolioService.delete(currentUser(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/custom-portfolios/options")
+    public FinanceCustomPortfolioOptionsDTO customPortfolioOptions() {
+        return financeCustomPortfolioService.getOptions(currentUser());
     }
 
     @GetMapping("/portfolios")
     public ResponseEntity<Collection<FinanceSecurityHoldingDTO>> getInvestmentHoldings(
         @RequestParam(required = false) String accountId,
+        @RequestParam(required = false) UUID customPortfolioId,
         @RequestParam(name = "includeClosed", defaultValue = "false") boolean includeClosed,
         @RequestParam(name = "periodAgo", defaultValue = "") String periodAgo
     ) throws IOException {
-        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
-
-        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        User user = currentUser();
+        validatePortfolioFilter(accountId, customPortfolioId);
 
         log.debug("getInvestmentHoldings: " + accountId);
 
         LocalDate d = WebUIUtils.getDateFromPeriod(periodAgo);
 
-        Collection<FinanceSecurityHoldingDTO> result = financeAccountService.investmentAccountHoldings(
-            u.get(),
-            accountId,
-            includeClosed,
-            d
-        );
+        Collection<FinanceSecurityHoldingDTO> result =
+            customPortfolioId != null
+                ? financeCustomPortfolioService.getHoldings(user, customPortfolioId, includeClosed, d)
+                : financeAccountService.investmentAccountHoldings(user, accountId, includeClosed, null);
         log.debug("getInvestmentHoldings result: " + accountId + " - #" + result.size());
 
+        return new ResponseEntity<>(result, HttpStatus.OK);
+    }
+
+    @GetMapping("/portfolios/trades")
+    public ResponseEntity<List<FinancePortfolioTradeDTO>> getInvestmentTrades(
+        @RequestParam(required = false) String accountId,
+        @RequestParam(required = false) UUID customPortfolioId,
+        @RequestParam(name = "includeClosed", defaultValue = "false") boolean includeClosed
+    ) {
+        User user = currentUser();
+        validatePortfolioFilter(accountId, customPortfolioId);
+        Set<String> customSecurityIds =
+            customPortfolioId != null ? financeCustomPortfolioService.getSecurityIdStrings(user, customPortfolioId, true) : null;
+        List<FinancePortfolioTradeDTO> result = financePortfolioTradeService.getTrades(user, accountId, includeClosed, customSecurityIds);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
     @GetMapping("/portfolios/summaries")
     public FinanceInvestmentPortfolioSummaryDTO investmentSummaries(
         @RequestParam(required = false) String accountId,
+        @RequestParam(required = false) UUID customPortfolioId,
         @RequestParam(name = "includeClosed", defaultValue = "false") boolean includeClosed,
         @RequestParam(name = "periodAgo", defaultValue = "") String periodAgo
     ) throws IOException {
-        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
-
-        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        User user = currentUser();
+        validatePortfolioFilter(accountId, customPortfolioId);
         StopWatch sw = new StopWatch();
         sw.setKeepTaskList(true);
 
-        List<FinanceUserSecurity> userSecurities = checkInvestmentEventsAreGenerated(u.get(), accountId, sw);
+        List<FinanceUserSecurity> userSecurities =
+            customPortfolioId != null
+                ? checkInvestmentEventsAreGenerated(
+                      user,
+                      financeCustomPortfolioService.getUserSecurities(user, customPortfolioId, true),
+                      sw
+                  )
+                : checkInvestmentEventsAreGenerated(user, accountId, sw);
 
         LocalDate d = WebUIUtils.getDateFromPeriod(periodAgo);
         sw.start("investmentSummaries");
         FinanceInvestmentPortfolioSummaryDTO result = this.financeSecurityService.portfolioSummaries(
-            u.get(),
+            user,
             userSecurities,
             includeClosed,
             d
         ); //.minusYears(5)
+        if (customPortfolioId != null) {
+            result = financeCustomPortfolioService.addCashToSummary(user, customPortfolioId, result, d);
+        }
 
         sw.stop();
         log.info(sw.prettyPrint());
@@ -115,6 +194,7 @@ public class FinancePortfoliosResource {
     @GetMapping("/portfolios/history")
     public Collection<FinanceSnapshotsPerResourceDTO> investmentHistory(
         @RequestParam(required = false) String accountId,
+        @RequestParam(required = false) UUID customPortfolioId,
         @RequestParam(required = false) String userSecurityId,
         @RequestParam(name = "periodAgo") String periodAgo,
         @RequestParam(name = "numberOfPeriods", defaultValue = "30") String numberOfPeriods,
@@ -128,9 +208,8 @@ public class FinancePortfoliosResource {
             numberOfPeriods,
             includeClosed
         );
-        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
-
-        Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
+        User user = currentUser();
+        validatePortfolioFilter(accountId, customPortfolioId);
         StopWatch sw = new StopWatch();
         sw.setKeepTaskList(true);
 
@@ -138,11 +217,22 @@ public class FinancePortfoliosResource {
 
         List<FinanceUserSecurity> userSecurities = null;
         if (userSecurityId == null) {
-            userSecurities = checkInvestmentEventsAreGenerated(u.get(), accountId, sw);
+            userSecurities =
+                customPortfolioId != null
+                    ? checkInvestmentEventsAreGenerated(
+                          user,
+                          financeCustomPortfolioService.getUserSecurities(user, customPortfolioId, false),
+                          sw
+                      )
+                    : checkInvestmentEventsAreGenerated(user, accountId, sw);
+            userSecurities = userSecurities
+                .stream()
+                .filter(usec -> !usec.isIgnoredForRollup())
+                .toList();
         } else {
-            Optional<FinanceUserSecurity> osec = this.financeSecurityService.getUserSecurity(u.get(), userSecurityId);
+            Optional<FinanceUserSecurity> osec = this.financeSecurityService.getUserSecurity(user, userSecurityId);
             if (osec.isPresent()) {
-                checkInvestmentEventsAreGeneratedForUserSecurity(u.get(), osec.get());
+                checkInvestmentEventsAreGeneratedForUserSecurity(user, osec.get());
                 userSecurities = convertUserSecurityToList(osec);
             } else {
                 log.warn("No user security found for history request. userSecurityId={}", userSecurityId);
@@ -164,15 +254,20 @@ public class FinancePortfoliosResource {
         }
 
         sw.start("historicalInvestmentValues");
-        Collection<FinanceSnapshotsPerResourceDTO> history = this.financeSecurityService.historicalInvestmentValues(
-            u.get(),
-            d,
-            LocalDate.now(),
-            userSecurities,
-            numberOfPeriodsInt,
-            true,
-            includeClosed
+        List<FinanceSnapshotsPerResourceDTO> history = new ArrayList<>(
+            this.financeSecurityService.historicalInvestmentValues(
+                user,
+                d,
+                LocalDate.now(),
+                userSecurities,
+                numberOfPeriodsInt,
+                true,
+                includeClosed
+            )
         ); //.minusYears(5)
+        if (customPortfolioId != null) {
+            history.addAll(financeCustomPortfolioService.getCashHistory(user, customPortfolioId, d, LocalDate.now()));
+        }
 
         sw.stop();
         log.info(sw.prettyPrint());
@@ -259,6 +354,15 @@ public class FinancePortfoliosResource {
         return userSecurities;
     }
 
+    private List<FinanceUserSecurity> checkInvestmentEventsAreGenerated(User u, List<FinanceUserSecurity> userSecurities, StopWatch sw) {
+        sw.start("identifyAndSaveEvents");
+        for (FinanceUserSecurity usec : userSecurities) {
+            checkInvestmentEventsAreGeneratedForUserSecurity(u, usec);
+        }
+        sw.stop();
+        return userSecurities;
+    }
+
     private List<FinanceUserSecurity> convertUserSecurityToList(Optional<FinanceUserSecurity> ousec) {
         List<FinanceUserSecurity> userSecurities = new ArrayList<FinanceUserSecurity>();
         if (ousec.isPresent()) {
@@ -336,7 +440,7 @@ public class FinancePortfoliosResource {
 
         FinanceIndicatorsDTO dto = new FinanceIndicatorsDTO();
 
-        List<FinanceUserSecurity> userSecurities = checkInvestmentEventsAreGenerated(u.get(), null, sw);
+        List<FinanceUserSecurity> userSecurities = checkInvestmentEventsAreGenerated(u.get(), (String) null, sw);
         Map<String, FinanceUserSecurity> indexedUS = indexUserSecurities(userSecurities);
 
         sw.start("investmentSummaries");
@@ -453,5 +557,16 @@ public class FinancePortfoliosResource {
             index.put(fus.getId().toString(), fus);
         }
         return index;
+    }
+
+    private User currentUser() {
+        String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
+        return userService.getUserWithAuthoritiesByLogin(userLogin).orElseThrow(() -> new SecurityException("Current user not found"));
+    }
+
+    private void validatePortfolioFilter(String accountId, UUID customPortfolioId) {
+        if (accountId != null && !accountId.isBlank() && customPortfolioId != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use either accountId or customPortfolioId, not both");
+        }
     }
 }

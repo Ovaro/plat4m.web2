@@ -83,6 +83,13 @@ describe('InvestmentComponent', () => {
         {
           originalLot: {
             id: 'lot-1',
+            sourceId: 101,
+            lotKey: '2026-01-10 | 10 @ 25.4',
+            originalLotId: 'lot-1',
+            originalSourceId: 101,
+            originalBuyDate: '2026-01-10',
+            originalQuantity: 10,
+            originalPrice: 25.4,
             quantity: 10,
             lotType: 0,
             accountId: 'account-1',
@@ -97,9 +104,19 @@ describe('InvestmentComponent', () => {
             sellTransactionId: null,
             openTransactionId: 'txn-1',
             closeTransactionId: null,
+            costBasis: null,
+            saleProceeds: null,
+            realisedGainLoss: null,
           },
           remainingLot: {
             id: 'lot-1',
+            sourceId: 101,
+            lotKey: '2026-01-10 | 10 @ 25.4',
+            originalLotId: 'lot-1',
+            originalSourceId: 101,
+            originalBuyDate: '2026-01-10',
+            originalQuantity: 10,
+            originalPrice: 25.4,
             quantity: 10,
             lotType: 0,
             accountId: 'account-1',
@@ -114,8 +131,39 @@ describe('InvestmentComponent', () => {
             sellTransactionId: null,
             openTransactionId: 'txn-1',
             closeTransactionId: null,
+            costBasis: null,
+            saleProceeds: null,
+            realisedGainLoss: null,
           },
-          lots: [],
+          lots: [
+            {
+              id: 'lot-1',
+              sourceId: 101,
+              lotKey: '2026-01-10 | 10 @ 25.4',
+              originalLotId: 'lot-1',
+              originalSourceId: 101,
+              originalBuyDate: '2026-01-10',
+              originalQuantity: 10,
+              originalPrice: 25.4,
+              quantity: 10,
+              lotType: 0,
+              accountId: 'account-1',
+              accountName: 'Brokerage',
+              securityId: 'security-1',
+              securityName: 'BHP Group',
+              buyDate: '2026-01-10',
+              sellDate: null,
+              openDate: '2026-01-10',
+              closeDate: null,
+              buyTransactionId: 'txn-1',
+              sellTransactionId: null,
+              openTransactionId: 'txn-1',
+              closeTransactionId: null,
+              costBasis: null,
+              saleProceeds: null,
+              realisedGainLoss: null,
+            },
+          ],
         },
       ]),
     ),
@@ -197,6 +245,9 @@ describe('InvestmentComponent', () => {
     expect(investmentTransactionsMock.getLots).toHaveBeenCalledWith('security-1');
     expect(component.lotsDialogVisible).toBe(true);
     expect(component.lotGroups).toHaveLength(1);
+    expect(component.sortedLotRows).toHaveLength(1);
+    expect(component.sortedLotFamilies[0].key).toBe('2026-01-10 | 10 @ 25.4');
+    expect(component.openLotCount).toBe(1);
   });
 
   it('populates the editor when a historical price is selected', () => {

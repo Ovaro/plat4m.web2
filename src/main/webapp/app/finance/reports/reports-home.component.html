@@ -6,18 +6,39 @@
     <p class="reports-home__subtitle">Choose a configurable report to explore, save, and revisit.</p>
   </div>
 
-  <div class="reports-home__grid">
-    <a class="reports-home__card" routerLink="/reports/income-expenses">
-      <div class="reports-home__card-icon">
-        <fa-icon icon="tasks"></fa-icon>
-      </div>
-      <div class="reports-home__card-body">
-        <h2>Income & Expenses</h2>
-        <p>Compare income and spending across custom periods, categories, payees, and family members.</p>
-      </div>
-      <div class="reports-home__card-arrow">
-        <fa-icon icon="chevron-right"></fa-icon>
-      </div>
-    </a>
+  <div class="reports-home__section">
+    <h2 class="reports-home__section-title">Standard Reports</h2>
+    <div class="reports-home__grid">
+      <a class="reports-home__card" routerLink="/reports/income-expenses">
+        <div class="reports-home__card-icon">
+          <fa-icon icon="tasks"></fa-icon>
+        </div>
+        <div class="reports-home__card-body">
+          <h3>Income & Expenses</h3>
+          <p>Compare income and spending across custom periods, categories, payees, and family members.</p>
+        </div>
+        <div class="reports-home__card-arrow">
+          <fa-icon icon="chevron-right"></fa-icon>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="reports-home__section">
+    <h2 class="reports-home__section-title">Tax Reports</h2>
+    <div class="reports-home__grid">
+      <a class="reports-home__card" routerLink="/reports/capital-gains">
+        <div class="reports-home__card-icon">
+          <fa-icon icon="chart-line"></fa-icon>
+        </div>
+        <div class="reports-home__card-body">
+          <h3>Capital Gains</h3>
+          <p>Review realised gains under Investment Income, with lot-level sale details and holding duration.</p>
+        </div>
+        <div class="reports-home__card-arrow">
+          <fa-icon icon="chevron-right"></fa-icon>
+        </div>
+      </a>
+    </div>
   </div>
 </div>

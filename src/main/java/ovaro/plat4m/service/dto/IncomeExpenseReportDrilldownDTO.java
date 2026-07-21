@@ -91,8 +91,14 @@ public class IncomeExpenseReportDrilldownDTO {
         private String memo;
         private String sectionLabel;
         private BigDecimal amount = BigDecimal.ZERO;
+        private BigDecimal grossAmount;
+        private boolean lotAdjusted;
+        private boolean hasLotDetails;
+        private String securityId;
+        private String securityName;
         private String originalCurrencyCode;
         private BigDecimal originalAmount;
+        private Double fxRateToBase;
 
         public String getId() {
             return id;
@@ -166,6 +172,46 @@ public class IncomeExpenseReportDrilldownDTO {
             this.amount = amount;
         }
 
+        public BigDecimal getGrossAmount() {
+            return grossAmount;
+        }
+
+        public void setGrossAmount(BigDecimal grossAmount) {
+            this.grossAmount = grossAmount;
+        }
+
+        public boolean isLotAdjusted() {
+            return lotAdjusted;
+        }
+
+        public void setLotAdjusted(boolean lotAdjusted) {
+            this.lotAdjusted = lotAdjusted;
+        }
+
+        public boolean isHasLotDetails() {
+            return hasLotDetails;
+        }
+
+        public void setHasLotDetails(boolean hasLotDetails) {
+            this.hasLotDetails = hasLotDetails;
+        }
+
+        public String getSecurityId() {
+            return securityId;
+        }
+
+        public void setSecurityId(String securityId) {
+            this.securityId = securityId;
+        }
+
+        public String getSecurityName() {
+            return securityName;
+        }
+
+        public void setSecurityName(String securityName) {
+            this.securityName = securityName;
+        }
+
         public String getOriginalCurrencyCode() {
             return originalCurrencyCode;
         }
@@ -180,6 +226,14 @@ public class IncomeExpenseReportDrilldownDTO {
 
         public void setOriginalAmount(BigDecimal originalAmount) {
             this.originalAmount = originalAmount;
+        }
+
+        public Double getFxRateToBase() {
+            return fxRateToBase;
+        }
+
+        public void setFxRateToBase(Double fxRateToBase) {
+            this.fxRateToBase = fxRateToBase;
         }
     }
 }

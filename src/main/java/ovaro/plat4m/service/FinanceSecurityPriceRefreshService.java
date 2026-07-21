@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -37,6 +38,7 @@ import ovaro.plat4m.service.dto.FinanceSecurityPriceRefreshResultDTO;
 public class FinanceSecurityPriceRefreshService {
 
     private static final Logger LOG = LoggerFactory.getLogger(FinanceSecurityPriceRefreshService.class);
+    private static final Duration QUOTE_REFRESH_COOLDOWN = Duration.ofHours(2);
 
     private final ApplicationProperties applicationProperties;
     private final FinanceSecurityService financeSecurityService;
@@ -246,7 +248,7 @@ public class FinanceSecurityPriceRefreshService {
                 preparedRefresh.refreshMetadataByTargetId(),
                 applicationProperties.getMarketData().getQuoteRefresh().getRequestDelayMs(),
                 job,
-                false
+                true
             );
             synchronized (result) {
                 if (job.isApplyRequested()) {
@@ -320,6 +322,17 @@ public class FinanceSecurityPriceRefreshService {
             if (item != null && shouldSkipSelectedItem(job, item.getUserSecurityId())) {
                 synchronized (result) {
                     markUserSkipped(item);
+                    result.setProcessedCount(result.getProcessedCount() + 1);
+                    result.setSkippedCount(result.getSkippedCount() + 1);
+                    recalculateApplyState(result);
+                    result.setCurrentMessage(
+                        "Processed " + result.getProcessedCount() + " of " + result.getRequestedCount() + " holdings."
+                    );
+                }
+                continue;
+            }
+            if (item != null && "skipped".equals(item.getStatus())) {
+                synchronized (result) {
                     result.setProcessedCount(result.getProcessedCount() + 1);
                     result.setSkippedCount(result.getSkippedCount() + 1);
                     recalculateApplyState(result);
@@ -564,10 +577,18 @@ public class FinanceSecurityPriceRefreshService {
         FinanceSecurity providerSecurity = buildProviderSecurity(userSecurity, metadata, providerSymbol);
         item.setRequestedSymbol(providerSymbol);
         item.setRequestedExchangeMic(normalize(providerSecurity.getExchangeMic()));
-        item.setPreviousPrice(resolvePreviousPrice(storageSymbol));
+        FinanceSecurityPrice latestPrice = resolveLatestPrice(storageSymbol);
+        item.setPreviousPrice(latestPrice != null ? latestPrice.getPrice() : null);
         if (!isEligible(userSecurity, providerSymbol, storageSymbol)) {
             item.setStatus("skipped");
             item.setMessage(buildSkippedEligibilityMessage(userSecurity, providerSymbol, storageSymbol));
+            return item;
+        }
+        if (isRecentlyRefreshed(latestPrice)) {
+            item.setStatus("skipped");
+            item.setSelected(false);
+            item.setCanApply(false);
+            item.setMessage("Skipped because this quote was refreshed less than 2 hours ago.");
             return item;
         }
 
@@ -650,17 +671,20 @@ public class FinanceSecurityPriceRefreshService {
             FinanceMarketDataService.MarketQuoteSnapshot quote = maybeQuote.get();
             quote.setSymbol(storageSymbol);
             rememberTwelveDataSnapshot(job, item, quote);
+            String quoteSource = quote.getSource() != null && !quote.getSource().isBlank() ? quote.getSource() : "Twelve Data";
 
             item.setStatus("refreshed");
             item.setPriceDate(quote.getPriceDate());
             item.setPrice(quote.getPrice());
             item.setTwelveDataPriceDate(quote.getPriceDate());
             item.setTwelveDataPrice(quote.getPrice());
-            item.setTwelveDataMessage("Twelve Data confirmed the final quote.");
+            item.setTwelveDataMessage(quoteSource + " confirmed the final quote.");
             item.setCanApply(true);
             applyDelta(item);
-            maybeApplyQuote(job, item, autoApply, quote, "Twelve Data");
-            item.setMessage(aiApplied ? "AI batch quote refreshed. Twelve Data confirmed the final quote." : "Previous close refreshed.");
+            maybeApplyQuote(job, item, autoApply, quote, quoteSource);
+            item.setMessage(
+                aiApplied ? "AI batch quote refreshed. " + quoteSource + " confirmed the final quote." : "Previous close refreshed."
+            );
             return item;
         } catch (RuntimeException e) {
             if ("refreshed".equals(item.getStatus()) && item.getPrice() != null) {
@@ -684,11 +708,23 @@ public class FinanceSecurityPriceRefreshService {
     }
 
     private BigDecimal resolvePreviousPrice(String storageSymbol) {
+        FinanceSecurityPrice existingPrice = resolveLatestPrice(storageSymbol);
+        return existingPrice != null ? existingPrice.getPrice() : null;
+    }
+
+    private FinanceSecurityPrice resolveLatestPrice(String storageSymbol) {
         if (storageSymbol == null) {
             return null;
         }
-        FinanceSecurityPrice existingPrice = financeSecurityPriceRepository.findLatestBySymbol(storageSymbol);
-        return existingPrice != null ? existingPrice.getPrice() : null;
+        return financeSecurityPriceRepository.findLatestBySymbol(storageSymbol);
+    }
+
+    private boolean isRecentlyRefreshed(FinanceSecurityPrice price) {
+        if (price == null || price.getSerialDateTime() == null) {
+            return false;
+        }
+        ZonedDateTime cutoff = ZonedDateTime.now(ZoneOffset.UTC).minus(QUOTE_REFRESH_COOLDOWN);
+        return price.getSerialDateTime().isAfter(cutoff);
     }
 
     private Map<String, RefreshTargetMetadata> resolveRefreshMetadata(User user, String accountId) {
@@ -933,6 +969,9 @@ public class FinanceSecurityPriceRefreshService {
             String storageSymbol = resolveStorageSymbol(target, metadata);
             String providerSymbol = resolveProviderSymbol(target, metadata);
             if (!isEligible(target, providerSymbol, storageSymbol) || targetId == null) {
+                continue;
+            }
+            if (isRecentlyRefreshed(resolveLatestPrice(storageSymbol))) {
                 continue;
             }
             requests.add(new AiQuoteRequest(targetId, buildProviderSecurity(target, metadata, providerSymbol)));

@@ -82,6 +82,99 @@
     </div>
   </p-dialog>
 
+  <p-dialog
+    header="{{ portfolioDialogMode === 'edit' ? 'Edit Portfolio' : 'New Portfolio' }}"
+    [(visible)]="portfolioDialogVisible"
+    [modal]="true"
+    [draggable]="false"
+    [style]="{ width: '48rem', maxWidth: '96vw' }"
+    styleClass="custom-portfolio-dialog"
+  >
+    <div class="custom-portfolio-form">
+      <div *ngIf="portfolioError" class="investment-refresh-message">{{ portfolioError }}</div>
+      <label>
+        <span>Name</span>
+        <input class="form-control" [(ngModel)]="portfolioForm.name" />
+      </label>
+      <label>
+        <span>Description</span>
+        <textarea class="form-control" rows="3" [(ngModel)]="portfolioForm.description"></textarea>
+      </label>
+      <div class="custom-portfolio-form__row">
+        <label>
+          <span>Strategy</span>
+          <p-select
+            [options]="portfolioStrategyOptions"
+            [(ngModel)]="portfolioForm.strategy"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="onStrategyChange()"
+          ></p-select>
+        </label>
+        <label>
+          <span>Expected CAGR %</span>
+          <input class="form-control" type="number" step="0.1" min="0" [(ngModel)]="portfolioExpectedReturnPercent" />
+        </label>
+      </div>
+      <label *ngIf="portfolioForm.strategy === 'CUSTOM'">
+        <span>Custom strategy</span>
+        <textarea class="form-control" rows="3" [(ngModel)]="portfolioForm.customStrategy"></textarea>
+      </label>
+
+      <div class="custom-portfolio-form__filter">
+        <span>Hide closed / zero holdings</span>
+        <p-toggleSwitch [(ngModel)]="portfolioHideClosedAndZeroOptions"></p-toggleSwitch>
+      </div>
+
+      <div class="custom-portfolio-form__lists">
+        <section>
+          <h3>Investments</h3>
+          <div class="custom-portfolio-form__list">
+            <label *ngFor="let security of filteredPortfolioSecurities()" class="custom-portfolio-form__check">
+              <input type="checkbox" [ngModel]="isSecuritySelected(security)" (ngModelChange)="toggleSecurity(security, $event)" />
+              <span
+                >{{ security.symbol || '—' }} · {{ security.name }} <small>({{ security.currentQuantity || 0 }})</small></span
+              >
+            </label>
+          </div>
+        </section>
+        <section>
+          <h3>Bank / Cash Accounts</h3>
+          <div class="custom-portfolio-form__list">
+            <label *ngFor="let accountOption of filteredPortfolioCashAccounts()" class="custom-portfolio-form__check">
+              <input
+                type="checkbox"
+                [ngModel]="isCashAccountSelected(accountOption)"
+                (ngModelChange)="toggleCashAccount(accountOption, $event)"
+              />
+              <span>
+                {{ accountOption.name }} · {{ accountOption.currencyCode }}
+                <small>{{ accountOption.currentBalance || 0 | currency: accountOption.currencyCode : 'symbol-narrow' }}</small>
+              </span>
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <div class="custom-portfolio-form__actions">
+        <button
+          *ngIf="portfolioDialogMode === 'edit'"
+          type="button"
+          class="btn btn-outline-danger"
+          [disabled]="portfolioSaving"
+          (click)="deleteSelectedPortfolio()"
+        >
+          Delete
+        </button>
+        <span class="custom-portfolio-form__spacer"></span>
+        <button type="button" class="btn btn-outline-secondary" [disabled]="portfolioSaving" (click)="portfolioDialogVisible = false">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary" [disabled]="portfolioSaving" (click)="savePortfolio()">Save</button>
+      </div>
+    </div>
+  </p-dialog>
+
   <div class="investment-portfolio-header">
     <div class="top-sticky-row">
       <div class="row">
@@ -91,19 +184,72 @@
             <!-- jhiTranslate="{{ title }}" -->
           </div>
         </div>
-        <div class="col">
+        <div class="col investment-account-filter">
+          <label class="investment-account-filter__label" for="investment-account-select">View</label>
           <p-select
-            [options]="accounts!"
-            [(ngModel)]="accountId"
+            inputId="investment-account-select"
+            [options]="accountSelectOptions"
+            [group]="true"
+            [(ngModel)]="selectedViewId"
             [filter]="true"
             filterBy="name"
+            filterPlaceholder="Search views"
             optionLabel="name"
             optionValue="id"
+            optionGroupLabel="label"
+            optionGroupChildren="items"
             (onChange)="onChangeAccount($event)"
             [required]="false"
-            placeholder="All"
+            placeholder="View"
+            styleClass="investment-account-filter__select"
           >
+            <ng-template #group let-group>
+              <div class="investment-account-filter__group">{{ group.label }}</div>
+            </ng-template>
           </p-select>
+        </div>
+        <div class="col investment-account-filter">
+          <label class="investment-account-filter__label" for="investment-select">Investment</label>
+          <p-select
+            inputId="investment-select"
+            [options]="investmentSelectOptions"
+            [(ngModel)]="selectedInvestmentId"
+            [filter]="true"
+            filterBy="name,symbol"
+            filterPlaceholder="Search investments"
+            optionLabel="name"
+            optionValue="id"
+            (onChange)="onChangeInvestment($event)"
+            [showClear]="true"
+            [required]="false"
+            placeholder="Select investment"
+            styleClass="investment-account-filter__select investment-account-filter__select--investment"
+          >
+            <ng-template #selectedItem let-investment>
+              <div class="investment-select-option" *ngIf="investment">
+                <span class="investment-select-option__symbol" *ngIf="investment.symbol">{{ investment.symbol }}</span>
+                <span class="investment-select-option__name">{{ investment.name }}</span>
+                <span class="investment-select-option__tag" *ngIf="investment.closed">Closed</span>
+              </div>
+            </ng-template>
+            <ng-template #item let-investment>
+              <div class="investment-select-option">
+                <span class="investment-select-option__symbol" *ngIf="investment.symbol">{{ investment.symbol }}</span>
+                <span class="investment-select-option__name">{{ investment.name }}</span>
+                <span class="investment-select-option__tag" *ngIf="investment.closed">Closed</span>
+              </div>
+            </ng-template>
+          </p-select>
+        </div>
+        <div class="col col-auto">
+          <button type="button" class="btn btn-outline-secondary investment-refresh-button" (click)="openCreatePortfolioDialog()">
+            New Portfolio
+          </button>
+        </div>
+        <div class="col col-auto" *ngIf="customPortfolioId">
+          <button type="button" class="btn btn-outline-secondary investment-refresh-button" (click)="openEditPortfolioDialog()">
+            Edit Portfolio
+          </button>
         </div>
         <div class="col col-auto">
           <button type="button" class="btn btn-outline-secondary investment-refresh-button" (click)="refreshQuotes()">
@@ -121,6 +267,18 @@
           <div class="investment-refresh-message">{{ quoteRefreshMessage }}</div>
         </div>
       </div>
+      <!-- <div class="row" *ngIf="selectedCustomPortfolio() as selectedPortfolio">
+        <div class="col">
+          <div class="custom-portfolio-summary">
+            <strong>{{ selectedPortfolio.name }}</strong>
+            <span *ngIf="selectedPortfolio.description">{{ selectedPortfolio.description }}</span>
+            <span>
+              {{ selectedPortfolio.strategy === 'CUSTOM' ? selectedPortfolio.customStrategy : selectedPortfolio.strategy }}
+            </span>
+            <span>Expected {{ selectedPortfolio.expectedReturnCagr | percent: '1.2-2' }} p.a.</span>
+          </div>
+        </div>
+      </div> -->
     </div>
   </div>
 
@@ -407,6 +565,20 @@
           </div>
         </button>
         <button
+          id="example-trades"
+          class="tab-list-item"
+          [class.tab-list-item--active]="activeTab === 'trades'"
+          aria-selected="false"
+          role="tab"
+          tabindex="-1"
+          (click)="clickTab('trades')"
+        >
+          <div class="tab-list-item__text">
+            <div class="tab-list-item__text-inner">Trades</div>
+            <span class="tab-list-item__bar"></span>
+          </div>
+        </button>
+        <button
           id="example1"
           class="tab-list-item"
           [class.tab-list-item--active]="activeTab === 'treemap'"
@@ -456,63 +628,85 @@
                   <thead class="app-table-head">
                     <!-- <tr role="row" class="app-table-row"> -->
                     <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
-                      <div>Symbol</div>
+                      <button type="button" class="investment-holdings-sort-button" (click)="sortHoldings('symbol')">
+                        Symbol {{ holdingSortIndicator('symbol') }}
+                      </button>
                     </th>
                     <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col">
-                      <div>Holding</div>
+                      <button type="button" class="investment-holdings-sort-button" (click)="sortHoldings('name')">
+                        Holding {{ holdingSortIndicator('name') }}
+                      </button>
                     </th>
                     <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
-                      <div>Price&nbsp;</div>
+                      <button type="button" class="investment-holdings-sort-button" (click)="sortHoldings('price')">
+                        Price {{ holdingSortIndicator('price') }}
+                      </button>
                     </th>
                     <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
                       <!--*ngIf="comparisonPortfolio && selectedPeriod.value !== ''" -->
-                      <div>% Change ({{ selectedPeriod?.name }})&nbsp;</div>
+                      <button type="button" class="investment-holdings-sort-button" (click)="sortHoldings('periodChange')">
+                        % Change ({{ selectedPeriod?.name }}) {{ holdingSortIndicator('periodChange') }}
+                      </button>
                     </th>
                     <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
-                      <div>Qty&nbsp;</div>
+                      <button type="button" class="investment-holdings-sort-button" (click)="sortHoldings('quantity')">
+                        Qty {{ holdingSortIndicator('quantity') }}
+                      </button>
                     </th>
                     <th class="app-table-header app-table-header--align-left app-table-header--sticky" role="columnheader" scope="col">
-                      <div>Value&nbsp;</div>
+                      <button type="button" class="investment-holdings-sort-button" (click)="sortHoldings('value')">
+                        Value {{ holdingSortIndicator('value') }}
+                      </button>
                     </th>
                     <th
                       class="app-table-header app-table-header--align-left app-table-header--sticky d-none d-lg-table-cell"
                       role="columnheader"
                       scope="col"
                     >
-                      <div>Captial Invested&nbsp;</div>
+                      <button type="button" class="investment-holdings-sort-button" (click)="sortHoldings('capitalInvested')">
+                        Captial Invested {{ holdingSortIndicator('capitalInvested') }}
+                      </button>
                     </th>
                     <th
                       class="app-table-header app-table-header--align-left app-table-header--sticky d-none d-lg-table-cell"
                       role="columnheader"
                       scope="col"
                     >
-                      <div>Captial Gain&nbsp;</div>
+                      <button type="button" class="investment-holdings-sort-button" (click)="sortHoldings('capitalGain')">
+                        Captial Gain {{ holdingSortIndicator('capitalGain') }}
+                      </button>
                     </th>
                     <th
                       class="app-table-header app-table-header--align-left app-table-header--sticky d-none d-lg-table-cell"
                       role="columnheader"
                       scope="col"
                     >
-                      <div>Income&nbsp;</div>
+                      <button type="button" class="investment-holdings-sort-button" (click)="sortHoldings('income')">
+                        Income {{ holdingSortIndicator('income') }}
+                      </button>
                     </th>
                     <th
                       class="app-table-header app-table-header--align-left app-table-header--sticky d-none d-lg-table-cell"
                       role="columnheader"
                       scope="col"
                     >
-                      <div>Currency Gain&nbsp;</div>
+                      <button type="button" class="investment-holdings-sort-button" (click)="sortHoldings('currencyGain')">
+                        Currency Gain {{ holdingSortIndicator('currencyGain') }}
+                      </button>
                     </th>
                     <th
                       class="app-table-header app-table-header--align-left app-table-header--sticky d-none d-lg-table-cell"
                       role="columnheader"
                       scope="col"
                     >
-                      <div>Total Return</div>
+                      <button type="button" class="investment-holdings-sort-button" (click)="sortHoldings('totalReturn')">
+                        Total Return {{ holdingSortIndicator('totalReturn') }}
+                      </button>
                     </th>
                     <!-- </tr> -->
                   </thead>
                   <tbody>
-                    <ng-container *ngFor="let holding of item.value">
+                    <ng-container *ngFor="let holding of sortedHoldings(item.value)">
                       <!-- selectedGroup.value === 'holdings' || selectedInvestmentName === item.key" or [class.selected-row]="this.selectedInvestmentName === holding.name"-->
                       <tr
                         *ngIf="
@@ -529,22 +723,33 @@
                         <td role="gridcell" class="app-table-cell app-table--align-left">
                           <p-skeleton *ngIf="isLoading"></p-skeleton>
                           <span *ngIf="!isLoading">
-                            <a class="table-link" routerLink="/investment/{{ holding.id }}">{{ holding.userSymbol }}</a>
+                            <a *ngIf="!isCashHolding(holding)" class="table-link" routerLink="/investment/{{ holding.id }}">{{
+                              holdingDisplaySymbol(holding)
+                            }}</a>
+                            <a *ngIf="isCashHolding(holding)" class="cash-position-tag" routerLink="/transactions/{{ holding.id }}">{{
+                              holdingDisplaySymbol(holding)
+                            }}</a>
                           </span>
                         </td>
 
                         <td class="app-table-cell app-table--align-left">
                           <p-skeleton *ngIf="isLoading"></p-skeleton>
                           <span *ngIf="!isLoading">
-                            <a class="table-link" routerLink="/investment/{{ holding.id }}">{{ holding.name }}</a>
+                            <a *ngIf="!isCashHolding(holding)" class="table-link" routerLink="/investment/{{ holding.id }}">{{
+                              holding.name
+                            }}</a>
+                            <a *ngIf="isCashHolding(holding)" class="table-link" routerLink="/transactions/{{ holding.id }}">{{
+                              holding.name
+                            }}</a>
                           </span>
                         </td>
 
                         <td role="gridcell" class="app-table-cell app-table--align-left">
                           <p-skeleton *ngIf="isLoading"></p-skeleton>
                           <span *ngIf="!isLoading">
+                            <span *ngIf="isCashHolding(holding)">—</span>
                             <div
-                              *ngIf="holding.priceDateTime"
+                              *ngIf="!isCashHolding(holding) && holding.priceDateTime"
                               class="hovertext"
                               pTooltip="{{ holding.price | currency: holding.currencyCode : 'symbol-narrow' }} @ {{
                                 holding.priceDateTime | date
@@ -560,8 +765,20 @@
                           <!-- *ngIf="comparisonPortfolio && selectedPeriod.value !== ''" -->
                           <p-skeleton *ngIf="isLoading"></p-skeleton>
                           <span *ngIf="!isLoading">
+                            <span
+                              *ngIf="isCashHolding(holding) && holding.cashReturnPercent != null"
+                              class="datawell-data-comparison"
+                              [class.datawell-data-positive]="holding.cashReturnPercent > 0"
+                              [class.datawell-data-negative]="holding.cashReturnPercent < 0"
+                            >
+                              <fa-icon *ngIf="holding.cashReturnPercent > 0" icon="caret-up"></fa-icon>
+                              <fa-icon *ngIf="holding.cashReturnPercent < 0" icon="caret-down"></fa-icon>
+                              <fa-icon *ngIf="holding.cashReturnPercent === 0" icon="minus"></fa-icon>
+                              {{ holding.cashReturnPercent | percent: '1.2-2' }}
+                            </span>
+                            <span *ngIf="isCashHolding(holding) && holding.cashReturnPercent == null">—</span>
                             <div
-                              *ngIf="holding.priceDateTime"
+                              *ngIf="!isCashHolding(holding) && holding.priceDateTime"
                               class="hovertext"
                               pTooltip="{{ findComparison(holding.id)?.price | currency }} @ {{
                                 findComparison(holding.id)?.priceDate | date
@@ -584,7 +801,8 @@
                         <td role="gridcell" class="app-table-cell app-table--align-left">
                           <p-skeleton *ngIf="isLoading"></p-skeleton>
                           <span *ngIf="!isLoading">
-                            {{ holding.quantity | number }}
+                            <span *ngIf="!isCashHolding(holding)">{{ holding.quantity | number }}</span>
+                            <span *ngIf="isCashHolding(holding)">—</span>
                           </span>
                         </td>
                         <td role="gridcell" class="app-table-cell app-table--align-left">
@@ -605,31 +823,31 @@
                         <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
                           <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
                           <span *ngIf="!isLoadingSummaries">
-                            {{ findSummary(holding.id)?.totalCapitalInvested | currency }}
+                            {{ holdingCapitalInvested(holding) | currency }}
                           </span>
                         </td>
                         <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
                           <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
                           <span *ngIf="!isLoadingSummaries">
-                            {{ findSummary(holding.id)?.totalCapitalGain | currency }}
+                            {{ holdingCapitalGain(holding) | currency }}
                           </span>
                         </td>
                         <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
                           <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
                           <span *ngIf="!isLoadingSummaries">
-                            {{ findSummary(holding.id)?.totalIncome | currency }}
+                            {{ holdingIncome(holding) | currency }}
                           </span>
                         </td>
                         <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
                           <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
                           <span *ngIf="!isLoadingSummaries">
-                            {{ findSummary(holding.id)?.totalCurrencyGain | currency }}
+                            {{ holdingCurrencyGain(holding) | currency }}
                           </span>
                         </td>
                         <td role="gridcell" class="app-table-cell app-table--align-left d-none d-lg-table-cell">
                           <p-skeleton *ngIf="isLoadingSummaries"></p-skeleton>
                           <span *ngIf="!isLoadingSummaries">
-                            {{ findSummary(holding.id)?.totalReturn | currency }}
+                            {{ holdingTotalReturn(holding) | currency }}
                           </span>
                         </td>
                         <!-- <td role="gridcell" class="app-table-cell app-table--align-left">
@@ -703,6 +921,15 @@
             </table>
           </div>
         </div>
+      </div>
+      <div class="tab-pane tab-fade" [ngClass]="{ active: activeTab === 'trades' }" id="trades" role="tabpanel">
+        <jhi-investment-trades
+          [trades]="trades"
+          [isLoadingTrades]="isLoadingTrades"
+          [account]="account"
+          [periodAgo]="selectedPeriod.value"
+          [periodLabel]="selectedPeriod.name"
+        ></jhi-investment-trades>
       </div>
       <div class="tab-pane tab-fade" [ngClass]="{ active: activeTab === 'treemap' }" id="treemap" role="tabpanel">
         <div class="row m-t">

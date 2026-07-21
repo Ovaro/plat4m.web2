@@ -5,7 +5,7 @@
         <div class="primary-breadcrumb">Reports</div>
       </div>
       <h1 class="report-shell__title">{{ workingConfig.title }}</h1>
-      <p class="report-shell__subtitle">Configurable income and expense reporting with saved presets, grouped totals, and charts.</p>
+      <p class="report-shell__subtitle">{{ reportSubtitle }}</p>
     </div>
 
     <div class="report-shell__header-actions">
@@ -73,7 +73,117 @@
   <div class="report-shell__status" *ngIf="errorMessage">{{ errorMessage }}</div>
 
   <div class="report-shell__surface" *ngIf="!isRunning && result">
-    <div *ngIf="workingConfig.defaultView === 'report'" class="report-table-card">
+    <div *ngIf="reportVariant === 'capital-gains' && workingConfig.defaultView === 'report'" class="report-table-card capital-gains-report">
+      <div class="report-table-card__filter">
+        <input type="search" [(ngModel)]="reportRowFilter" placeholder="Filter lots" />
+        <button type="button" class="manage-button" *ngIf="reportRowFilter" (click)="reportRowFilter = ''">Clear</button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          *ngIf="capitalGainsIgnoredLotCount > 0"
+          (click)="clearIgnoredCapitalGainsLotRows()"
+        >
+          Include All
+        </button>
+        <div class="report-table-card__summary">
+          <span>{{ result.startDate }} to {{ result.endDate }}</span>
+          <span>{{ capitalGainsIncludedLotCount | number }} of {{ capitalGainsLotCount | number }} lots included</span>
+          <span *ngIf="capitalGainsIgnoredLotCount > 0">{{ capitalGainsIgnoredLotCount | number }} ignored</span>
+        </div>
+      </div>
+
+      <div *ngIf="capitalGainsLotsLoading" class="report-table-card__empty">Loading capital gains lots...</div>
+      <div *ngIf="!capitalGainsLotsLoading && capitalGainsLotRows.length === 0" class="report-table-card__empty">
+        No capital gains lots match the current filters.
+      </div>
+      <div
+        *ngIf="!capitalGainsLotsLoading && capitalGainsLotRows.length > 0 && filteredCapitalGainsLotRows.length === 0"
+        class="report-table-card__empty"
+      >
+        No lots match the current filter text.
+      </div>
+
+      <div *ngIf="!capitalGainsLotsLoading && filteredCapitalGainsLotRows.length > 0" class="report-table-card__wrap">
+        <table class="report-table capital-gains-report__table">
+          <thead>
+            <tr>
+              <th class="report-table__sticky-column">Security</th>
+              <th>Lot</th>
+              <th>Bought</th>
+              <th>Purchase <br />Price ({{ reportCurrencyCode }})</th>
+              <th>Purchase FX</th>
+              <th>Purchase <br />Fees ({{ reportCurrencyCode }})</th>
+              <th>Sold</th>
+              <th>Sell Price ({{ reportCurrencyCode }})</th>
+              <th>Sell FX</th>
+              <th>Sell <br />Fees ({{ reportCurrencyCode }})</th>
+              <th>Duration</th>
+              <th>Quantity</th>
+              <th>Cost Basis</th>
+              <th>Proceeds</th>
+              <th>Capital Gain</th>
+              <th class="capital-gains-report__ignore-column">Ignore</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let row of filteredCapitalGainsLotRows; trackBy: trackByCapitalGainsLotRow"
+              [class.capital-gains-report__ignored-row]="isCapitalGainsLotRowIgnored(row)"
+            >
+              <td class="report-table__sticky-column">
+                <strong>{{
+                  row.transaction.securityName || row.lot.securityName || row.transaction.payeeName || 'Unknown security'
+                }}</strong>
+                <div class="manage-table__secondary">{{ getAccountName(row.transaction.accountId) }}</div>
+              </td>
+              <td>
+                <strong>{{ getLotDisplayName(row.lot) }}</strong>
+                <div class="manage-table__secondary">Sold source {{ row.lot.sourceId || 'Unknown' }}</div>
+              </td>
+              <td>
+                {{ getLotBuyDate(row.lot) || '' }}
+                <div class="manage-table__secondary" *ngIf="row.lot.originalSourceId">Original source {{ row.lot.originalSourceId }}</div>
+              </td>
+              <td>{{ formatLotPrice(row.lot.buyPrice ?? row.lot.originalPrice) }}</td>
+              <td>{{ formatLotFxRate(row.lot.buyFxRate) }}</td>
+              <td>{{ formatLotCurrency(row.lot.buyCharges, row.lot.buyCurrencyCode) }}</td>
+              <td>{{ getLotSellDate(row.lot) || row.transaction.date }}</td>
+              <td>{{ formatLotPrice(row.lot.sellPrice) }}</td>
+              <td>{{ formatLotFxRate(row.lot.sellFxRate) }}</td>
+              <td>{{ formatLotCurrency(row.lot.sellCharges, row.lot.sellCurrencyCode) }}</td>
+              <td>{{ formatLotHoldingPeriod(row.lot) }}</td>
+              <td>{{ row.lot.quantity | number }}</td>
+              <td>{{ formatCurrency(row.lot.costBasis ?? 0) }}</td>
+              <td>{{ formatCurrency(row.lot.saleProceeds ?? 0) }}</td>
+              <td [class.report-table__negative]="(row.lot.realisedGainLoss ?? 0) < 0">
+                {{ formatCurrency(row.lot.realisedGainLoss ?? 0) }}
+              </td>
+              <td class="capital-gains-report__ignore-column">
+                <input
+                  type="checkbox"
+                  [checked]="isCapitalGainsLotRowIgnored(row)"
+                  (change)="toggleCapitalGainsLotRowIgnored(row, $any($event.target).checked)"
+                  aria-label="Ignore this capital gains lot row"
+                />
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="report-table__sticky-column" colspan="12">Included total</td>
+              <td>{{ formatCurrency(capitalGainsTotalCostBasis) }}</td>
+              <td>{{ formatCurrency(capitalGainsTotalSaleProceeds) }}</td>
+              <td [class.report-table__negative]="capitalGainsTotalRealisedGainLoss < 0">
+                {{ formatCurrency(capitalGainsTotalRealisedGainLoss) }}
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div *ngIf="reportVariant !== 'capital-gains' && workingConfig.defaultView === 'report'" class="report-table-card">
       <div class="report-table-card__filter">
         <input type="search" [(ngModel)]="reportRowFilter" placeholder="Filter rows" />
         <p-selectButton
@@ -547,6 +657,7 @@
             <th>Memo</th>
             <th>Section</th>
             <th>Amount</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -558,13 +669,32 @@
             <td>{{ transaction.familyMemberName || 'Unassigned' }}</td>
             <td>{{ transaction.memo || '' }}</td>
             <td>{{ transaction.sectionLabel || '' }}</td>
-            <td
-              [class.report-table__negative]="transaction.amount < 0"
-              [attr.title]="getDrilldownCurrencyHint(transaction, drilldownResult.currencyCode)"
-            >
+            <td [class.report-table__negative]="transaction.amount < 0">
               <div class="report-drilldown-dialog__amount-cell">
-                <span>{{ formatCurrency(transaction.amount) }}</span>
+                <div class="report-drilldown-dialog__amount-line">
+                  <span>{{ formatCurrency(transaction.amount) }}</span>
+                  <fa-icon
+                    *ngIf="getDrilldownCurrencyHint(transaction, drilldownResult.currencyCode) as currencyHint"
+                    icon="exchange-alt"
+                    class="report-drilldown-dialog__fx-icon"
+                    [attr.title]="currencyHint"
+                    aria-label="Foreign exchange conversion details"
+                  ></fa-icon>
+                </div>
+                <small *ngIf="transaction.lotAdjusted && transaction.grossAmount != null">
+                  Gain/loss from lots; proceeds {{ formatCurrency(transaction.grossAmount) }}
+                </small>
               </div>
+            </td>
+            <td>
+              <button
+                type="button"
+                class="report-drilldown-dialog__lot-button"
+                *ngIf="transaction.hasLotDetails"
+                (click)="openTransactionLots(transaction)"
+              >
+                Lots
+              </button>
             </td>
           </tr>
         </tbody>
@@ -572,6 +702,86 @@
           <tr>
             <td colspan="7">Total</td>
             <td [class.report-table__negative]="drilldownResult.total < 0">{{ formatCurrency(drilldownResult.total) }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</p-dialog>
+
+<p-dialog
+  [header]="'Lots for ' + (transactionLotsCandidate?.securityName || transactionLotsCandidate?.payeeName || 'transaction')"
+  [(visible)]="transactionLotsVisible"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(64rem, 96vw)' }"
+  styleClass="report-lots-dialog"
+  (onHide)="closeTransactionLots()"
+>
+  <div *ngIf="transactionLotsLoading" class="report-drilldown-dialog__loading">Loading lots...</div>
+
+  <div *ngIf="!transactionLotsLoading" class="report-drilldown-dialog__body">
+    <div class="report-drilldown-dialog__summary">
+      <span>{{ transactionLotsCandidate?.date }}</span>
+      <span>{{ transactionLots.length | number }} lots</span>
+      <strong [class.report-table__negative]="transactionLotsRealisedGainLoss < 0">{{
+        formatCurrency(transactionLotsRealisedGainLoss)
+      }}</strong>
+    </div>
+
+    <div *ngIf="transactionLots.length === 0" class="report-table-card__empty">No lots found for this transaction.</div>
+
+    <div *ngIf="transactionLots.length > 0" class="report-drilldown-dialog__table-wrap">
+      <table class="report-drilldown-dialog__table">
+        <thead>
+          <tr>
+            <th>Lot sold</th>
+            <th>Bought</th>
+            <th>Purchase Price ({{ reportCurrencyCode }})</th>
+            <th>Purchase FX</th>
+            <th>Purchase Fees ({{ reportCurrencyCode }})</th>
+            <th>Sold</th>
+            <th>Sell Price ({{ reportCurrencyCode }})</th>
+            <th>Sell FX</th>
+            <th>Sell Fees ({{ reportCurrencyCode }})</th>
+            <th>Duration</th>
+            <th>Quantity</th>
+            <th>Cost</th>
+            <th>Proceeds</th>
+            <th>Capital Gain</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let lot of transactionLots; trackBy: trackById">
+            <td>
+              <strong>{{ getLotDisplayName(lot) }}</strong>
+              <div class="manage-table__secondary">Sold source {{ lot.sourceId || 'Unknown' }}</div>
+            </td>
+            <td>
+              {{ getLotBuyDate(lot) || '' }}
+              <div class="manage-table__secondary" *ngIf="lot.originalSourceId">Original source {{ lot.originalSourceId }}</div>
+            </td>
+            <td>{{ formatLotPrice(lot.buyPrice ?? lot.originalPrice) }}</td>
+            <td>{{ formatLotFxRate(lot.buyFxRate) }}</td>
+            <td>{{ formatLotCurrency(lot.buyCharges, lot.buyCurrencyCode) }}</td>
+            <td>{{ getLotSellDate(lot) || '' }}</td>
+            <td>{{ formatLotPrice(lot.sellPrice) }}</td>
+            <td>{{ formatLotFxRate(lot.sellFxRate) }}</td>
+            <td>{{ formatLotCurrency(lot.sellCharges, lot.sellCurrencyCode) }}</td>
+            <td>{{ formatLotHoldingPeriod(lot) }}</td>
+            <td>{{ lot.quantity | number }}</td>
+            <td>{{ formatCurrency(lot.costBasis ?? 0) }}</td>
+            <td>{{ formatCurrency(lot.saleProceeds ?? 0) }}</td>
+            <td [class.report-table__negative]="(lot.realisedGainLoss ?? 0) < 0">{{ formatCurrency(lot.realisedGainLoss ?? 0) }}</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="13">Realised gain/loss</td>
+            <td [class.report-table__negative]="transactionLotsRealisedGainLoss < 0">
+              {{ formatCurrency(transactionLotsRealisedGainLoss) }}
+            </td>
           </tr>
         </tfoot>
       </table>

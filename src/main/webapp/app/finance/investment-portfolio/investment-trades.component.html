@@ -1,0 +1,167 @@
+<div class="row m-t">
+  <div class="col">
+    <div class="trades-toolbar">
+      <p-autocomplete
+        [(ngModel)]="tradeFilterQuery"
+        [suggestions]="tradeFilterSuggestions"
+        (completeMethod)="onTradeFilterComplete($event)"
+        (ngModelChange)="onTradeFilterChanged()"
+        [dropdown]="true"
+        [forceSelection]="false"
+        placeholder="Filter trades"
+        styleClass="trades-toolbar__filter"
+      ></p-autocomplete>
+      <p-select
+        [options]="tradeSortOptions"
+        [(ngModel)]="tradeSortField"
+        optionLabel="name"
+        optionValue="value"
+        (onChange)="onTradeSortChanged()"
+        placeholder="Sort by"
+      ></p-select>
+      <button type="button" class="btn btn-outline-secondary btn-sm" (click)="toggleTradeSortDirection()">
+        {{ tradeSortDirection === 'desc' ? 'Newest First' : 'Oldest First' }}
+      </button>
+      <div class="trades-toolbar__toggle">
+        <span>Include FX?</span>
+        <p-toggleSwitch [(ngModel)]="tradeIncludeFx" (onChange)="toggleTradeIncludeFx()"></p-toggleSwitch>
+      </div>
+      <div class="trades-toolbar__toggle">
+        <span>Include reinvested dividends?</span>
+        <p-toggleSwitch [(ngModel)]="tradeIncludeReinvestments" (onChange)="toggleTradeIncludeReinvestments()"></p-toggleSwitch>
+      </div>
+      <div class="trades-toolbar__toggle">
+        <span>Include dividend income?</span>
+        <p-toggleSwitch [(ngModel)]="tradeIncludeIncome" (onChange)="toggleTradeIncludeIncome()"></p-toggleSwitch>
+      </div>
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        (click)="openTradesSummary()"
+        [disabled]="isLoadingTrades || trades.length === 0"
+      >
+        Trades Summary
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="row m-t">
+  <div class="col">
+    <div class="app-table-container">
+      <div class="app-table-master-header">Trades</div>
+      <table role="grid" class="app-table">
+        <thead class="app-table-head">
+          <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col"><div>Date</div></th>
+          <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col"><div>Symbol</div></th>
+          <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col"><div>Name</div></th>
+          <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col"><div>Account</div></th>
+          <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col"><div>Qty</div></th>
+          <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col"><div>Buy Price</div></th>
+          <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col"><div>Current/Sell Price</div></th>
+          <th *ngIf="tradeIncludeFx" class="app-table-header app-table-header--align-left" role="columnheader" scope="col">
+            <div>Buy FX</div>
+          </th>
+          <th *ngIf="tradeIncludeIncome" class="app-table-header app-table-header--align-left" role="columnheader" scope="col">
+            <div>Dividends</div>
+          </th>
+          <th *ngIf="tradeIncludeFx" class="app-table-header app-table-header--align-left" role="columnheader" scope="col">
+            <div>Current/Sell FX</div>
+          </th>
+          <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col"><div>Delta</div></th>
+          <th class="app-table-header app-table-header--align-left" role="columnheader" scope="col"><div>Delta %</div></th>
+        </thead>
+        <tbody>
+          <tr *ngIf="isLoadingTrades">
+            <td class="app-table-cell app-table--align-left" [attr.colspan]="getTradeTableColumnCount()">
+              <p-skeleton height="2rem"></p-skeleton>
+            </td>
+          </tr>
+          <tr *ngFor="let trade of visibleTrades" [class]="getTradeRowClass(trade)">
+            <td class="app-table-cell app-table--align-left">
+              <span class="trades-date-cell">
+                <span>{{ trade.date | date: 'dd/MM/yyyy' }}</span>
+                <fa-icon
+                  *ngIf="isReinvestmentTrade(trade)"
+                  class="trades-date-icon trades-date-icon--reinvestment"
+                  icon="sync"
+                  [title]="getReinvestmentTooltip(trade)"
+                ></fa-icon>
+                <fa-icon
+                  *ngIf="trade.sold"
+                  class="trades-date-icon trades-date-icon--closed"
+                  icon="lock"
+                  [title]="getClosedTooltip(trade)"
+                ></fa-icon>
+              </span>
+            </td>
+            <td class="app-table-cell app-table--align-left">
+              <a class="table-link" routerLink="/investment/{{ trade.securityId }}">{{ trade.symbol }}</a>
+              <span
+                *ngIf="trade.ignoredForRollup"
+                class="trades-ignored-tag"
+                pTooltip="{{ getIgnoredTooltip(trade) }}"
+                tooltipPosition="bottom"
+              >
+                Ignored
+              </span>
+            </td>
+            <td class="app-table-cell app-table--align-left">{{ trade.name }}</td>
+            <td class="app-table-cell app-table--align-left">{{ trade.accountName }}</td>
+            <td class="app-table-cell app-table--align-left">{{ formatTradeQuantity(trade.quantity) }}</td>
+            <td class="app-table-cell app-table--align-left">{{ formatTradeCurrency(trade.buyPrice, trade.currencyCode) }}</td>
+            <td class="app-table-cell app-table--align-left">{{ formatTradeCurrency(getTradeExitPrice(trade), trade.currencyCode) }}</td>
+            <td *ngIf="tradeIncludeFx" class="app-table-cell app-table--align-left">{{ formatTradeFxRate(trade.buyFxRate) }}</td>
+            <td *ngIf="tradeIncludeIncome" class="app-table-cell app-table--align-left">
+              <span class="trades-income-cell">
+                {{ formatTradeCurrency(getTradeDividendIncomeAmount(trade), getTradeDividendIncomeCurrencyCode(trade)) }}
+                <button
+                  *ngIf="hasTradeDividends(trade)"
+                  type="button"
+                  class="trades-income-info-button"
+                  title="Show dividend details"
+                  aria-label="Show dividend details"
+                  (click)="openTradeDividendDialog(trade, $event)"
+                >
+                  <fa-icon icon="info-circle"></fa-icon>
+                </button>
+              </span>
+            </td>
+            <td *ngIf="tradeIncludeFx" class="app-table-cell app-table--align-left">{{ formatTradeFxRate(getTradeExitFxRate(trade)) }}</td>
+            <td class="app-table-cell app-table--align-left">
+              {{ formatTradeCurrency(getTradeDeltaAmount(trade), getTradeDeltaCurrencyCode(trade)) }}
+            </td>
+            <td class="app-table-cell app-table--align-left">{{ formatTradePercent(getTradeDeltaPercent(trade)) }}</td>
+          </tr>
+          <tr *ngIf="!isLoadingTrades && visibleTrades.length === 0">
+            <td class="app-table-cell app-table--align-left" [attr.colspan]="getTradeTableColumnCount()">No trades found.</td>
+          </tr>
+        </tbody>
+      </table>
+      <div *ngIf="hasMoreTrades()" class="trades-load-more">
+        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="loadMoreTrades()">Load More</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<jhi-investment-trades-summary-dialog
+  [(visible)]="tradeSummaryDialogVisible"
+  [trades]="trades"
+  [account]="account"
+  [includeFx]="tradeIncludeFx"
+  [includeReinvestments]="tradeIncludeReinvestments"
+  [includeIncome]="tradeIncludeIncome"
+  [periodAgo]="periodAgo"
+  [periodLabel]="periodLabel"
+></jhi-investment-trades-summary-dialog>
+
+<jhi-investment-trade-dividends-dialog
+  [(visible)]="tradeDividendDialogVisible"
+  [trade]="selectedTradeDividendTrade"
+  [includeFx]="tradeIncludeFx"
+  [includeIncome]="tradeIncludeIncome"
+  [account]="account"
+  [periodAgo]="periodAgo"
+  [periodLabel]="periodLabel"
+></jhi-investment-trade-dividends-dialog>

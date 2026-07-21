@@ -26,6 +26,67 @@
   width: 300px;
 }
 
+.investment-account-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.investment-account-filter__label {
+  margin: 0;
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+:host ::ng-deep .investment-account-filter__select {
+  min-width: 15rem;
+}
+
+:host ::ng-deep .investment-account-filter__select--investment {
+  min-width: 18rem;
+}
+
+.investment-select-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.investment-select-option__symbol {
+  flex: 0 0 auto;
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.investment-select-option__name {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.investment-select-option__tag {
+  flex: 0 0 auto;
+  padding: 0.08rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.14);
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.investment-account-filter__group {
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .investment-refresh-button {
   display: inline-flex;
   align-items: center;
@@ -59,6 +120,27 @@
   padding-top: 6px;
   font-size: 0.9rem;
   color: var(--ps-text-secondary, #64748b);
+}
+
+.investment-holdings-sort-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-align: left;
+}
+
+.investment-holdings-sort-button:hover,
+.investment-holdings-sort-button:focus-visible {
+  color: var(--ps-colour-primary, #0d6efd);
+  text-decoration: underline;
 }
 
 .investment-refresh-dialog__content {
@@ -123,6 +205,117 @@
 
 :host ::ng-deep .investment-refresh-dialog .p-dialog-content {
   padding-top: 0.5rem;
+}
+
+.custom-portfolio-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding-top: 0.5rem;
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.9rem;
+}
+
+.custom-portfolio-summary strong {
+  color: var(--ps-text-primary, #334155);
+}
+
+.custom-portfolio-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.custom-portfolio-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.custom-portfolio-form__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 10rem;
+  gap: 0.75rem;
+}
+
+.custom-portfolio-form__lists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.custom-portfolio-form__filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.65rem;
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.custom-portfolio-form__lists h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ps-text-primary, #334155);
+}
+
+.custom-portfolio-form__list {
+  max-height: 15rem;
+  overflow: auto;
+  border: 1px solid var(--ps-surface-border-subtle, #cbd5e1);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+.custom-portfolio-form__check {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem !important;
+  padding: 0.25rem 0;
+  color: var(--ps-text-primary, #334155) !important;
+  font-weight: 500 !important;
+}
+
+.custom-portfolio-form__check small {
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.75rem;
+}
+
+.custom-portfolio-form__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.custom-portfolio-form__spacer {
+  flex: 1;
+}
+
+.cash-position-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+  .custom-portfolio-form__row,
+  .custom-portfolio-form__lists {
+    grid-template-columns: 1fr;
+  }
 }
 
 // .apexcharts-tooltip-marker {

@@ -1,6 +1,7 @@
 package ovaro.plat4m.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -1676,6 +1677,7 @@ public class FinanceTransactionService {
         for (FinanceTransaction txn : transactions) {
             dtos.add(new FinanceInvestmentTransactionDTO(txn));
         }
+        enrichMissingInvestmentTransferFx(user, dtos);
         return dtos;
     }
 
@@ -1688,7 +1690,96 @@ public class FinanceTransactionService {
         for (FinanceTransaction txn : transactions) {
             dtos.add(new FinanceInvestmentTransactionDTO(txn));
         }
+        enrichMissingInvestmentTransferFx(user, dtos);
         return dtos;
+    }
+
+    private void enrichMissingInvestmentTransferFx(User user, List<FinanceInvestmentTransactionDTO> dtos) {
+        if (dtos.isEmpty()) {
+            return;
+        }
+
+        String baseCurrencyCode = normalizeCurrencyCode(user.getLocalCurrency());
+        if (baseCurrencyCode == null) {
+            baseCurrencyCode = "AUD";
+        }
+
+        List<UUID> transactionIds = dtos
+            .stream()
+            .map(FinanceInvestmentTransactionDTO::getTransaction)
+            .filter(Objects::nonNull)
+            .map(FinanceTransaction::getId)
+            .filter(Objects::nonNull)
+            .toList();
+        if (transactionIds.isEmpty()) {
+            return;
+        }
+
+        Map<UUID, UUID> counterpartIdByTransactionId = new HashMap<>();
+        for (FinanceTransferLink transferLink : this.transferLinkRepository.findAllByUserGuidAndTransactionIds(
+            user.getGuid().toString(),
+            transactionIds
+        )) {
+            counterpartIdByTransactionId.put(transferLink.getFromId(), transferLink.getLinkId());
+            counterpartIdByTransactionId.put(transferLink.getLinkId(), transferLink.getFromId());
+        }
+        if (counterpartIdByTransactionId.isEmpty()) {
+            return;
+        }
+
+        List<UUID> counterpartIds = counterpartIdByTransactionId.values().stream().distinct().toList();
+        Map<UUID, FinanceTransaction> counterpartById = this.transactionRepository
+            .findAllById(counterpartIds)
+            .stream()
+            .collect(Collectors.toMap(FinanceTransaction::getId, transaction -> transaction));
+
+        for (FinanceInvestmentTransactionDTO dto : dtos) {
+            FinanceTransaction transaction = dto.getTransaction();
+            if (
+                transaction == null ||
+                transaction.getId() == null ||
+                dto.getAmountBase() != null ||
+                dto.getAmount() == null ||
+                dto.getAmount().signum() == 0 ||
+                sameCurrency(dto.getCurrencyCode(), baseCurrencyCode)
+            ) {
+                continue;
+            }
+
+            FinanceTransaction counterpart = counterpartById.get(counterpartIdByTransactionId.get(transaction.getId()));
+            if (
+                counterpart == null ||
+                counterpart.getAmount() == null ||
+                counterpart.getAmount().signum() == 0 ||
+                !sameCurrency(counterpart.getCurrencyCode(), baseCurrencyCode)
+            ) {
+                continue;
+            }
+
+            BigDecimal sourceAmount = dto.getAmount().abs();
+            BigDecimal baseAmount = counterpart.getAmountBase() == null ? counterpart.getAmount().abs() : counterpart.getAmountBase().abs();
+            if (baseAmount.signum() == 0) {
+                continue;
+            }
+
+            BigDecimal signedBaseAmount = baseAmount.multiply(BigDecimal.valueOf(dto.getAmount().signum()));
+            BigDecimal rateToBase = baseAmount.divide(sourceAmount, 12, RoundingMode.HALF_UP);
+            dto.setAmountBase(signedBaseAmount);
+            dto.setRateToBase(rateToBase.doubleValue());
+        }
+    }
+
+    private boolean sameCurrency(String left, String right) {
+        String normalizedLeft = normalizeCurrencyCode(left);
+        String normalizedRight = normalizeCurrencyCode(right);
+        return normalizedLeft != null && normalizedLeft.equals(normalizedRight);
+    }
+
+    private String normalizeCurrencyCode(String currencyCode) {
+        if (currencyCode == null || currencyCode.isBlank()) {
+            return null;
+        }
+        return currencyCode.trim().toUpperCase();
     }
 
     public List<IFinanceMonthlySummary> getAllAccountsMonthlyRunningBalance(User user) {

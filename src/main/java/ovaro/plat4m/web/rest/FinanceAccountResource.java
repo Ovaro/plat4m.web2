@@ -105,12 +105,14 @@ public class FinanceAccountResource {
     }
 
     @GetMapping("/accounts/balances")
-    public ResponseEntity<List<FinanceAccountDTO>> getAccountsOptimsed() throws IOException {
+    public ResponseEntity<List<FinanceAccountDTO>> getAccountsOptimsed(
+        @RequestParam(name = "includeClosed", defaultValue = "false") boolean includeClosed
+    ) throws IOException {
         String userLogin = SecurityUtils.getCurrentUserLogin().orElseThrow(() -> new SecurityException("Current user login not found"));
 
         Optional<User> u = userService.getUserWithAuthoritiesByLogin(userLogin);
 
-        List<FinanceAccountDTO> accounts = financeAccountService.getAccountsOptimised(u.get(), true, null, false);
+        List<FinanceAccountDTO> accounts = financeAccountService.getAccountsOptimised(u.get(), true, null, includeClosed);
 
         return new ResponseEntity<>(accounts, HttpStatus.OK);
     }

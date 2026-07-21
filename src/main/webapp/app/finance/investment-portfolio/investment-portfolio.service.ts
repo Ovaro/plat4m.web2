@@ -1,9 +1,12 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
 import {
+  PortfolioTrade,
+  CustomPortfolio,
+  CustomPortfolioOptions,
   FinanceResourceSnapshots,
   FinanceSecurityHolding,
   FinanceSecurityPriceRefreshResult,
@@ -41,82 +44,67 @@ export class InvestmentPortfolio {
   //     }
   // }
 
-  get(accountId: string | null, includeClosedPositions: boolean): Observable<FinanceSecurityHolding[]> {
-    if (accountId != null && includeClosedPositions) {
-      return this.http.get<FinanceSecurityHolding[]>(
-        this.applicationConfigService.getEndpointFor('api/portfolios?includeClosed=true&accountId=' + accountId),
-      );
-    } else if (accountId != null && !includeClosedPositions) {
-      return this.http.get<FinanceSecurityHolding[]>(
-        this.applicationConfigService.getEndpointFor('api/portfolios?includeClosed=false&accountId=' + accountId),
-      );
-    } else if (includeClosedPositions) {
-      return this.http.get<FinanceSecurityHolding[]>(this.applicationConfigService.getEndpointFor('api/portfolios?includeClosed=true'));
-    } else {
-      return this.http.get<FinanceSecurityHolding[]>(this.applicationConfigService.getEndpointFor('api/portfolios?includeClosed=false'));
-    }
+  getCustomPortfolios(): Observable<CustomPortfolio[]> {
+    return this.http.get<CustomPortfolio[]>(this.applicationConfigService.getEndpointFor('api/custom-portfolios'));
   }
 
-  getSummaries(accountId: string | null, includeClosedPositions: boolean, periodAgo: string): Observable<InvestmentPortfolioDetails> {
-    // if(includeClosedPositions) {
-    //     return this.http.get<InvestmentPortfolioDetails>(this.applicationConfigService.getEndpointFor('api/investment/summaries?includeClosed=true'));
-    // } else {
-    //     return this.http.get<InvestmentPortfolioDetails>(this.applicationConfigService.getEndpointFor('api/investment/summaries?includeClosed=false'));
-    // }
+  getCustomPortfolioOptions(): Observable<CustomPortfolioOptions> {
+    return this.http.get<CustomPortfolioOptions>(this.applicationConfigService.getEndpointFor('api/custom-portfolios/options'));
+  }
 
-    if (accountId != null && includeClosedPositions) {
-      return this.http.get<InvestmentPortfolioDetails>(
-        this.applicationConfigService.getEndpointFor(
-          'api/portfolios/summaries?includeClosed=true&accountId=' + accountId + '&periodAgo=' + periodAgo,
-        ),
-      );
-    } else if (accountId != null && !includeClosedPositions) {
-      return this.http.get<InvestmentPortfolioDetails>(
-        this.applicationConfigService.getEndpointFor(
-          'api/portfolios/summaries?includeClosed=false&accountId=' + accountId + '&periodAgo=' + periodAgo,
-        ),
-      );
-    } else if (includeClosedPositions) {
-      return this.http.get<InvestmentPortfolioDetails>(
-        this.applicationConfigService.getEndpointFor('api/portfolios/summaries?includeClosed=true&periodAgo=' + periodAgo),
-      );
-    } else {
-      return this.http.get<InvestmentPortfolioDetails>(
-        this.applicationConfigService.getEndpointFor('api/portfolios/summaries?includeClosed=false&periodAgo=' + periodAgo),
-      );
-    }
+  createCustomPortfolio(portfolio: CustomPortfolio): Observable<CustomPortfolio> {
+    return this.http.post<CustomPortfolio>(this.applicationConfigService.getEndpointFor('api/custom-portfolios'), portfolio);
+  }
+
+  updateCustomPortfolio(portfolio: CustomPortfolio): Observable<CustomPortfolio> {
+    return this.http.put<CustomPortfolio>(this.applicationConfigService.getEndpointFor(`api/custom-portfolios/${portfolio.id}`), portfolio);
+  }
+
+  deleteCustomPortfolio(portfolioId: string): Observable<void> {
+    return this.http.delete<void>(this.applicationConfigService.getEndpointFor(`api/custom-portfolios/${portfolioId}`));
+  }
+
+  get(
+    accountId: string | null,
+    includeClosedPositions: boolean,
+    customPortfolioId: string | null = null,
+    periodAgo = '',
+  ): Observable<FinanceSecurityHolding[]> {
+    return this.http.get<FinanceSecurityHolding[]>(this.applicationConfigService.getEndpointFor('api/portfolios'), {
+      params: this.buildPortfolioParams(accountId, includeClosedPositions, periodAgo, customPortfolioId),
+    });
+  }
+
+  getSummaries(
+    accountId: string | null,
+    includeClosedPositions: boolean,
+    periodAgo: string,
+    customPortfolioId: string | null = null,
+  ): Observable<InvestmentPortfolioDetails> {
+    return this.http.get<InvestmentPortfolioDetails>(this.applicationConfigService.getEndpointFor('api/portfolios/summaries'), {
+      params: this.buildPortfolioParams(accountId, includeClosedPositions, periodAgo, customPortfolioId),
+    });
   }
 
   getPortfolioHistory(
     accountId: string | null,
     includeClosedPositions: boolean,
     periodAgo: string,
+    customPortfolioId: string | null = null,
   ): Observable<FinanceResourceSnapshots[]> {
-    if (accountId != null && includeClosedPositions) {
-      return this.http.get<FinanceResourceSnapshots[]>(
-        this.applicationConfigService.getEndpointFor(
-          'api/portfolios/history?includeClosed=true&accountId=' + accountId + '&periodAgo=' + periodAgo + '&numberOfPeriods=0',
-        ),
-      );
-    } else if (accountId != null && !includeClosedPositions) {
-      return this.http.get<FinanceResourceSnapshots[]>(
-        this.applicationConfigService.getEndpointFor(
-          'api/portfolios/history?includeClosed=false&accountId=' + accountId + '&periodAgo=' + periodAgo + '&numberOfPeriods=0',
-        ),
-      );
-    } else if (includeClosedPositions) {
-      return this.http.get<FinanceResourceSnapshots[]>(
-        this.applicationConfigService.getEndpointFor(
-          'api/portfolios/history?includeClosed=true&periodAgo=' + periodAgo + '&numberOfPeriods=0',
-        ),
-      );
-    } else {
-      return this.http.get<FinanceResourceSnapshots[]>(
-        this.applicationConfigService.getEndpointFor(
-          'api/portfolios/history?includeClosed=false&periodAgo=' + periodAgo + '&numberOfPeriods=0',
-        ),
-      );
-    }
+    return this.http.get<FinanceResourceSnapshots[]>(this.applicationConfigService.getEndpointFor('api/portfolios/history'), {
+      params: this.buildPortfolioParams(accountId, includeClosedPositions, periodAgo, customPortfolioId).set('numberOfPeriods', '0'),
+    });
+  }
+
+  getTrades(
+    accountId: string | null,
+    includeClosedPositions: boolean,
+    customPortfolioId: string | null = null,
+  ): Observable<PortfolioTrade[]> {
+    return this.http.get<PortfolioTrade[]>(this.applicationConfigService.getEndpointFor('api/portfolios/trades'), {
+      params: this.buildPortfolioParams(accountId, includeClosedPositions, '', customPortfolioId),
+    });
   }
 
   refreshQuotes(accountId: string | null): Observable<FinanceSecurityPriceRefreshResult> {
@@ -152,5 +140,24 @@ export class InvestmentPortfolio {
     return this.http.post<FinanceSecurityPriceRefreshResult>(this.applicationConfigService.getEndpointFor('api/security-prices/refresh'), {
       accountId,
     });
+  }
+
+  private buildPortfolioParams(
+    accountId: string | null,
+    includeClosedPositions: boolean,
+    periodAgo: string,
+    customPortfolioId: string | null,
+  ): HttpParams {
+    let params = new HttpParams().set('includeClosed', String(includeClosedPositions));
+    if (periodAgo !== null && periodAgo !== undefined) {
+      params = params.set('periodAgo', periodAgo);
+    }
+    if (customPortfolioId) {
+      return params.set('customPortfolioId', customPortfolioId);
+    }
+    if (accountId) {
+      return params.set('accountId', accountId);
+    }
+    return params;
   }
 }

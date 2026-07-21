@@ -236,6 +236,10 @@ application:
     enabled: true
     twelve-data:
       api-key: 25c01f0ca5064bdf9e8e7328c702d348
+    yahoo-finance:
+      # Optional. Yahoo may return 429 to server-side requests without browser session cookies.
+      # Prefer setting this via env/config override rather than committing a live cookie value.
+      cookie:
     quote-refresh:
       cron: '0 0 8 * * MON-FRI'
       zone: 'Australia/Brisbane'

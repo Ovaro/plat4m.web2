@@ -97,8 +97,14 @@ export interface ReportDrilldownTransaction {
   memo: string | null;
   sectionLabel: string | null;
   amount: number;
+  grossAmount: number | null;
+  lotAdjusted: boolean;
+  hasLotDetails: boolean;
+  securityId: string | null;
+  securityName: string | null;
   originalCurrencyCode: string | null;
   originalAmount: number | null;
+  fxRateToBase: number | null;
 }
 
 export interface ReportDrilldownResult {

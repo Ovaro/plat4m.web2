@@ -1,0 +1,339 @@
+<p-dialog
+  header="Trades Summary"
+  [visible]="visible"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [draggable]="false"
+  [maximizable]="true"
+  [appendTo]="'body'"
+  [style]="{ width: '88rem', maxWidth: '98vw' }"
+  styleClass="trades-summary-dialog"
+>
+  <div class="trades-summary" *ngIf="tradeSummaryTotals as totals">
+    <div class="trades-summary-range" role="group" aria-label="Select trades summary year range">
+      <button
+        *ngFor="let option of summaryYearRangeOptions"
+        type="button"
+        class="trades-summary-range__button"
+        [class.trades-summary-range__button--active]="selectedSummaryYearRange === option.years"
+        [attr.aria-pressed]="selectedSummaryYearRange === option.years"
+        (click)="selectSummaryYearRange(option.years)"
+      >
+        {{ option.label }}
+      </button>
+    </div>
+
+    <div class="trades-summary__note">
+      Summary uses the current Trades tab FX mode:
+      <strong>{{ includeFx ? 'including FX impact' : 'excluding FX impact' }}</strong
+      >. Reinvested dividend purchases are <strong>{{ includeReinvestments ? 'included' : 'excluded' }}</strong
+      >. Dividend income is <strong>{{ includeIncome ? 'included in total return' : 'excluded from total return' }}</strong
+      >.
+    </div>
+
+    <div class="trades-summary__cards">
+      <div class="trades-summary-card">
+        <div class="trades-summary-card__label">Total Capital Invested</div>
+        <div class="trades-summary-card__value">{{ formatTradeSummaryCurrency(totals.totalCapitalInvested) }}</div>
+      </div>
+      <div
+        class="trades-summary-card"
+        [class.trades-summary-card--positive]="totals.totalGain > 0"
+        [class.trades-summary-card--negative]="totals.totalGain < 0"
+      >
+        <div class="trades-summary-card__label">Total Gain / Loss</div>
+        <div class="trades-summary-card__value">{{ formatTradeSummaryCurrency(totals.totalGain) }}</div>
+      </div>
+      <div class="trades-summary-card" *ngIf="includeIncome">
+        <div class="trades-summary-card__label">Dividend Income</div>
+        <button
+          type="button"
+          class="trades-summary-card__value trades-summary-card__value-button"
+          [disabled]="!hasSummaryDividends()"
+          title="Show dividend breakdown"
+          aria-label="Show dividend breakdown"
+          (click)="openSummaryDividendDialog()"
+        >
+          {{ formatTradeSummaryCurrency(totals.totalDividendIncome) }}
+        </button>
+      </div>
+      <div class="trades-summary-card">
+        <div class="trades-summary-card__label">Transactions</div>
+        <div class="trades-summary-card__value">{{ totals.transactionCount | number }}</div>
+      </div>
+      <div class="trades-summary-card">
+        <div class="trades-summary-card__label">Win / Loss By Count</div>
+        <div class="trades-summary-card__value">
+          {{ formatTradePercent(totals.positiveTradePercent) }} / {{ formatTradePercent(totals.negativeTradePercent) }}
+        </div>
+      </div>
+      <div class="trades-summary-card">
+        <div class="trades-summary-card__label">Win / Loss By Capital</div>
+        <div class="trades-summary-card__value">
+          {{ formatTradePercent(totals.positiveCapitalPercent) }} / {{ formatTradePercent(totals.negativeCapitalPercent) }}
+        </div>
+      </div>
+      <div class="trades-summary-card">
+        <div class="trades-summary-card__label">{{ selectedSummaryYearRangeLabel }} CAGR</div>
+        <div class="trades-summary-card__value">{{ formatTradePercent(totals.cagr) }}</div>
+      </div>
+      <div class="trades-summary-card">
+        <div class="trades-summary-card__label">Avg Holding Time</div>
+        <div class="trades-summary-card__value">{{ formatTradeNumber(totals.averageHoldingYears) }} yrs</div>
+      </div>
+      <div class="trades-summary-card">
+        <div class="trades-summary-card__label">Best Holding Bucket</div>
+        <div class="trades-summary-card__value">{{ totals.bestHoldingBucket }}</div>
+      </div>
+    </div>
+
+    <div class="trades-summary__section">
+      <h3>Gain vs Loss</h3>
+      <div class="trades-gain-loss-panel">
+        <div class="trades-gain-loss-panel__item trades-gain-loss-panel__item--gain">
+          <div class="trades-gain-loss-panel__label">Gain</div>
+          <div class="trades-gain-loss-panel__value">{{ formatTradeSummaryCurrency(totals.positiveGain) }}</div>
+          <div class="trades-gain-loss-panel__meta">{{ formatTradePercent(totals.positiveGainPercent) }} of capital</div>
+        </div>
+        <div class="trades-gain-loss-panel__divider"></div>
+        <div class="trades-gain-loss-panel__item trades-gain-loss-panel__item--loss">
+          <div class="trades-gain-loss-panel__label">Loss</div>
+          <div class="trades-gain-loss-panel__value">{{ formatTradeSummaryCurrency(totals.negativeGain) }}</div>
+          <div class="trades-gain-loss-panel__meta">{{ formatTradePercent(totals.negativeGainPercent) }} of capital</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trades-summary__section">
+      <h3>Holding Time Effect</h3>
+      <div class="trades-summary-buckets">
+        <div class="trades-summary-bucket" *ngFor="let bucket of tradeHoldingBuckets">
+          <div class="trades-summary-bucket__label">{{ bucket.label }}</div>
+          <div class="trades-summary-bucket__return">{{ formatTradePercent(bucket.returnPercent) }}</div>
+          <div class="trades-summary-bucket__meta">
+            {{ bucket.tradeCount }} trades · {{ formatTradePercent(bucket.positiveTradePercent) }} positive ·
+            {{ formatTradeSummaryCurrency(bucket.capitalInvested) }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trades-summary__section">
+      <h3>Year By Year</h3>
+      <div class="trades-summary__table-wrap">
+        <table class="table table-sm trades-summary__table">
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th>Capital</th>
+              <th>Cumulative Capital</th>
+              <th>Trades +</th>
+              <th>Trades -</th>
+              <th>Capital +</th>
+              <th>Capital -</th>
+              <th>Gain</th>
+              <th>Gain %</th>
+              <th>Cum. Gain</th>
+              <th>Loss</th>
+              <th>Loss %</th>
+              <th>Cum. Loss</th>
+              <th>Total Return</th>
+              <th>Avg Hold</th>
+              <th>CAGR</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let year of tradeSummaryYears"
+              class="trades-summary__year-row"
+              tabindex="0"
+              role="button"
+              title="Open trades for {{ year.year }}"
+              (click)="openTradeSummaryYear(year)"
+              (keyup.enter)="openTradeSummaryYear(year)"
+            >
+              <td>{{ year.year }}</td>
+              <td>{{ formatTradeSummaryCurrency(year.capitalInvested) }}</td>
+              <td>{{ formatTradeSummaryCurrency(year.cumulativeCapitalInvested) }}</td>
+              <td>{{ year.positiveTradeCount }} ({{ formatTradePercent(year.positiveTradePercent) }})</td>
+              <td>{{ year.negativeTradeCount }} ({{ formatTradePercent(year.negativeTradePercent) }})</td>
+              <td>
+                {{ formatTradeSummaryCurrency(year.positiveCapitalInvested) }} ({{ formatTradePercent(year.positiveCapitalPercent) }})
+              </td>
+              <td>
+                {{ formatTradeSummaryCurrency(year.negativeCapitalInvested) }} ({{ formatTradePercent(year.negativeCapitalPercent) }})
+              </td>
+              <td class="trades-summary__positive">{{ formatTradeSummaryCurrency(year.positiveGain) }}</td>
+              <td>{{ formatTradePercent(year.positiveGainPercent) }}</td>
+              <td class="trades-summary__positive">{{ formatTradeSummaryCurrency(year.positiveGainCumulative) }}</td>
+              <td class="trades-summary__negative">{{ formatTradeSummaryCurrency(year.negativeGain) }}</td>
+              <td>{{ formatTradePercent(year.negativeGainPercent) }}</td>
+              <td class="trades-summary__negative">{{ formatTradeSummaryCurrency(year.negativeGainCumulative) }}</td>
+              <td>{{ formatTradePercent(year.totalGainPercent) }}</td>
+              <td>{{ formatTradeNumber(year.averageHoldingYears) }} yrs</td>
+              <td>{{ formatTradePercent(year.cagr) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</p-dialog>
+
+<p-dialog
+  [header]="selectedTradeSummaryYear ? 'Trades for ' + selectedTradeSummaryYear.year : 'Trades for year'"
+  [(visible)]="tradeSummaryYearDialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [maximizable]="true"
+  [appendTo]="'body'"
+  [style]="{ width: '78rem', maxWidth: '96vw' }"
+  styleClass="trades-summary-detail-dialog"
+>
+  <div class="trades-summary-detail" *ngIf="selectedTradeSummaryYear as selectedYear">
+    <div class="trades-summary-detail__overview">
+      <div>
+        <strong>{{ selectedYear.year }}</strong>
+        <span> · {{ selectedYear.tradeCount }} trades · {{ formatTradeSummaryCurrency(selectedYear.capitalInvested) }} capital</span>
+      </div>
+      <div>
+        <span class="trades-summary__positive">{{ selectedYear.positiveTradeCount }} positive</span>
+        <span> / </span>
+        <span class="trades-summary__negative">{{ selectedYear.negativeTradeCount }} negative</span>
+      </div>
+    </div>
+
+    <ng-container
+      *ngTemplateOutlet="
+        tradeDetailTable;
+        context: {
+          title: 'Positive Trades',
+          rows: selectedTradeSummaryPositiveTrades,
+          empty: 'No positive trades for this year.',
+          rowClass: 'trade-row--positive',
+        }
+      "
+    ></ng-container>
+    <ng-container
+      *ngTemplateOutlet="
+        tradeDetailTable;
+        context: {
+          title: 'Negative Trades',
+          rows: selectedTradeSummaryNegativeTrades,
+          empty: 'No negative trades for this year.',
+          rowClass: 'trade-row--negative',
+        }
+      "
+    ></ng-container>
+
+    <div class="trades-summary-detail__section" *ngIf="selectedTradeSummaryNeutralTrades.length > 0">
+      <h3>Break-even Trades</h3>
+      <div class="trades-summary-detail__table-wrap">
+        <table class="table table-sm trades-summary-detail__table">
+          <tbody>
+            <tr *ngFor="let trade of selectedTradeSummaryNeutralTrades">
+              <td>{{ trade.date | date: 'dd/MM/yyyy' }}</td>
+              <td>
+                <a class="table-link" routerLink="/investment/{{ trade.securityId }}">{{ trade.symbol }}</a>
+              </td>
+              <td>{{ trade.name }}</td>
+              <td>{{ getTradeStatus(trade) }}</td>
+              <td>{{ formatTradeSummaryCurrency(getTradeCapitalInvested(trade)) }}</td>
+              <td *ngIf="includeIncome">
+                <span class="trades-income-cell">
+                  {{ formatTradeCurrency(getTradeDividendIncomeAmount(trade), getTradeDividendIncomeCurrencyCode(trade)) }}
+                  <button
+                    *ngIf="hasTradeDividends(trade)"
+                    type="button"
+                    class="trades-income-info-button"
+                    title="Show dividend details"
+                    aria-label="Show dividend details"
+                    (click)="openTradeDividendDialog(trade, $event)"
+                  >
+                    <fa-icon icon="info-circle"></fa-icon>
+                  </button>
+                </span>
+              </td>
+              <td>{{ formatTradeCurrency(getTradeDeltaAmount(trade), getTradeDeltaCurrencyCode(trade)) }}</td>
+              <td>{{ formatTradeNumber(getTradeHoldingYears(trade)) }} yrs</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</p-dialog>
+
+<ng-template #tradeDetailTable let-title="title" let-rows="rows" let-empty="empty" let-rowClass="rowClass">
+  <div class="trades-summary-detail__section">
+    <h3>{{ title }}</h3>
+    <div class="trades-summary-detail__table-wrap">
+      <table class="table table-sm trades-summary-detail__table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Symbol</th>
+            <th>Name</th>
+            <th>Account</th>
+            <th>Status</th>
+            <th>Capital</th>
+            <th>Buy Price</th>
+            <th>Qty</th>
+            <th *ngIf="includeIncome">Dividends</th>
+            <th>Current/Sell Price</th>
+            <th>Delta</th>
+            <th>Delta %</th>
+            <th>Holding</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let trade of rows" [class]="rowClass">
+            <td>{{ trade.date | date: 'dd/MM/yyyy' }}</td>
+            <td>
+              <a class="table-link" routerLink="/investment/{{ trade.securityId }}">{{ trade.symbol }}</a>
+            </td>
+            <td>{{ trade.name }}</td>
+            <td>{{ trade.accountName }}</td>
+            <td>{{ getTradeStatus(trade) }}</td>
+            <td>{{ formatTradeSummaryCurrency(getTradeCapitalInvested(trade)) }}</td>
+            <td>{{ formatTradeCurrency(trade.buyPrice, trade.currencyCode) }}</td>
+            <td>{{ trade.quantity | number: '1.2-4' }}</td>
+            <td *ngIf="includeIncome">
+              <span class="trades-income-cell">
+                {{ formatTradeCurrency(getTradeDividendIncomeAmount(trade), getTradeDividendIncomeCurrencyCode(trade)) }}
+                <button
+                  *ngIf="hasTradeDividends(trade)"
+                  type="button"
+                  class="trades-income-info-button"
+                  title="Show dividend details"
+                  aria-label="Show dividend details"
+                  (click)="openTradeDividendDialog(trade, $event)"
+                >
+                  <fa-icon icon="info-circle"></fa-icon>
+                </button>
+              </span>
+            </td>
+            <td>{{ formatTradeCurrency(getTradeExitPrice(trade), trade.currencyCode) }}</td>
+            <td>{{ formatTradeCurrency(getTradeDeltaAmount(trade), getTradeDeltaCurrencyCode(trade)) }}</td>
+            <td>{{ formatTradePercent(getTradeDeltaPercent(trade)) }}</td>
+            <td>{{ formatTradeNumber(getTradeHoldingYears(trade)) }} yrs</td>
+          </tr>
+          <tr *ngIf="rows.length === 0">
+            <td [attr.colspan]="getTradeDetailColumnCount()">{{ empty }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</ng-template>
+
+<jhi-investment-trade-dividends-dialog
+  [(visible)]="tradeDividendDialogVisible"
+  [trade]="selectedTradeDividendTrade"
+  [trades]="selectedTradeDividendTrades"
+  [includeFx]="includeFx"
+  [includeIncome]="includeIncome"
+  [account]="account"
+  [periodAgo]="periodAgo"
+  [periodLabel]="periodLabel"
+></jhi-investment-trade-dividends-dialog>

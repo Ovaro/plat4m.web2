@@ -36,6 +36,8 @@ public class SecurityImpl extends MnyObject implements Comparable<SecurityImpl>,
 
     private String exchangeId;
 
+    private String countryId;
+
     private String comment;
 
     private String currencyId;
@@ -163,5 +165,13 @@ public class SecurityImpl extends MnyObject implements Comparable<SecurityImpl>,
 
     public void setType(Integer type) {
         this.type = type;
+    }
+
+    public String getCountryId() {
+        return countryId;
+    }
+
+    public void setCountryId(String countryId) {
+        this.countryId = countryId;
     }
 }

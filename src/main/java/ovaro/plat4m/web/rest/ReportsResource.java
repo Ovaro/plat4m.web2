@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.*;
 import ovaro.plat4m.service.ReportsService;
+import ovaro.plat4m.service.dto.FinanceLotViewDTO;
 import ovaro.plat4m.service.dto.IncomeExpenseReportDrilldownDTO;
 import ovaro.plat4m.service.dto.IncomeExpenseReportDrilldownRequestDTO;
 import ovaro.plat4m.service.dto.IncomeExpenseReportResultDTO;
@@ -49,5 +50,10 @@ public class ReportsResource {
     @PostMapping("/income-expenses/drilldown")
     public IncomeExpenseReportDrilldownDTO getIncomeExpenseReportDrilldown(@Valid @RequestBody IncomeExpenseReportDrilldownRequestDTO dto) {
         return reportsService.getIncomeExpenseDrilldown(dto);
+    }
+
+    @GetMapping("/income-expenses/transactions/{id}/lots")
+    public List<FinanceLotViewDTO> getIncomeExpenseReportTransactionLots(@PathVariable(name = "id") UUID id) {
+        return reportsService.getIncomeExpenseReportTransactionLots(id);
     }
 }

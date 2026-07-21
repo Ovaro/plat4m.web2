@@ -82,6 +82,105 @@
   color: var(--ps-text-secondary, #64748b);
 }
 
+.investment-select-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.investment-select-option__symbol {
+  flex: 0 0 auto;
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.investment-select-option__name {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.investment-select-option__tag {
+  flex: 0 0 auto;
+  padding: 0.08rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.14);
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.investment-closed-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  border-radius: 0.45rem;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1e3a8a;
+  font-size: 0.82rem;
+}
+
+:host-context(.theme-dark) .investment-closed-banner {
+  border-color: rgba(96, 165, 250, 0.34);
+  background: rgba(96, 165, 250, 0.12);
+  color: #bfdbfe;
+}
+
+.investment-ignored-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  padding: 0.18rem 0.55rem;
+  border: 1px solid rgba(180, 83, 9, 0.35);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.investment-ignore-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.investment-ignore-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.investment-ignore-field {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.investment-ignore-field textarea {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 8px;
+  background: var(--app-colours-background-high-light);
+  color: inherit;
+  resize: vertical;
+}
+
+:host-context(.theme-dark) .investment-ignore-field textarea {
+  background: var(--ps-colors-background-dark-2);
+}
+
 .investment-prices-dialog__toolbar {
   display: flex;
   justify-content: space-between;
@@ -141,27 +240,205 @@
   text-align: left;
 }
 
-.investment-lot-group {
-  display: grid;
-  gap: 0.85rem;
-  margin-bottom: 0.85rem;
-}
-
-.investment-lot-group__header {
+.investment-lots-dialog__toolbar {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
+  margin-bottom: 1rem;
   flex-wrap: wrap;
 }
 
-.investment-lot-group__remaining {
-  text-align: right;
+.investment-lots-dialog__totals {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
-.manage-table--investment-lots .manage-table__row {
-  grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr) minmax(7rem, 1fr) minmax(10rem, 1.3fr) minmax(6rem, 0.8fr);
-  min-width: 34rem;
+.investment-lots-dialog__totals > div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 8.5rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-colours-primary) 4%, transparent);
+}
+
+.investment-lots-dialog__gain {
+  color: #167447;
+}
+
+.investment-lots-dialog__loss {
+  color: #b42318;
+}
+
+.investment-lots-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.investment-lots-controls {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.investment-lots-filter {
+  display: inline-flex;
+  padding: 0.2rem;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-colours-primary) 4%, transparent);
+}
+
+.investment-lots-filter button {
+  min-width: 4.5rem;
+  min-height: 2rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.investment-lots-filter__button--active {
+  background: var(--app-colours-primary) !important;
+  color: var(--ps-colors-text-icon-high-on-dark, #fff) !important;
+}
+
+.investment-lots-search {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.investment-lots-search input {
+  min-width: min(18rem, 64vw);
+  min-height: 2.25rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 7px;
+  background: var(--app-colours-background-high-light);
+  color: inherit;
+}
+
+:host-context(.theme-dark) .investment-lots-search input {
+  background: var(--ps-colors-background-dark-2);
+}
+
+.investment-lots-table-wrap {
+  max-height: min(38rem, 62vh);
+  overflow: auto;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 8px;
+}
+
+.investment-lots-table {
+  width: 100%;
+  min-width: 68rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.76rem;
+}
+
+.investment-lots-table th,
+.investment-lots-table td {
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid var(--app-colours-border);
   text-align: left;
+  white-space: nowrap;
+}
+
+.investment-lots-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--app-colours-background-high-light);
+}
+
+:host-context(.theme-dark) .investment-lots-table th {
+  background: var(--ps-colors-background-dark-2);
+}
+
+.investment-lots-table th button {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.investment-lots-table tbody tr:hover {
+  background: color-mix(in srgb, var(--app-colours-primary) 7%, transparent);
+}
+
+.investment-lots-table__group-row td {
+  position: sticky;
+  top: 2.25rem;
+  z-index: 1;
+  background: color-mix(in srgb, var(--app-colours-primary) 11%, var(--app-colours-background-high-light));
+}
+
+:host-context(.theme-dark) .investment-lots-table__group-row td {
+  background: color-mix(in srgb, var(--app-colours-primary) 20%, var(--ps-colors-background-dark-2));
+}
+
+.investment-lots-family {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.investment-lots-family__title {
+  font-weight: 800;
+}
+
+.investment-lots-family__metrics {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.investment-lots-family__metrics span {
+  display: inline-flex;
+  min-height: 1.6rem;
+  align-items: center;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-colours-background-high-light) 72%, transparent);
+  font-weight: 700;
+}
+
+.investment-lots-table__closed {
+  color: color-mix(in srgb, currentColor 78%, transparent);
+}
+
+.investment-lots-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, #167447 13%, transparent);
+  color: #167447;
+  font-weight: 700;
+}
+
+.investment-lots-status--closed {
+  background: color-mix(in srgb, #475467 13%, transparent);
+  color: #475467;
 }
 
 .manage-table__row--button {
@@ -192,8 +469,24 @@
     flex-wrap: wrap;
   }
 
-  .investment-lot-group__remaining {
-    text-align: left;
+  .investment-lots-dialog__toolbar,
+  .investment-lots-controls {
+    align-items: stretch;
+  }
+
+  .investment-lots-dialog__totals,
+  .investment-lots-filter,
+  .investment-lots-search {
+    width: 100%;
+  }
+
+  .investment-lots-search {
+    display: grid;
+  }
+
+  .investment-lots-search input {
+    width: 100%;
+    min-width: 0;
   }
 }
 // .theme-light .pc-return {

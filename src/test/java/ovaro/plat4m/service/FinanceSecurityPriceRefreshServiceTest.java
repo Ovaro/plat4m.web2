@@ -165,6 +165,35 @@ class FinanceSecurityPriceRefreshServiceTest {
     }
 
     @Test
+    void refreshQuotesSkipsPricesRefreshedInLastTwoHours() {
+        User user = user();
+        FinanceUserSecurity holding = eligibleHolding("AUD");
+        FinanceSecurityPrice recentPrice = latestPrice("BHP", "25.40", ZonedDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(30));
+        when(financeSecurityService.getUserSecurities(user, null)).thenReturn(List.of(holding));
+        when(financeTransactionService.getFinanceSecurityInvestmentTransactions(user, false, null)).thenReturn(
+            List.of(summaryFor(holding, "BHP", "AU:BHP"))
+        );
+        when(financeSecurityPriceRepository.findLatestBySymbol("BHP")).thenReturn(recentPrice);
+
+        FinanceSecurityPriceRefreshResultDTO result = service.refreshQuotes(user, new FinanceSecurityPriceRefreshRequestDTO());
+
+        assertThat(result.getRequestedCount()).isEqualTo(1);
+        assertThat(result.getRefreshedCount()).isZero();
+        assertThat(result.getSkippedCount()).isEqualTo(1);
+        assertThat(result.getItems())
+            .singleElement()
+            .satisfies(item -> {
+                assertThat(item.getStatus()).isEqualTo("skipped");
+                assertThat(item.isSelected()).isFalse();
+                assertThat(item.getPreviousPrice()).isEqualByComparingTo("25.40");
+                assertThat(item.getMessage()).contains("refreshed less than 2 hours ago");
+            });
+        verify(aiService, never()).generateText(any(), any(), any());
+        verify(financeMarketDataService, never()).fetchPreviousClose(any());
+        verify(financeSecurityPriceRepository, never()).save(any());
+    }
+
+    @Test
     void refreshQuotesIncludesRequestedCodeWhenProviderFails() {
         User user = user();
         FinanceUserSecurity holding = eligibleHolding("AUD");
@@ -402,6 +431,15 @@ class FinanceSecurityPriceRefreshServiceTest {
         snapshot.setLow(new BigDecimal("24.90"));
         snapshot.setFetchedAt(ZonedDateTime.now(java.time.ZoneOffset.UTC));
         return snapshot;
+    }
+
+    private FinanceSecurityPrice latestPrice(String symbol, String price, ZonedDateTime serialDateTime) {
+        FinanceSecurityPrice securityPrice = new FinanceSecurityPrice();
+        securityPrice.setSymbol(symbol);
+        securityPrice.setDate(LocalDate.of(2026, 6, 18).atStartOfDay().atZone(java.time.ZoneOffset.UTC));
+        securityPrice.setPrice(new BigDecimal(price));
+        securityPrice.setSerialDateTime(serialDateTime);
+        return securityPrice;
     }
 
     private FinanceSecurityInvestmentSummary summaryFor(FinanceUserSecurity holding, String symbol, String userSymbol) {

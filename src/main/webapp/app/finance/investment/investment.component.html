@@ -19,6 +19,24 @@
             [required]="false"
             placeholder="All"
           >
+            <ng-template #selectedItem let-investment>
+              <div class="investment-select-option" *ngIf="investment">
+                <span class="investment-select-option__symbol" *ngIf="investment.userSymbol || investment.symbol">
+                  {{ investment.userSymbol || investment.symbol }}
+                </span>
+                <span class="investment-select-option__name">{{ investment.name }}</span>
+                <span class="investment-select-option__tag" *ngIf="isHoldingOptionClosed(investment)">Closed</span>
+              </div>
+            </ng-template>
+            <ng-template #item let-investment>
+              <div class="investment-select-option">
+                <span class="investment-select-option__symbol" *ngIf="investment.userSymbol || investment.symbol">
+                  {{ investment.userSymbol || investment.symbol }}
+                </span>
+                <span class="investment-select-option__name">{{ investment.name }}</span>
+                <span class="investment-select-option__tag" *ngIf="isHoldingOptionClosed(investment)">Closed</span>
+              </div>
+            </ng-template>
           </p-select>
         </div>
         <div class="col app-table--align-right">
@@ -40,6 +58,9 @@
                 Maintain prices
               </button>
               <button type="button" class="investment-actions-menu__item" role="menuitem" (click)="openLotsDialog()">View lots</button>
+              <button type="button" class="investment-actions-menu__item" role="menuitem" (click)="openIgnoreRollupDialog()">
+                {{ investmentSummary?.ignoredForRollup ? 'Edit ignored reason' : 'Ignore in rollups' }}
+              </button>
               <button
                 type="button"
                 class="investment-actions-menu__item"
@@ -87,7 +108,7 @@
             <div
               *ngIf="investmentSummary && investmentSummary.fxToLocal"
               class="hovertext"
-              pTooltip="{{ marketValue * investmentSummary.fxToLocal! | currency: 'AUD' : 'symbol-narrow' }}"
+              pTooltip="{{ marketValueFxTooltip() }}"
               tooltipPosition="bottom"
             >
               <span *ngIf="investmentSummary.currencyIsoCode && investmentSummary.currencyIsoCode! === 'USD'">US</span
@@ -102,14 +123,30 @@
         <div class="col" *ngIf="quoteRefreshMessage">
           <div class="investment-refresh-message">{{ quoteRefreshMessage }}</div>
         </div>
+        <div class="col" *ngIf="investmentSummary?.ignoredForRollup">
+          <span class="investment-ignored-tag" pTooltip="{{ getIgnoredRollupTooltip() }}" tooltipPosition="bottom"> Ignored </span>
+        </div>
         <div class="col"></div>
         <div class="col col-auto">
           <div class="header-settings-toggle-container">
             <span style="padding-right: 4px">&nbsp;Chart Annotations&nbsp;</span
-            ><p-toggleSwitch [(ngModel)]="showAnnotations" (onChange)="onChangeAnnotationsSwitch($event)"></p-toggleSwitch>&nbsp;<span
-              style="padding-right: 4px"
-              >Show Closed Positions?&nbsp;</span
-            ><p-toggleSwitch [(ngModel)]="includeClosedPositions" (onChange)="onChangePositionsSwitch($event)"></p-toggleSwitch>
+            ><p-toggleSwitch [(ngModel)]="showAnnotations" (onChange)="onChangeAnnotationsSwitch($event)"></p-toggleSwitch
+            ><ng-container *ngIf="showClosedPositionsSwitch">
+              &nbsp;<span style="padding-right: 4px">Show Closed Positions?&nbsp;</span
+              ><p-toggleSwitch [(ngModel)]="includeClosedPositions" (onChange)="onChangePositionsSwitch($event)"></p-toggleSwitch>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+      <div class="row m-t" *ngIf="isInvestmentClosed">
+        <div class="col">
+          <div class="investment-closed-banner">
+            <strong>Closed position</strong>
+            <span>
+              This investment has no open quantity. Closed positions are shown automatically<span *ngIf="closedInvestmentDate">
+                and the graph stops at the final sell date, {{ closedInvestmentDate }}</span
+              >.
+            </span>
           </div>
         </div>
       </div>
@@ -188,6 +225,32 @@
   </p-dialog>
 
   <p-dialog
+    header="Rolled Up Metrics"
+    [(visible)]="ignoreRollupDialogVisible"
+    [modal]="true"
+    [draggable]="false"
+    [style]="{ width: 'min(34rem, 94vw)' }"
+  >
+    <div *ngIf="ignoreRollupErrorMessage" class="manage-alert">{{ ignoreRollupErrorMessage }}</div>
+    <form class="investment-ignore-form" [formGroup]="ignoreRollupForm" (ngSubmit)="saveIgnoreRollup()">
+      <label class="investment-ignore-toggle">
+        <p-toggleSwitch formControlName="ignoredForRollup"></p-toggleSwitch>
+        <span>Ignore this investment in rolled up performance calculations</span>
+      </label>
+      <label class="investment-ignore-field">
+        <span>Reason</span>
+        <textarea rows="4" formControlName="ignoredForRollupReason"></textarea>
+      </label>
+      <div class="manage-dialog-actions">
+        <button type="button" class="manage-button" (click)="ignoreRollupDialogVisible = false" [disabled]="isIgnoreRollupSaving">
+          Cancel
+        </button>
+        <button type="submit" class="manage-button manage-button--primary" [disabled]="isIgnoreRollupSaving">Save</button>
+      </div>
+    </form>
+  </p-dialog>
+
+  <p-dialog
     header="Delete stock price?"
     [(visible)]="priceDeleteDialogVisible"
     [modal]="true"
@@ -216,51 +279,156 @@
     [(visible)]="lotsDialogVisible"
     [modal]="true"
     [draggable]="false"
-    [style]="{ width: 'min(72rem, 96vw)' }"
+    [style]="{ width: 'min(86rem, 98vw)' }"
     styleClass="investment-lots-dialog"
   >
-    <div class="investment-prices-dialog__toolbar">
+    <div class="investment-lots-dialog__toolbar">
       <div>
         <div class="manage-table__primary">{{ holding?.name || 'Selected holding' }}</div>
+        <div class="manage-table__secondary">{{ lotRows.length | number }} lots</div>
+      </div>
+      <div class="investment-lots-dialog__totals">
+        <div>
+          <span class="manage-table__secondary">Open</span>
+          <strong>{{ openLotCount | number }}</strong>
+        </div>
+        <div>
+          <span class="manage-table__secondary">Closed</span>
+          <strong>{{ closedLotCount | number }}</strong>
+        </div>
+        <div>
+          <span class="manage-table__secondary">Realised gain/loss</span>
+          <strong
+            [class.investment-lots-dialog__gain]="totalRealisedGainLoss >= 0"
+            [class.investment-lots-dialog__loss]="totalRealisedGainLoss < 0"
+          >
+            {{ totalRealisedGainLoss | currency: holding?.currencyCode || investmentSummary?.currencyIsoCode || 'AUD' : 'symbol-narrow' }}
+          </strong>
+        </div>
       </div>
     </div>
 
     <div *ngIf="lotsErrorMessage" class="manage-alert">{{ lotsErrorMessage }}</div>
     <div *ngIf="isLotsLoading" class="manage-empty">Loading lots...</div>
-    <div *ngIf="!isLotsLoading && lotGroups.length === 0" class="manage-empty">No lots found.</div>
+    <div *ngIf="!isLotsLoading && lotRows.length === 0" class="manage-empty">No lots found.</div>
 
-    <div *ngFor="let group of lotGroups" class="manage-card investment-lot-group">
-      <div class="investment-lot-group__header">
-        <div>
-          <div class="manage-table__primary">Original lot</div>
-          <div class="manage-table__secondary">
-            {{ group.originalLot.openDate || group.originalLot.buyDate | date }} · {{ group.originalLot.quantity | number }} units
-          </div>
+    <div *ngIf="!isLotsLoading && lotRows.length > 0" class="investment-lots-panel">
+      <div class="investment-lots-controls">
+        <div class="investment-lots-filter" role="group" aria-label="Lot status filter">
+          <button
+            type="button"
+            [class.investment-lots-filter__button--active]="lotStatusFilter === 'all'"
+            (click)="setLotStatusFilter('all')"
+          >
+            All
+          </button>
+          <button
+            type="button"
+            [class.investment-lots-filter__button--active]="lotStatusFilter === 'open'"
+            (click)="setLotStatusFilter('open')"
+          >
+            Open
+          </button>
+          <button
+            type="button"
+            [class.investment-lots-filter__button--active]="lotStatusFilter === 'closed'"
+            (click)="setLotStatusFilter('closed')"
+          >
+            Closed
+          </button>
         </div>
-        <div *ngIf="group.remainingLot" class="investment-lot-group__remaining">
-          <div class="manage-table__primary">Remaining lot</div>
-          <div class="manage-table__secondary">
-            {{ group.remainingLot.quantity | number }} units
-            <span *ngIf="group.remainingLot.openDate"> · Opened {{ group.remainingLot.openDate | date }}</span>
-          </div>
-        </div>
+        <label class="investment-lots-search">
+          <span>Search</span>
+          <input type="search" [(ngModel)]="lotSearchTerm" />
+        </label>
       </div>
 
-      <div class="manage-table manage-table--investment-lots">
-        <div class="manage-table__row manage-table__row--header">
-          <div>Open</div>
-          <div>Close</div>
-          <div>Quantity</div>
-          <div>Account</div>
-          <div>Status</div>
-        </div>
-        <div *ngFor="let lot of group.lots" class="manage-table__row">
-          <div>{{ lot.openDate || lot.buyDate | date }}</div>
-          <div>{{ lot.closeDate || lot.sellDate | date }}</div>
-          <div>{{ lot.quantity | number }}</div>
-          <div>{{ lot.accountName || 'Unknown' }}</div>
-          <div>{{ lot.closeDate ? 'Closed' : 'Open' }}</div>
-        </div>
+      <div class="investment-lots-table-wrap">
+        <table class="investment-lots-table">
+          <thead>
+            <tr>
+              <th scope="col">
+                <button type="button" (click)="sortLots('sourceId')">LOT {{ lotSortIndicator('sourceId') }}</button>
+              </th>
+              <th scope="col">
+                <button type="button" (click)="sortLots('openDate')">Open {{ lotSortIndicator('openDate') }}</button>
+              </th>
+              <th scope="col">
+                <button type="button" (click)="sortLots('closeDate')">Close {{ lotSortIndicator('closeDate') }}</button>
+              </th>
+              <th scope="col">
+                <button type="button" (click)="sortLots('quantity')">Quantity {{ lotSortIndicator('quantity') }}</button>
+              </th>
+              <th scope="col">
+                <button type="button" (click)="sortLots('accountName')">Account {{ lotSortIndicator('accountName') }}</button>
+              </th>
+              <th scope="col">
+                <button type="button" (click)="sortLots('status')">Status {{ lotSortIndicator('status') }}</button>
+              </th>
+              <th scope="col">
+                <button type="button" (click)="sortLots('costBasis')">Cost {{ lotSortIndicator('costBasis') }}</button>
+              </th>
+              <th scope="col">
+                <button type="button" (click)="sortLots('saleProceeds')">Proceeds {{ lotSortIndicator('saleProceeds') }}</button>
+              </th>
+              <th scope="col">
+                <button type="button" (click)="sortLots('realisedGainLoss')">Gain/Loss {{ lotSortIndicator('realisedGainLoss') }}</button>
+              </th>
+            </tr>
+          </thead>
+          <tbody *ngFor="let family of sortedLotFamilies">
+            <tr class="investment-lots-table__group-row">
+              <td colspan="9">
+                <div class="investment-lots-family">
+                  <div>
+                    <div class="investment-lots-family__title">{{ family.key }}</div>
+                    <div class="manage-table__secondary">Original source {{ family.original.sourceId || 'Unknown' }}</div>
+                  </div>
+                  <div class="investment-lots-family__metrics">
+                    <span>Remaining {{ family.remainingQuantity | number }}</span>
+                    <span
+                      [class.investment-lots-dialog__gain]="family.realisedGainLoss >= 0"
+                      [class.investment-lots-dialog__loss]="family.realisedGainLoss < 0"
+                    >
+                      Realised
+                      {{
+                        family.realisedGainLoss
+                          | currency: holding?.currencyCode || investmentSummary?.currencyIsoCode || 'AUD' : 'symbol-narrow'
+                      }}
+                    </span>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr *ngFor="let lot of family.rows" [class.investment-lots-table__closed]="isLotClosed(lot)">
+              <td>{{ lot.sourceId }}</td>
+              <td>{{ lot.openDate || lot.buyDate | date }}</td>
+              <td>{{ lot.closeDate || lot.sellDate | date }}</td>
+              <td>{{ lot.quantity | number }}</td>
+              <td>{{ lot.accountName || 'Unknown' }}</td>
+              <td>
+                <span class="investment-lots-status" [class.investment-lots-status--closed]="isLotClosed(lot)">
+                  {{ isLotClosed(lot) ? 'Closed' : 'Open' }}
+                </span>
+              </td>
+              <td>
+                {{ lot.costBasis | currency: holding?.currencyCode || investmentSummary?.currencyIsoCode || 'AUD' : 'symbol-narrow' }}
+              </td>
+              <td>
+                {{ lot.saleProceeds | currency: holding?.currencyCode || investmentSummary?.currencyIsoCode || 'AUD' : 'symbol-narrow' }}
+              </td>
+              <td
+                [class.investment-lots-dialog__gain]="(lot.realisedGainLoss ?? 0) >= 0"
+                [class.investment-lots-dialog__loss]="(lot.realisedGainLoss ?? 0) < 0"
+              >
+                {{
+                  lot.realisedGainLoss | currency: holding?.currencyCode || investmentSummary?.currencyIsoCode || 'AUD' : 'symbol-narrow'
+                }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div *ngIf="sortedLotFamilies.length === 0" class="manage-empty">No lots match the current filter.</div>
       </div>
     </div>
   </p-dialog>
@@ -335,7 +503,7 @@
             <div class="datawell-sm datawell-sm-split">
               <div class="datawell-label datawell-label-sm">Income</div>
               <div *ngIf="investmentSummary" class="datawell-data datawell-data-sm">
-                {{ investmentSummary.totalIncome | currency: investmentSummary.currencyIsoCode : 'symbol-narrow' }}
+                {{ investmentSummary.totalIncome | currency: investmentMetricCurrencyCode() : 'symbol-narrow' }}
                 <span class="pc-return" *ngIf="investmentSummary.totalIncomePC !== 0">|</span
                 ><span *ngIf="investmentSummary.totalIncomePC">{{ investmentSummary.totalIncomePC | percent: '1.2-2' }}</span
                 ><span class="superscript" *ngIf="investmentSummary.totalIncomePC !== 0">&nbsp;p.a.</span>
@@ -460,7 +628,19 @@
                 {{ item.quantity | number }}
               </td>
               <td role="gridcell" class="app-table-cell app-table--align-left">
-                <span *ngIf="holding!.currencyCode === 'USD'">US</span>{{ item.price | currency: holding!.currencyCode : 'symbol-narrow' }}
+                <span
+                  *ngIf="hasTransactionFx(item)"
+                  class="hovertext"
+                  pTooltip="{{ transactionPriceFxTooltip(item) }}"
+                  tooltipPosition="bottom"
+                >
+                  <span *ngIf="holding!.currencyCode === 'USD'">US</span
+                  >{{ item.price | currency: holding!.currencyCode : 'symbol-narrow' }}
+                </span>
+                <span *ngIf="!hasTransactionFx(item)">
+                  <span *ngIf="holding!.currencyCode === 'USD'">US</span
+                  >{{ item.price | currency: holding!.currencyCode : 'symbol-narrow' }}
+                </span>
               </td>
               <td role="gridcell" class="app-table-cell app-table--align-left">
                 <span *ngIf="holding!.currencyCode === 'USD'">US</span
@@ -473,17 +653,17 @@
                 </span>
                 <span *ngIf="item.type !== 'REINVEST_DIVIDEND'">
                   <div
-                    *ngIf="holding!.fxRateToLocal"
+                    *ngIf="hasTransactionFx(item)"
                     class="hovertext"
-                    pTooltip="{{ item.amount * holding!.fxRateToLocal | currency: 'AUD' : 'symbol-narrow' }}"
+                    pTooltip="{{ transactionFxTooltip(item) }}"
                     tooltipPosition="bottom"
                   >
                     <span *ngIf="holding!.currencyCode === 'USD'">US</span
-                    >{{ item.amount | currency: holding!.currencyCode : 'symbol-narrow' }}
+                    >{{ abs(item.amount) | currency: holding!.currencyCode : 'symbol-narrow' }}
                   </div>
-                  <div *ngIf="!holding!.fxRateToLocal">
+                  <div *ngIf="!hasTransactionFx(item)">
                     <span *ngIf="holding!.currencyCode === 'USD'">US</span
-                    >{{ item.amount | currency: holding!.currencyCode : 'symbol-narrow' }}
+                    >{{ abs(item.amount) | currency: holding!.currencyCode : 'symbol-narrow' }}
                   </div>
                 </span>
               </td>
@@ -530,7 +710,14 @@
                 {{ translateType(item.type) }}
               </td>
               <td role="gridcell" class="app-table-cell app-table--align-left">
-                {{ abs(item.amount) | currency: holding!.currencyCode : 'symbol-narrow' }}
+                <span *ngIf="hasTransactionFx(item)" class="hovertext" pTooltip="{{ incomeFxTooltip(item) }}" tooltipPosition="bottom">
+                  {{ formatCurrencyWithCode(incomeSourceAmount(item), incomeSourceCurrencyCode(item)) }}
+                  /
+                  {{ formatCurrencyWithCode(incomeDisplayAmount(item), incomeBaseCurrencyCode()) }}
+                </span>
+                <span *ngIf="!hasTransactionFx(item)">
+                  {{ formatCurrencyWithCode(incomeDisplayAmount(item), incomeDisplayCurrencyCode(item)) }}
+                </span>
               </td>
             </tr>
           </tbody>

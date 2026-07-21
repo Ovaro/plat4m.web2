@@ -21,6 +21,7 @@ export class AccountListComponent {
   filterInvestment = signal(false);
   filterLoans = signal(false);
   filterAssets = signal(false);
+  showClosedAccounts = signal(false);
 
   expandedBanking = signal(true);
   expandedCredit = signal(true);
@@ -80,7 +81,7 @@ export class AccountListComponent {
     // eslint-disable-next-line no-console
     console.log('Loading Accounts');
     this.isLoading.set(true);
-    this.accountListService.get().subscribe({
+    this.accountListService.get(this.showClosedAccounts()).subscribe({
       next: response => {
         this.isLoading.set(false);
         console.log(`Response: ${JSON.stringify(response)}`);
@@ -133,6 +134,11 @@ export class AccountListComponent {
 
   toggleFilterAssets(): void {
     this.filterAssets.update(value => !value);
+  }
+
+  setShowClosedAccounts(value: boolean): void {
+    this.showClosedAccounts.set(value);
+    this.load();
   }
 
   toggleExpandedBanking(): void {

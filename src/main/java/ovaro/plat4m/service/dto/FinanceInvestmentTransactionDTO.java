@@ -20,10 +20,12 @@ public class FinanceInvestmentTransactionDTO {
     FinanceTransaction transaction;
     LocalDate date;
     String type;
-    //String currencyCode;
+    String currencyCode;
     Double quantity;
     Double price;
     BigDecimal amount;
+    BigDecimal amountBase;
+    Double rateToBase;
 
     public FinanceInvestmentTransactionDTO(FinanceTransaction txn) {
         this.transaction = txn;
@@ -32,6 +34,9 @@ public class FinanceInvestmentTransactionDTO {
         price = transaction.getPrice();
         quantity = transaction.getQuantity();
         amount = normalizeDisplayAmount(transaction.getAmount(), investmentActivityType);
+        amountBase = normalizeDisplayAmount(transaction.getAmountBase(), investmentActivityType);
+        rateToBase = transaction.getRateToBase();
+        currencyCode = transaction.getCurrencyCode();
         date = transaction.getDate();
     }
 
@@ -85,6 +90,22 @@ public class FinanceInvestmentTransactionDTO {
         this.amount = amount;
     }
 
+    public BigDecimal getAmountBase() {
+        return amountBase;
+    }
+
+    public void setAmountBase(BigDecimal amountBase) {
+        this.amountBase = amountBase;
+    }
+
+    public Double getRateToBase() {
+        return rateToBase;
+    }
+
+    public void setRateToBase(Double rateToBase) {
+        this.rateToBase = rateToBase;
+    }
+
     public LocalDate getDate() {
         return date;
     }
@@ -92,10 +113,12 @@ public class FinanceInvestmentTransactionDTO {
     public void setDate(LocalDate date) {
         this.date = date;
     }
-    // public String getCurrencyCode() {
-    //     return currencyCode;
-    // }
-    // public void setCurrencyCode(String currencyCode) {
-    //     this.currencyCode = currencyCode;
-    // }
+
+    public String getCurrencyCode() {
+        return currencyCode;
+    }
+
+    public void setCurrencyCode(String currencyCode) {
+        this.currencyCode = currencyCode;
+    }
 }

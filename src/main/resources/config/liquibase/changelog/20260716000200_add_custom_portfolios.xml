@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260716000200-1" author="codex">
+        <createTable tableName="fin_custom_portfolio">
+            <column name="id" type="${uuidType}">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_guid" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="varchar(2000)"/>
+            <column name="strategy" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="custom_strategy" type="varchar(2000)"/>
+            <column name="expected_return_cagr" type="decimal(10,6)" defaultValueNumeric="0.075">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint
+            tableName="fin_custom_portfolio"
+            columnNames="user_guid, name"
+            constraintName="ux_fin_custom_portfolio_user_name"/>
+    </changeSet>
+
+    <changeSet id="20260716000200-2" author="codex">
+        <createTable tableName="fin_custom_portfolio_security">
+            <column name="portfolio_id" type="${uuidType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_security_id" type="${uuidType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey
+            tableName="fin_custom_portfolio_security"
+            columnNames="portfolio_id, user_security_id"
+            constraintName="pk_fin_custom_portfolio_security"/>
+        <addForeignKeyConstraint
+            baseTableName="fin_custom_portfolio_security"
+            baseColumnNames="portfolio_id"
+            referencedTableName="fin_custom_portfolio"
+            referencedColumnNames="id"
+            constraintName="fk_fin_custom_portfolio_security_portfolio"/>
+        <addForeignKeyConstraint
+            baseTableName="fin_custom_portfolio_security"
+            baseColumnNames="user_security_id"
+            referencedTableName="fin_user_security"
+            referencedColumnNames="id"
+            constraintName="fk_fin_custom_portfolio_security_security"/>
+    </changeSet>
+
+    <changeSet id="20260716000200-3" author="codex">
+        <createTable tableName="fin_custom_portfolio_account">
+            <column name="portfolio_id" type="${uuidType}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="account_id" type="${uuidType}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey
+            tableName="fin_custom_portfolio_account"
+            columnNames="portfolio_id, account_id"
+            constraintName="pk_fin_custom_portfolio_account"/>
+        <addForeignKeyConstraint
+            baseTableName="fin_custom_portfolio_account"
+            baseColumnNames="portfolio_id"
+            referencedTableName="fin_custom_portfolio"
+            referencedColumnNames="id"
+            constraintName="fk_fin_custom_portfolio_account_portfolio"/>
+        <addForeignKeyConstraint
+            baseTableName="fin_custom_portfolio_account"
+            baseColumnNames="account_id"
+            referencedTableName="fin_account"
+            referencedColumnNames="id"
+            constraintName="fk_fin_custom_portfolio_account_account"/>
+    </changeSet>
+</databaseChangeLog>

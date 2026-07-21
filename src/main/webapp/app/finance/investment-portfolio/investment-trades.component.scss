@@ -1,0 +1,377 @@
+.trades-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.trades-toolbar__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.trades-toolbar__filter .p-autocomplete-input {
+  min-width: 18rem;
+}
+
+.trades-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0 0.5rem;
+}
+
+.trades-date-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.trades-date-icon {
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.78rem;
+}
+
+.trades-date-icon--reinvestment {
+  color: var(--app-colours-primary, #0f766e);
+}
+
+.trades-date-icon--closed {
+  color: #64748b;
+}
+
+.trades-ignored-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.45rem;
+  padding: 0.08rem 0.42rem;
+  border: 1px solid rgba(180, 83, 9, 0.35);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #92400e;
+  font-size: 0.66rem;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+.trade-row--ignored td {
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.trades-income-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.trades-income-info-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--app-colours-primary, #0f766e);
+  cursor: pointer;
+}
+
+.trades-income-info-button:hover:not(:disabled),
+.trades-income-info-button:focus-visible:not(:disabled) {
+  background: rgba(15, 118, 110, 0.1);
+  outline: none;
+}
+
+.trades-income-info-button:disabled {
+  color: var(--ps-text-secondary, #64748b);
+  cursor: default;
+  opacity: 0.45;
+}
+
+.trade-row--positive td {
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.trade-row--negative td {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.trades-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.trades-summary__note {
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: 0.75rem;
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--ps-text-secondary, #475569);
+}
+
+.trades-summary-range {
+  display: inline-flex;
+  align-self: flex-start;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--ps-surface-border-subtle, #e2e8f0);
+  border-radius: 0.65rem;
+  background: var(--ps-surface-raised, #fff);
+}
+
+.trades-summary-range__button {
+  min-width: 2.65rem;
+  padding: 0.35rem 0.65rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--ps-text-secondary, #475569);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.trades-summary-range__button:hover,
+.trades-summary-range__button:focus-visible {
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--app-colours-primary, #0f766e);
+  outline: none;
+}
+
+.trades-summary-range__button--active {
+  background: var(--app-colours-primary, #0f766e);
+  color: #fff;
+}
+
+.trades-summary__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.75rem;
+}
+
+.trades-summary-card {
+  padding: 1rem;
+  border: 1px solid var(--ps-surface-border-subtle, #e2e8f0);
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.96), rgba(226, 232, 240, 0.7));
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.trades-summary-card--positive {
+  border-color: rgba(22, 163, 74, 0.35);
+  background: linear-gradient(135deg, rgba(220, 252, 231, 0.95), rgba(187, 247, 208, 0.55));
+}
+
+.trades-summary-card--negative {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: linear-gradient(135deg, rgba(254, 226, 226, 0.95), rgba(254, 202, 202, 0.55));
+}
+
+.trades-summary-card__label {
+  margin-bottom: 0.35rem;
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.trades-summary-card__value {
+  color: var(--ps-text-primary, #0f172a);
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.trades-summary-card__value-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trades-summary-card__value-button:hover:not(:disabled),
+.trades-summary-card__value-button:focus-visible:not(:disabled) {
+  color: var(--app-colours-primary, #0f766e);
+  outline: none;
+}
+
+.trades-summary-card__value-button:disabled {
+  cursor: default;
+}
+
+.trades-summary__section h3 {
+  margin: 0 0 0.75rem;
+  color: var(--ps-text-primary, #0f172a);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.trades-gain-loss-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+  padding: 1rem;
+  border: 1px solid var(--ps-surface-border-subtle, #e2e8f0);
+  border-radius: 1rem;
+  background: var(--ps-surface-raised, #fff);
+}
+
+.trades-gain-loss-panel__item {
+  padding: 1rem;
+  border-radius: 0.85rem;
+}
+
+.trades-gain-loss-panel__item--gain {
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.trades-gain-loss-panel__item--loss {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.trades-gain-loss-panel__label {
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.trades-gain-loss-panel__value {
+  margin-top: 0.25rem;
+  color: var(--ps-text-primary, #0f172a);
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.trades-gain-loss-panel__meta {
+  margin-top: 0.25rem;
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.85rem;
+}
+
+.trades-gain-loss-panel__divider {
+  width: 1px;
+  background: var(--ps-surface-border-subtle, #e2e8f0);
+}
+
+.trades-summary-buckets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.trades-summary-bucket {
+  padding: 0.9rem;
+  border: 1px solid var(--ps-surface-border-subtle, #e2e8f0);
+  border-radius: 0.9rem;
+  background: var(--ps-surface-raised, #fff);
+}
+
+.trades-summary-bucket__label {
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.trades-summary-bucket__return {
+  margin: 0.25rem 0;
+  color: var(--ps-text-primary, #0f172a);
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.trades-summary-bucket__meta {
+  color: var(--ps-text-secondary, #64748b);
+  font-size: 0.8rem;
+}
+
+.trades-summary__table-wrap,
+.trades-summary-detail__table-wrap {
+  overflow-x: auto;
+}
+
+.trades-summary__table,
+.trades-summary-detail__table {
+  margin-bottom: 0;
+  font-size: 0.82rem;
+}
+
+.trades-summary__table th,
+.trades-summary__table td,
+.trades-summary-detail__table th,
+.trades-summary-detail__table td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.trades-summary__year-row {
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.trades-summary__year-row:hover,
+.trades-summary__year-row:focus {
+  background: rgba(59, 130, 246, 0.08);
+  box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.55);
+  outline: none;
+}
+
+.trades-summary__positive {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.trades-summary__negative {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.trades-summary-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.trades-summary-detail__overview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ps-surface-border-subtle, #e2e8f0);
+  border-radius: 0.85rem;
+  background: var(--ps-surface-raised, #fff);
+  color: var(--ps-text-secondary, #475569);
+}
+
+.trades-summary-detail__section h3 {
+  margin: 0 0 0.5rem;
+  color: var(--ps-text-primary, #0f172a);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.trade-dividend-dialog__summary {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--ps-surface-border-subtle, #e2e8f0);
+  border-radius: 0.75rem;
+}

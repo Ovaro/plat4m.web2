@@ -33,7 +33,8 @@ public class SecurityImplUtil {
 
                 addSecurity(row, securities);
             }
-        } finally {}
+        } finally {
+        }
 
         return securities;
     }
@@ -64,6 +65,9 @@ public class SecurityImplUtil {
 
         Integer curn = (Integer) row.get("hcrnc");
         if (curn != null) security.setCurrencyId(curn.toString());
+
+        Integer country = (Integer) row.get("hcntry");
+        if (country != null) security.setCountryId(country.toString());
 
         Integer secLink = (Integer) row.get("hsecLink");
         if (secLink != null) security.setLinkId(secLink);

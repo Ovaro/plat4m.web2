@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
+import { FinanceLotView } from '../finance.model';
 import { ReportConfig, ReportDefinition, ReportDrilldownRequest, ReportDrilldownResult, ReportResult } from './reports.types';
 
 @Injectable({ providedIn: 'root' })
@@ -36,6 +37,12 @@ export class ReportsService {
     return this.http.post<ReportDrilldownResult>(
       this.applicationConfigService.getEndpointFor('api/reports/income-expenses/drilldown'),
       request,
+    );
+  }
+
+  getIncomeExpenseTransactionLots(transactionId: string): Observable<FinanceLotView[]> {
+    return this.http.get<FinanceLotView[]>(
+      this.applicationConfigService.getEndpointFor(`api/reports/income-expenses/transactions/${transactionId}/lots`),
     );
   }
 }

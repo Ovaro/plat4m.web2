@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ovaro.plat4m.domain.FinanceAccount;
 import ovaro.plat4m.domain.FinanceAccountType;
 import ovaro.plat4m.domain.FinanceCategory;
+import ovaro.plat4m.domain.FinanceInvestmentActivityType;
 import ovaro.plat4m.domain.FinanceTransaction;
 import ovaro.plat4m.domain.FinanceTransferLink;
 import ovaro.plat4m.domain.FinanceUserSecurity;
@@ -28,6 +29,7 @@ import ovaro.plat4m.repository.FinanceUserSecurityRepository;
 import ovaro.plat4m.repository.UserReportConfigRepository;
 import ovaro.plat4m.repository.UserRepository;
 import ovaro.plat4m.security.SecurityUtils;
+import ovaro.plat4m.service.dto.FinanceLotViewDTO;
 import ovaro.plat4m.service.dto.IncomeExpenseReportDrilldownDTO;
 import ovaro.plat4m.service.dto.IncomeExpenseReportDrilldownRequestDTO;
 import ovaro.plat4m.service.dto.IncomeExpenseReportResultDTO;
@@ -42,6 +44,7 @@ public class ReportsService {
     public static final String REPORT_KEY_INCOME_EXPENSES = "income-expenses";
 
     private static final int CATEGORY_CLASSIFICATION_ID = 0;
+    private static final int QUERY_ID_BATCH_SIZE = 10_000;
     private static final DateTimeFormatter MONTH_LABEL_FORMAT = DateTimeFormatter.ofPattern("MMM yyyy");
 
     private final UserReportConfigRepository userReportConfigRepository;
@@ -50,6 +53,7 @@ public class ReportsService {
     private final FinanceTransactionRepository financeTransactionRepository;
     private final FinanceTransferLinkRepository financeTransferLinkRepository;
     private final FinanceUserSecurityRepository financeUserSecurityRepository;
+    private final FinanceLotService financeLotService;
     private final ObjectMapper objectMapper;
 
     public ReportsService(
@@ -59,6 +63,7 @@ public class ReportsService {
         FinanceTransactionRepository financeTransactionRepository,
         FinanceTransferLinkRepository financeTransferLinkRepository,
         FinanceUserSecurityRepository financeUserSecurityRepository,
+        FinanceLotService financeLotService,
         ObjectMapper objectMapper
     ) {
         this.userReportConfigRepository = userReportConfigRepository;
@@ -67,6 +72,7 @@ public class ReportsService {
         this.financeTransactionRepository = financeTransactionRepository;
         this.financeTransferLinkRepository = financeTransferLinkRepository;
         this.financeUserSecurityRepository = financeUserSecurityRepository;
+        this.financeLotService = financeLotService;
         this.objectMapper = objectMapper;
     }
 
@@ -168,6 +174,10 @@ public class ReportsService {
             rawTransactions,
             transferCounterpartsByTransactionId
         );
+        Map<UUID, BigDecimal> lotGainLossBySellTransactionId = financeLotService.getRealisedGainLossBySellTransaction(
+            user,
+            rawTransactions
+        );
         List<ReportTransaction> transactions = rawTransactions
             .stream()
             .map(transaction ->
@@ -176,7 +186,8 @@ public class ReportsService {
                     accountTypesById,
                     transferDerivedBaseAmounts,
                     transferCounterpartsByTransactionId,
-                    securityNamesById
+                    securityNamesById,
+                    lotGainLossBySellTransactionId
                 )
             )
             .filter(Objects::nonNull)
@@ -228,6 +239,10 @@ public class ReportsService {
             rawTransactions,
             transferCounterpartsByTransactionId
         );
+        Map<UUID, BigDecimal> lotGainLossBySellTransactionId = financeLotService.getRealisedGainLossBySellTransaction(
+            user,
+            rawTransactions
+        );
 
         List<ReportTransaction> mappedTransactions = rawTransactions
             .stream()
@@ -237,7 +252,8 @@ public class ReportsService {
                     accountTypesById,
                     transferDerivedBaseAmounts,
                     transferCounterpartsByTransactionId,
-                    securityNamesById
+                    securityNamesById,
+                    lotGainLossBySellTransactionId
                 )
             )
             .filter(Objects::nonNull)
@@ -303,6 +319,7 @@ public class ReportsService {
         List<BigDecimal> expenseColumnTotals = new ArrayList<>(Collections.nCopies(buckets.size(), BigDecimal.ZERO));
         BigDecimal incomeTotal = BigDecimal.ZERO;
         BigDecimal expenseTotal = BigDecimal.ZERO;
+        boolean hasExpenseRows = false;
         for (AggregatedRow row : context.leafRows()) {
             for (int i = 0; i < row.values().size(); i++) {
                 columnTotals.set(i, columnTotals.get(i).add(row.values().get(i)));
@@ -315,6 +332,7 @@ public class ReportsService {
             if (isIncomeRow(row)) {
                 incomeTotal = incomeTotal.add(row.total());
             } else if (isExpenseRow(row)) {
+                hasExpenseRows = true;
                 expenseTotal = expenseTotal.add(row.total());
             }
         }
@@ -358,7 +376,9 @@ public class ReportsService {
                 toSectionTotalRow(currentSection, incomeColumnTotals, expenseColumnTotals, incomeTotal, expenseTotal, context.grandTotal())
             );
         }
-        rows.add(toIncomeLessExpensesRow(incomeColumnTotals, expenseColumnTotals, incomeTotal, expenseTotal, context.grandTotal()));
+        if (hasExpenseRows) {
+            rows.add(toIncomeLessExpensesRow(incomeColumnTotals, expenseColumnTotals, incomeTotal, expenseTotal, context.grandTotal()));
+        }
         result.setRows(rows);
 
         result.setSeries(
@@ -629,14 +649,14 @@ public class ReportsService {
         }
         return new RowDescriptor(
             "subcategory:" + transaction.level2Id(),
+            transaction.level2Label() + " - Unassigned",
             transaction.level2Label(),
             transaction.rootLabel(),
-            transaction.rootLabel(),
             "row",
-            "subtotal:" + transaction.rootKey(),
-            transaction.rootLabel() + " subtotal",
-            transaction.rootLabel(),
-            null
+            "subtotal:" + transaction.level2Id(),
+            transaction.level2Label() + " subtotal",
+            transaction.level2Label(),
+            transaction.rootLabel()
         );
     }
 
@@ -768,9 +788,20 @@ public class ReportsService {
         dto.setMemo(transaction.memo());
         dto.setSectionLabel(transaction.rootLabel());
         dto.setAmount(contributionAmountForRow(transaction, rowKey));
+        dto.setGrossAmount(transaction.grossAmount());
+        dto.setLotAdjusted(transaction.lotAdjusted());
+        dto.setHasLotDetails(transaction.lotAdjusted());
+        dto.setSecurityId(transaction.securityId());
+        dto.setSecurityName(transaction.securityName());
         dto.setOriginalCurrencyCode(transaction.originalCurrencyCode());
         dto.setOriginalAmount(transaction.originalAmount());
+        dto.setFxRateToBase(transaction.fxRateToBase());
         return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public List<FinanceLotViewDTO> getIncomeExpenseReportTransactionLots(UUID transactionId) {
+        return financeLotService.getLotsForSellTransaction(getCurrentUser(getCurrentUserLogin()), transactionId);
     }
 
     private BigDecimal contributionAmountForRow(ReportTransaction transaction, String rowKey) {
@@ -785,7 +816,8 @@ public class ReportsService {
         Map<String, Integer> accountTypesById,
         Map<UUID, BigDecimal> transferDerivedBaseAmounts,
         Map<UUID, FinanceTransaction> transferCounterpartsByTransactionId,
-        Map<String, String> securityNamesById
+        Map<String, String> securityNamesById,
+        Map<UUID, BigDecimal> lotGainLossBySellTransactionId
     ) {
         if (transaction == null || transaction.getDate() == null || transaction.getCategory() == null) {
             return null;
@@ -825,11 +857,22 @@ public class ReportsService {
             resolvedSecurityId == null ? null : securityNamesById.get(resolvedSecurityId),
             resolvedSecurityId
         );
-        BigDecimal value = normalizeReportAmount(transaction, transferDerivedBaseAmounts);
+        BigDecimal value = normalizeReportAmount(transaction, root, transferDerivedBaseAmounts);
+        BigDecimal grossAmount = value;
+        boolean lotAdjusted = false;
+        if (isLotAdjustedSellTransaction(transaction)) {
+            BigDecimal lotGainLoss = lotGainLossBySellTransactionId.get(transaction.getId());
+            if (lotGainLoss != null) {
+                value = lotGainLoss;
+                lotAdjusted = true;
+            }
+        }
         return new ReportTransaction(
             transaction.getId().toString(),
             transaction.getDate(),
             value,
+            grossAmount,
+            lotAdjusted,
             transaction.getAccountId(),
             buildDisplayPayeeName(
                 transaction,
@@ -849,8 +892,10 @@ public class ReportsService {
             level3 == null ? null : level3.getName(),
             level3 != null ? level3.getName() : (level2 != null ? level2.getName() : root.getName()),
             resolvedSecurityName,
+            resolvedSecurityId,
             transaction.getCurrencyCode(),
-            normalizeOriginalAmount(transaction)
+            normalizeOriginalAmount(transaction),
+            resolveFxRateToBase(transaction)
         );
     }
 
@@ -886,23 +931,61 @@ public class ReportsService {
         return "income".equalsIgnoreCase(rootCategory.getName());
     }
 
-    private BigDecimal normalizeReportAmount(FinanceTransaction transaction, Map<UUID, BigDecimal> transferDerivedBaseAmounts) {
+    private BigDecimal normalizeReportAmount(
+        FinanceTransaction transaction,
+        FinanceCategory rootCategory,
+        Map<UUID, BigDecimal> transferDerivedBaseAmounts
+    ) {
         if (transaction == null) {
             return BigDecimal.ZERO;
         }
+        BigDecimal absoluteAmount;
         if (transaction.getAmountBase() != null) {
-            return transaction.getAmountBase().abs();
-        }
-        if (transaction.getId() != null) {
+            absoluteAmount = transaction.getAmountBase().abs();
+        } else if (transaction.getId() != null) {
             BigDecimal transferDerivedAmount = transferDerivedBaseAmounts.get(transaction.getId());
             if (transferDerivedAmount != null) {
-                return transferDerivedAmount.abs();
+                absoluteAmount = transferDerivedAmount.abs();
+            } else if (
+                transaction.getAmount() != null &&
+                transaction.getRateToBase() != null &&
+                Double.compare(transaction.getRateToBase(), 0d) > 0
+            ) {
+                absoluteAmount = transaction.getAmount().multiply(BigDecimal.valueOf(transaction.getRateToBase())).abs();
+            } else {
+                absoluteAmount = transaction.getAmount() == null ? BigDecimal.ZERO : transaction.getAmount().abs();
             }
+        } else if (
+            transaction.getAmount() != null && transaction.getRateToBase() != null && Double.compare(transaction.getRateToBase(), 0d) > 0
+        ) {
+            absoluteAmount = transaction.getAmount().multiply(BigDecimal.valueOf(transaction.getRateToBase())).abs();
+        } else {
+            absoluteAmount = transaction.getAmount() == null ? BigDecimal.ZERO : transaction.getAmount().abs();
         }
-        if (transaction.getAmount() != null && transaction.getRateToBase() != null && Double.compare(transaction.getRateToBase(), 0d) > 0) {
-            return transaction.getAmount().multiply(BigDecimal.valueOf(transaction.getRateToBase())).abs();
+
+        return applySectionDirection(rootCategory, transaction.getAmount(), absoluteAmount);
+    }
+
+    private BigDecimal applySectionDirection(FinanceCategory rootCategory, BigDecimal rawAmount, BigDecimal absoluteAmount) {
+        if (absoluteAmount == null || rawAmount == null || rawAmount.signum() == 0) {
+            return absoluteAmount == null ? BigDecimal.ZERO : absoluteAmount;
         }
-        return transaction.getAmount() == null ? BigDecimal.ZERO : transaction.getAmount().abs();
+        if (rootCategory != null && "income".equalsIgnoreCase(rootCategory.getName())) {
+            return rawAmount.signum() >= 0 ? absoluteAmount : absoluteAmount.negate();
+        }
+        if (rootCategory != null && "expense".equalsIgnoreCase(rootCategory.getName())) {
+            return rawAmount.signum() >= 0 ? absoluteAmount.negate() : absoluteAmount;
+        }
+        return rawAmount.signum() >= 0 ? absoluteAmount : absoluteAmount.negate();
+    }
+
+    private boolean isLotAdjustedSellTransaction(FinanceTransaction transaction) {
+        return (
+            transaction != null &&
+            transaction.getId() != null &&
+            transaction.getSecurityId() != null &&
+            transaction.getInvestmentActivityType() == FinanceInvestmentActivityType.SELL
+        );
     }
 
     private BigDecimal normalizeOriginalAmount(FinanceTransaction transaction) {
@@ -913,6 +996,23 @@ public class ReportsService {
             return transaction.getAmount().abs();
         }
         return BigDecimal.ZERO;
+    }
+
+    private Double resolveFxRateToBase(FinanceTransaction transaction) {
+        if (transaction == null) {
+            return null;
+        }
+        if (transaction.getRateToBase() != null && Double.compare(transaction.getRateToBase(), 0d) > 0) {
+            return transaction.getRateToBase();
+        }
+        if (
+            transaction.getAmountBase() != null &&
+            transaction.getAmount() != null &&
+            BigDecimal.ZERO.compareTo(transaction.getAmount()) != 0
+        ) {
+            return transaction.getAmountBase().abs().divide(transaction.getAmount().abs(), 6, RoundingMode.HALF_UP).doubleValue();
+        }
+        return null;
     }
 
     private Map<UUID, BigDecimal> resolveTransferDerivedBaseAmounts(
@@ -958,9 +1058,9 @@ public class ReportsService {
         }
 
         if (!counterpartIds.isEmpty()) {
-            financeTransactionRepository
-                .findAllByUserGuidAndIdIn(userGuid, counterpartIds)
-                .forEach(counterpart -> transactionsById.putIfAbsent(counterpart.getId(), counterpart));
+            findTransactionsByIds(userGuid, counterpartIds).forEach(counterpart ->
+                transactionsById.putIfAbsent(counterpart.getId(), counterpart)
+            );
         }
 
         Map<UUID, BigDecimal> derivedAmounts = new HashMap<>();
@@ -985,10 +1085,7 @@ public class ReportsService {
             return Collections.emptyMap();
         }
 
-        List<FinanceTransferLink> transferLinks = financeTransferLinkRepository.findAllByUserGuidAndTransactionIds(
-            userGuid,
-            transactionIds
-        );
+        List<FinanceTransferLink> transferLinks = findTransferLinksByTransactionIds(userGuid, transactionIds);
         if (transferLinks.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -1002,8 +1099,7 @@ public class ReportsService {
             counterpartIds.add(transferLink.getLinkId());
         }
 
-        Map<UUID, FinanceTransaction> transactionsById = financeTransactionRepository
-            .findAllByUserGuidAndIdIn(userGuid, counterpartIds)
+        Map<UUID, FinanceTransaction> transactionsById = findTransactionsByIds(userGuid, counterpartIds)
             .stream()
             .filter(transaction -> transaction.getId() != null)
             .collect(Collectors.toMap(FinanceTransaction::getId, transaction -> transaction, (left, right) -> left, LinkedHashMap::new));
@@ -1032,8 +1128,7 @@ public class ReportsService {
             return Collections.emptyMap();
         }
 
-        return financeUserSecurityRepository
-            .findAllByUserGuidAndIdIn(userGuid, securityIds)
+        return findSecuritiesByIds(userGuid, securityIds)
             .stream()
             .filter(security -> security.getId() != null)
             .collect(
@@ -1056,6 +1151,43 @@ public class ReportsService {
         } catch (IllegalArgumentException ignored) {
             // Ignore malformed security ids.
         }
+    }
+
+    private List<FinanceTransferLink> findTransferLinksByTransactionIds(String userGuid, Collection<UUID> transactionIds) {
+        Map<UUID, FinanceTransferLink> transferLinksById = new LinkedHashMap<>();
+        for (List<UUID> batch : partitionIds(transactionIds)) {
+            financeTransferLinkRepository.findAllByUserGuidAndTransactionIds(userGuid, batch).forEach(link -> {
+                if (link.getId() != null) {
+                    transferLinksById.putIfAbsent(link.getId(), link);
+                }
+            });
+        }
+        return new ArrayList<>(transferLinksById.values());
+    }
+
+    private List<FinanceTransaction> findTransactionsByIds(String userGuid, Collection<UUID> transactionIds) {
+        List<FinanceTransaction> transactions = new ArrayList<>();
+        for (List<UUID> batch : partitionIds(transactionIds)) {
+            transactions.addAll(financeTransactionRepository.findAllByUserGuidAndIdIn(userGuid, batch));
+        }
+        return transactions;
+    }
+
+    private List<FinanceUserSecurity> findSecuritiesByIds(String userGuid, Collection<UUID> securityIds) {
+        List<FinanceUserSecurity> securities = new ArrayList<>();
+        for (List<UUID> batch : partitionIds(securityIds)) {
+            securities.addAll(financeUserSecurityRepository.findAllByUserGuidAndIdIn(userGuid, batch));
+        }
+        return securities;
+    }
+
+    private List<List<UUID>> partitionIds(Collection<UUID> ids) {
+        List<UUID> normalizedIds = ids.stream().filter(Objects::nonNull).distinct().toList();
+        List<List<UUID>> batches = new ArrayList<>();
+        for (int index = 0; index < normalizedIds.size(); index += QUERY_ID_BATCH_SIZE) {
+            batches.add(normalizedIds.subList(index, Math.min(index + QUERY_ID_BATCH_SIZE, normalizedIds.size())));
+        }
+        return batches;
     }
 
     private void registerTransferDerivedAmount(
@@ -1276,18 +1408,27 @@ public class ReportsService {
             return new LocalDateRange(startDate, endDate);
         }
         return switch (normalizedPreset.toUpperCase(Locale.ROOT)) {
-            case "1M" -> new LocalDateRange(today.minusMonths(1).plusDays(1), today);
-            case "3M" -> new LocalDateRange(today.minusMonths(3).plusDays(1), today);
-            case "6M" -> new LocalDateRange(today.minusMonths(6).plusDays(1), today);
-            case "12M" -> new LocalDateRange(today.minusMonths(12).plusDays(1), today);
-            case "2Y" -> new LocalDateRange(today.minusYears(2).plusDays(1), today);
-            case "5Y" -> new LocalDateRange(today.minusYears(5).plusDays(1), today);
-            case "7Y" -> new LocalDateRange(today.minusYears(7).plusDays(1), today);
-            case "10Y" -> new LocalDateRange(today.minusYears(10).plusDays(1), today);
-            case "YTD" -> new LocalDateRange(LocalDate.of(today.getYear(), 1, 1), today);
-            case "ALL" -> new LocalDateRange(LocalDate.of(2000, 1, 1), today);
+            case "1M" -> wholeMonthRange(today, 1);
+            case "3M" -> wholeMonthRange(today, 3);
+            case "6M" -> wholeMonthRange(today, 6);
+            case "12M" -> wholeMonthRange(today, 12);
+            case "2Y" -> wholeMonthRange(today, 24);
+            case "5Y" -> wholeMonthRange(today, 60);
+            case "7Y" -> wholeMonthRange(today, 84);
+            case "10Y" -> wholeMonthRange(today, 120);
+            case "YTD" -> new LocalDateRange(LocalDate.of(today.getYear(), 1, 1), endOfMonth(today));
+            case "ALL" -> new LocalDateRange(LocalDate.of(2000, 1, 1), endOfMonth(today));
             default -> throw new BadRequestAlertException("Unsupported date preset", "reports", "invaliddatepreset");
         };
+    }
+
+    private LocalDateRange wholeMonthRange(LocalDate today, int monthCount) {
+        LocalDate start = today.withDayOfMonth(1).minusMonths(monthCount - 1L);
+        return new LocalDateRange(start, endOfMonth(today));
+    }
+
+    private LocalDate endOfMonth(LocalDate date) {
+        return date.with(TemporalAdjusters.lastDayOfMonth());
     }
 
     private String getCurrentUserLogin() {
@@ -1389,6 +1530,8 @@ public class ReportsService {
         String id,
         LocalDate date,
         BigDecimal value,
+        BigDecimal grossAmount,
+        boolean lotAdjusted,
         String accountId,
         String payeeName,
         String payeeId,
@@ -1404,8 +1547,10 @@ public class ReportsService {
         String level3Label,
         String displayCategoryLabel,
         String securityName,
+        String securityId,
         String originalCurrencyCode,
-        BigDecimal originalAmount
+        BigDecimal originalAmount,
+        Double fxRateToBase
     ) {}
 
     private record RowDescriptor(

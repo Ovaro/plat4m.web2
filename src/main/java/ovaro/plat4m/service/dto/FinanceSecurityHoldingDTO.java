@@ -32,6 +32,9 @@ public class FinanceSecurityHoldingDTO {
 
     private String sector;
     private String industry;
+    private String positionType;
+    private BigDecimal cashInterest;
+    private Double cashReturnPercent;
 
     public FinanceSecurityHoldingDTO() {}
 
@@ -216,6 +219,30 @@ public class FinanceSecurityHoldingDTO {
 
     public String getTypeName() {
         return typeName;
+    }
+
+    public String getPositionType() {
+        return positionType;
+    }
+
+    public void setPositionType(String positionType) {
+        this.positionType = positionType;
+    }
+
+    public BigDecimal getCashInterest() {
+        return cashInterest;
+    }
+
+    public void setCashInterest(BigDecimal cashInterest) {
+        this.cashInterest = cashInterest;
+    }
+
+    public Double getCashReturnPercent() {
+        return cashReturnPercent;
+    }
+
+    public void setCashReturnPercent(Double cashReturnPercent) {
+        this.cashReturnPercent = cashReturnPercent;
     }
 
     public void setTypeName(String typeName) {

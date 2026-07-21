@@ -45,6 +45,7 @@ public class ApplicationProperties {
 
         private boolean enabled = true;
         private final TwelveData twelveData = new TwelveData();
+        private final YahooFinance yahooFinance = new YahooFinance();
         private final QuoteRefresh quoteRefresh = new QuoteRefresh();
 
         public boolean isEnabled() {
@@ -57,6 +58,10 @@ public class ApplicationProperties {
 
         public TwelveData getTwelveData() {
             return twelveData;
+        }
+
+        public YahooFinance getYahooFinance() {
+            return yahooFinance;
         }
 
         public QuoteRefresh getQuoteRefresh() {
@@ -77,11 +82,24 @@ public class ApplicationProperties {
         }
     }
 
+    public static class YahooFinance {
+
+        private String cookie;
+
+        public String getCookie() {
+            return cookie;
+        }
+
+        public void setCookie(String cookie) {
+            this.cookie = cookie;
+        }
+    }
+
     public static class QuoteRefresh {
 
         private String cron = "0 0 8 * * MON-FRI";
         private String zone = "Australia/Brisbane";
-        private long requestDelayMs = 8000;
+        private long requestDelayMs = 250;
 
         public String getCron() {
             return cron;

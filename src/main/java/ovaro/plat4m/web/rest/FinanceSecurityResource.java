@@ -37,6 +37,7 @@ import ovaro.plat4m.service.FinanceSecurityPriceRefreshService;
 import ovaro.plat4m.service.FinanceSecurityService;
 import ovaro.plat4m.service.FinanceTransactionService;
 import ovaro.plat4m.service.UserService;
+import ovaro.plat4m.service.dto.FinanceInvestmentRollupIgnoreUpdateDTO;
 import ovaro.plat4m.service.dto.FinanceInvestmentSnapshotDetails;
 import ovaro.plat4m.service.dto.FinanceInvestmentSummaryDTO;
 import ovaro.plat4m.service.dto.FinanceInvestmentTransactionDTO;
@@ -268,6 +269,25 @@ public class FinanceSecurityResource {
         }
     }
 
+    @PutMapping("/investment/{id}/rollup-ignore")
+    public FinanceInvestmentSnapshotDetails updateInvestmentRollupIgnore(
+        @PathVariable String id,
+        @RequestParam(name = "includeClosed", defaultValue = "false") boolean includeClosed,
+        @RequestBody FinanceInvestmentRollupIgnoreUpdateDTO update
+    ) throws IOException {
+        User user = getCurrentUser();
+        FinanceUserSecurity usec = this.financeSecurityService
+            .getUserSecurity(user, id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Investment not found"));
+
+        usec.setIgnoredForRollup(update.isIgnoredForRollup());
+        String reason = update.getIgnoredForRollupReason();
+        usec.setIgnoredForRollupReason(update.isIgnoredForRollup() && reason != null && !reason.isBlank() ? reason.trim() : null);
+        this.financeSecurityService.save(user, usec);
+
+        return this.financeSecurityService.processSummary(user, usec, includeClosed, LocalDate.now());
+    }
+
     /**
      * Investment Summary.
      * @param id Security ID of the investment.
@@ -288,11 +308,9 @@ public class FinanceSecurityResource {
         Optional<FinanceUserSecurity> ou = this.financeSecurityService.getUserSecurity(user, id);
         if (ou.isPresent()) {
             FinanceUserSecurity usec = ou.get();
-            if (!usec.isEventsValid()) {
-                financeSecurityService.identifyAndSaveInvestmentEvents(user, id);
-                usec.setEventsValid(true);
-                this.financeSecurityService.save(user, usec);
-            }
+            financeSecurityService.identifyAndSaveInvestmentEvents(user, id);
+            usec.setEventsValid(true);
+            this.financeSecurityService.save(user, usec);
 
             FinanceInvestmentSnapshotDetails dto = this.financeSecurityService.processSummary(user, usec, includeClosed, LocalDate.now());
             sw.stop();

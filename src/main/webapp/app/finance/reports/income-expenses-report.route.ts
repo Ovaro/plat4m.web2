@@ -8,6 +8,17 @@ export const incomeExpensesReportRoute: Route = {
   component: IncomeExpensesReportComponent,
   data: {
     pageTitle: 'Income & Expenses',
+    reportVariant: 'income-expenses',
+  },
+  canActivate: [UserRouteAccessService],
+};
+
+export const capitalGainsReportRoute: Route = {
+  path: 'reports/capital-gains',
+  component: IncomeExpensesReportComponent,
+  data: {
+    pageTitle: 'Capital Gains',
+    reportVariant: 'capital-gains',
   },
   canActivate: [UserRouteAccessService],
 };

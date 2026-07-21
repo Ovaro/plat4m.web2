@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
-import { beforeEach, describe, expect, it, vitest } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vitest } from 'vitest';
 
 import { AccountList } from '../account-list/account-list.service';
 import { FinanceManageDataService } from '../manage-data/finance-manage-data.service';
@@ -74,6 +74,7 @@ describe('IncomeExpensesReportComponent', () => {
         pie: [{ label: 'Salary', value: 1500, percentOfTotal: 1 }],
       }),
     ),
+    getIncomeExpenseTransactionLots: vitest.fn(() => of([])),
   };
 
   const accountListMock = {
@@ -124,6 +125,10 @@ describe('IncomeExpensesReportComponent', () => {
     ),
   };
 
+  afterEach(() => {
+    vitest.useRealTimers();
+  });
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [IncomeExpensesReportComponent],
@@ -161,5 +166,47 @@ describe('IncomeExpensesReportComponent', () => {
 
     expect(instance.saveDialogVisible).toBe(true);
     expect(instance.saveDialogMode).toBe('saveAs');
+  });
+
+  it('rounds preset month ranges to whole calendar months', () => {
+    vitest.useFakeTimers();
+    vitest.setSystemTime(new Date('2026-07-10T12:00:00Z'));
+
+    const [startDate, endDate] = (component as any).resolvePresetDates('3M');
+
+    expect(startDate).toBe('2026-05-01');
+    expect(endDate).toBe('2026-07-31');
+  });
+
+  it('includes the FX rate in foreign currency drilldown hints', () => {
+    const hint = component.getDrilldownCurrencyHint(
+      {
+        id: 'txn-1',
+        date: '2026-07-10',
+        accountId: 'acc-1',
+        payeeName: 'Broker',
+        categoryName: 'Investments',
+        familyMemberName: null,
+        memo: null,
+        sectionLabel: 'Expense',
+        amount: 150,
+        grossAmount: null,
+        lotAdjusted: false,
+        hasLotDetails: false,
+        securityId: null,
+        securityName: null,
+        originalCurrencyCode: 'USD',
+        originalAmount: 100,
+        fxRateToBase: 1.5,
+      },
+      'AUD',
+    );
+
+    expect(hint).toContain('Converted from');
+    expect(hint).toContain('FX rate used: 1.500 AUD/USD.');
+  });
+
+  it('leaves zero currency cells blank in the report table', () => {
+    expect(component.formatCellValue(0, 0)).toBe('');
   });
 });

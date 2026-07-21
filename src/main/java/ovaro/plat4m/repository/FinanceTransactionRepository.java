@@ -160,7 +160,7 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
             "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
             "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName, s.exchange_mic as exchangeMic " +
             "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
-            "where f.account_id = :account_id and u.type in (1,2,7,10) and f.user_guid = :user_guid " +
+            "where f.account_id = :account_id and u.type in (1,2,7,10,11) and f.user_guid = :user_guid " +
             "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name, s.exchange_mic;",
         nativeQuery = true
     )
@@ -175,7 +175,7 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
             "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
             "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName, s.exchange_mic as exchangeMic " +
             "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
-            "where u.type in (1,2,7,10) and f.user_guid = :user_guid and a.closed = false " +
+            "where u.type in (1,2,7,10,11) and f.user_guid = :user_guid and a.closed = false " +
             "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name, s.exchange_mic;",
         nativeQuery = true
     )
@@ -187,7 +187,7 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
             "sum(quantity*-1) FILTER (WHERE f.investment_activity_type in (2,13,33)) as removeSec, " +
             "s.sector as sector, s.industry as industry, s.exchange_name as exchangeName, s.exchange_mic as exchangeMic " +
             "FROM fin_transaction f INNER JOIN fin_account a ON a.id = uuid(f.account_id) INNER JOIN fin_user_security u ON u.id = uuid(f.security_id) LEFT JOIN fin_security s ON s.symbol = u.known_symbol  " +
-            "where u.type in (1,2,7,10) and f.user_guid = :user_guid and a.closed = false AND f.date < :date " +
+            "where u.type in (1,2,7,10,11) and f.user_guid = :user_guid and a.closed = false AND f.date < :date " +
             "GROUP BY f.security_id, u.type, u.name, a.id, a.name, u.symbol, u.known_symbol, s.currency_code, s.sector, s.industry, s.exchange_name, s.exchange_mic;",
         nativeQuery = true
     )
@@ -199,6 +199,17 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
     List<FinanceTransaction> findByUserGuidAndSecurityIdOrderByDateDesc(String userGuid, String securityId);
 
     List<FinanceTransaction> findByUserGuidAndInvestmentOrderByDateDesc(String userGuid, boolean investment);
+
+    @Query(
+        "select f from FinanceTransaction f " +
+            "where f.userGuid = :userGuid " +
+            "and f.investment = true " +
+            "and f.voided = false " +
+            "and f.recurring = false " +
+            "and f.splitChild = false " +
+            "order by f.date desc, f.number desc, f.id desc"
+    )
+    List<FinanceTransaction> findPortfolioTradeTransactions(@Param("userGuid") String userGuid);
 
     List<FinanceTransaction> findAllByImportId(UUID importId);
 
@@ -254,6 +265,29 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
     List<FinanceTransaction> findAllByUserGuidAndAccountIdAndDateBetween(
         @Param("userGuid") String userGuid,
         @Param("accountId") String accountId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
+
+    @Query(
+        "select f from FinanceTransaction f " +
+            "left join fetch f.category c " +
+            "left join fetch c.parent cp " +
+            "left join fetch cp.parent cpp " +
+            "where f.userGuid = :userGuid " +
+            "and f.accountId in :accountIds " +
+            "and f.date >= :startDate " +
+            "and f.date <= :endDate " +
+            "and f.amount > 0 " +
+            "and f.voided = false " +
+            "and f.recurring = false " +
+            "and f.splitParent = false " +
+            "and f.transferredAccountId is null " +
+            "order by f.date asc, f.number asc, f.id asc"
+    )
+    List<FinanceTransaction> findPositiveAccountTransactionsForReturn(
+        @Param("userGuid") String userGuid,
+        @Param("accountIds") Collection<String> accountIds,
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate
     );

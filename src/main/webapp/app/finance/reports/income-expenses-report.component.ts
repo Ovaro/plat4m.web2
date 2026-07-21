@@ -1,4 +1,5 @@
 import { ChangeDetectorRef, Component, DEFAULT_CURRENCY_CODE, Inject, LOCALE_ID, OnInit, inject } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { CookieService } from 'ngx-cookie';
 import { DialogModule } from 'primeng/dialog';
 import {
@@ -21,7 +22,7 @@ import { AccountList } from '../account-list/account-list.service';
 import { Transactions } from '../transactions/transactions.service';
 import { FinanceManageDataService } from '../manage-data/finance-manage-data.service';
 import { ManagedCategory, ManagedPayee } from '../manage-data/finance-manage-data.types';
-import { FinancialAccount } from '../finance.model';
+import { FinancialAccount, FinanceLotView } from '../finance.model';
 import { formatCurrencyAmount } from '../transaction-history-dialog.utils';
 import { TransactionTreeOption } from '../transactions/transactions.types';
 import {
@@ -48,11 +49,16 @@ type ChartSectionFilterOption = { label: string; value: ChartSectionFilter };
 type ConfigTab = 'layout' | 'accounts' | 'categories' | 'payees' | 'family' | 'title' | 'view';
 type FilterListKey = 'accountIds' | 'categoryIds' | 'payeeIds' | 'familyMemberIds';
 type SectionFilter = 'all' | 'income' | 'expense';
+type ReportVariant = 'income-expenses' | 'capital-gains';
 type ChartAggregateRow = {
   label: string;
   section: string;
   total: number;
   values: number[];
+};
+type CapitalGainsLotReportRow = {
+  transaction: ReportDrilldownTransaction;
+  lot: FinanceLotView;
 };
 type PersistedIdList = {
   mode: 'allExcept' | 'only';
@@ -118,8 +124,9 @@ type RowHistoryChartOptions = {
   imports: [SharedModule, DialogModule, NgApexchartsModule],
 })
 export class IncomeExpensesReportComponent implements OnInit {
-  private static readonly WORKSPACE_STORAGE_KEY = 'finance-report-income-expenses-workspace';
   protected readonly reportKey = 'income-expenses';
+  protected readonly reportVariant: ReportVariant;
+  protected readonly reportSubtitle: string;
   protected readonly viewOptions: ViewOption[] = [
     { label: 'Report', value: 'report' },
     { label: 'Bar Chart', value: 'bar' },
@@ -195,6 +202,13 @@ export class IncomeExpensesReportComponent implements OnInit {
   protected drilldownVisible = false;
   protected drilldownLoading = false;
   protected drilldownResult: ReportDrilldownResult | null = null;
+  protected transactionLotsVisible = false;
+  protected transactionLotsLoading = false;
+  protected transactionLots: FinanceLotView[] = [];
+  protected transactionLotsCandidate: ReportDrilldownTransaction | null = null;
+  protected capitalGainsLotsLoading = false;
+  protected capitalGainsLotRows: CapitalGainsLotReportRow[] = [];
+  protected capitalGainsIgnoredLotRowKeys = new Set<string>();
   protected rowHistoryVisible = false;
   protected rowHistoryTrendlineVisible = false;
   protected selectedRowHistory: ReportResultRow | null = null;
@@ -218,11 +232,20 @@ export class IncomeExpensesReportComponent implements OnInit {
   private readonly transactionsService = inject(Transactions);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly cookieService = inject(CookieService);
+  private readonly activatedRoute = inject(ActivatedRoute);
+  private readonly workspaceStorageKey: string;
 
   constructor(
     @Inject(LOCALE_ID) private readonly locale: string,
     @Inject(DEFAULT_CURRENCY_CODE) private readonly defaultCurrencyCode: string,
-  ) {}
+  ) {
+    this.reportVariant = this.resolveReportVariant();
+    this.workspaceStorageKey = `finance-report-${this.reportVariant}-workspace`;
+    this.reportSubtitle =
+      this.reportVariant === 'capital-gains'
+        ? 'Realised capital gains reporting with category filters, transaction drilldown, and lot-level holding periods.'
+        : 'Configurable income and expense reporting with saved presets, grouped totals, and charts.';
+  }
 
   ngOnInit(): void {
     this.load();
@@ -261,6 +284,60 @@ export class IncomeExpensesReportComponent implements OnInit {
               .filter(Boolean)
               .some(value => String(value).toLowerCase().includes(query)),
       );
+  }
+
+  get filteredCapitalGainsLotRows(): CapitalGainsLotReportRow[] {
+    const query = this.reportRowFilter.trim().toLowerCase();
+    if (!query) {
+      return this.capitalGainsLotRows;
+    }
+
+    return this.capitalGainsLotRows.filter(row =>
+      [
+        row.transaction.securityName,
+        row.transaction.payeeName,
+        row.transaction.accountId ? this.getAccountName(row.transaction.accountId) : null,
+        row.lot.lotKey,
+        row.lot.sourceId,
+        row.lot.originalSourceId,
+        this.getLotBuyDate(row.lot),
+        this.getLotSellDate(row.lot),
+      ]
+        .filter(value => value != null)
+        .some(value => String(value).toLowerCase().includes(query)),
+    );
+  }
+
+  get capitalGainsLotCount(): number {
+    return this.filteredCapitalGainsLotRows.length;
+  }
+
+  get capitalGainsIncludedLotRows(): CapitalGainsLotReportRow[] {
+    return this.filteredCapitalGainsLotRows.filter(row => !this.isCapitalGainsLotRowIgnored(row));
+  }
+
+  get capitalGainsIncludedLotCount(): number {
+    return this.capitalGainsIncludedLotRows.length;
+  }
+
+  get capitalGainsIgnoredLotCount(): number {
+    return this.filteredCapitalGainsLotRows.length - this.capitalGainsIncludedLotRows.length;
+  }
+
+  get reportCurrencyCode(): string {
+    return this.result?.currencyCode || this.defaultCurrencyCode;
+  }
+
+  get capitalGainsTotalCostBasis(): number {
+    return this.capitalGainsIncludedLotRows.reduce((total, row) => total + (row.lot.costBasis ?? 0), 0);
+  }
+
+  get capitalGainsTotalSaleProceeds(): number {
+    return this.capitalGainsIncludedLotRows.reduce((total, row) => total + (row.lot.saleProceeds ?? 0), 0);
+  }
+
+  get capitalGainsTotalRealisedGainLoss(): number {
+    return this.capitalGainsIncludedLotRows.reduce((total, row) => total + (row.lot.realisedGainLoss ?? 0), 0);
   }
 
   get filteredChartRows(): ReportResultRow[] {
@@ -350,7 +427,7 @@ export class IncomeExpensesReportComponent implements OnInit {
           return;
         }
 
-        this.workingConfig = this.enrichDefaultConfig(this.definition.defaultConfig);
+        this.workingConfig = this.applyReportVariant(this.enrichDefaultConfig(this.definition.defaultConfig));
         this.activeConfigKey = 'builtin';
         this.restoreWorkspaceState();
         this.syncCharts();
@@ -409,7 +486,7 @@ export class IncomeExpensesReportComponent implements OnInit {
     this.activeConfigKey = configKey;
 
     if (configKey === 'builtin') {
-      this.workingConfig = this.enrichDefaultConfig(this.definition!.defaultConfig);
+      this.workingConfig = this.applyReportVariant(this.enrichDefaultConfig(this.definition!.defaultConfig));
     } else {
       const selected = this.savedConfigs.find(config => config.id === configKey);
       if (selected) {
@@ -595,6 +672,7 @@ export class IncomeExpensesReportComponent implements OnInit {
 
     if (this.shouldShowEmptyState()) {
       this.result = this.buildLocalEmptyResult();
+      this.clearCapitalGainsLotRows();
       this.syncCharts();
       this.changeDetectorRef.markForCheck();
       return;
@@ -612,6 +690,11 @@ export class IncomeExpensesReportComponent implements OnInit {
         this.result = result;
         this.isRunning = false;
         this.syncCharts();
+        if (this.reportVariant === 'capital-gains') {
+          this.loadCapitalGainsLotRows();
+        } else {
+          this.clearCapitalGainsLotRows();
+        }
         this.changeDetectorRef.markForCheck();
       },
       error: error => {
@@ -624,6 +707,9 @@ export class IncomeExpensesReportComponent implements OnInit {
 
   formatCellValue(value: number, percentValue: number): string {
     if (!this.result) {
+      return '';
+    }
+    if (!this.result.showPercentOfTotal && Math.abs(value ?? 0) < 0.0000001) {
       return '';
     }
     return this.result.showPercentOfTotal ? `${(percentValue * 100).toFixed(1)}%` : this.formatCurrency(value);
@@ -665,6 +751,101 @@ export class IncomeExpensesReportComponent implements OnInit {
     this.drilldownVisible = false;
     this.drilldownLoading = false;
     this.drilldownResult = null;
+  }
+
+  private loadCapitalGainsLotRows(): void {
+    if (!this.workingConfig || !this.result) {
+      this.clearCapitalGainsLotRows();
+      return;
+    }
+
+    this.capitalGainsLotsLoading = true;
+    this.capitalGainsLotRows = [];
+    this.capitalGainsIgnoredLotRowKeys.clear();
+    this.reportsService
+      .getIncomeExpenseDrilldown({
+        config: this.buildExecutionConfig(this.workingConfig),
+        rowKey: 'grand-total',
+        rowLabel: this.workingConfig.title,
+        columnKey: null,
+        columnLabel: 'Total',
+      })
+      .subscribe({
+        next: drilldown => {
+          const transactions = drilldown.transactions.filter(transaction => transaction.hasLotDetails);
+          if (transactions.length === 0) {
+            this.capitalGainsLotsLoading = false;
+            this.changeDetectorRef.markForCheck();
+            return;
+          }
+
+          forkJoin(transactions.map(transaction => this.reportsService.getIncomeExpenseTransactionLots(transaction.id))).subscribe({
+            next: lotGroups => {
+              this.capitalGainsLotRows = lotGroups
+                .flatMap((lots, index) => lots.map(lot => ({ transaction: transactions[index], lot })))
+                .sort((left, right) => {
+                  const sellDateCompare = (this.getLotSellDate(left.lot) ?? '').localeCompare(this.getLotSellDate(right.lot) ?? '');
+                  if (sellDateCompare !== 0) {
+                    return sellDateCompare;
+                  }
+                  return (left.transaction.securityName ?? '').localeCompare(right.transaction.securityName ?? '');
+                });
+              this.capitalGainsLotsLoading = false;
+              this.changeDetectorRef.markForCheck();
+            },
+            error: error => {
+              this.errorMessage = this.getErrorMessage(error, 'Loading the capital gains lots failed.');
+              this.capitalGainsLotsLoading = false;
+              this.changeDetectorRef.markForCheck();
+            },
+          });
+        },
+        error: error => {
+          this.errorMessage = this.getErrorMessage(error, 'Loading the capital gains transactions failed.');
+          this.capitalGainsLotsLoading = false;
+          this.changeDetectorRef.markForCheck();
+        },
+      });
+  }
+
+  private clearCapitalGainsLotRows(): void {
+    this.capitalGainsLotsLoading = false;
+    this.capitalGainsLotRows = [];
+    this.capitalGainsIgnoredLotRowKeys.clear();
+  }
+
+  openTransactionLots(transaction: ReportDrilldownTransaction): void {
+    if (!transaction.hasLotDetails) {
+      return;
+    }
+    this.transactionLotsCandidate = transaction;
+    this.transactionLots = [];
+    this.transactionLotsVisible = true;
+    this.transactionLotsLoading = true;
+    this.reportsService.getIncomeExpenseTransactionLots(transaction.id).subscribe({
+      next: lots => {
+        this.transactionLots = lots;
+        this.transactionLotsLoading = false;
+        this.changeDetectorRef.markForCheck();
+      },
+      error: error => {
+        this.errorMessage = this.getErrorMessage(error, 'Loading the transaction lots failed.');
+        this.transactionLotsLoading = false;
+        this.transactionLotsVisible = false;
+        this.changeDetectorRef.markForCheck();
+      },
+    });
+  }
+
+  closeTransactionLots(): void {
+    this.transactionLotsVisible = false;
+    this.transactionLotsLoading = false;
+    this.transactionLots = [];
+    this.transactionLotsCandidate = null;
+  }
+
+  get transactionLotsRealisedGainLoss(): number {
+    return this.transactionLots.reduce((total, lot) => total + (lot.realisedGainLoss ?? 0), 0);
   }
 
   openRowHistory(row: ReportResultRow): void {
@@ -737,6 +918,104 @@ export class IncomeExpensesReportComponent implements OnInit {
     return item.id ?? item.key ?? String(_index);
   }
 
+  trackByCapitalGainsLotRow(_index: number, item: CapitalGainsLotReportRow): string {
+    return `${item.transaction.id}:${item.lot.id}`;
+  }
+
+  getCapitalGainsLotRowKey(row: CapitalGainsLotReportRow): string {
+    return `${row.transaction.id}:${row.lot.id}`;
+  }
+
+  isCapitalGainsLotRowIgnored(row: CapitalGainsLotReportRow): boolean {
+    return this.capitalGainsIgnoredLotRowKeys.has(this.getCapitalGainsLotRowKey(row));
+  }
+
+  toggleCapitalGainsLotRowIgnored(row: CapitalGainsLotReportRow, ignored: boolean): void {
+    const rowKey = this.getCapitalGainsLotRowKey(row);
+    if (ignored) {
+      this.capitalGainsIgnoredLotRowKeys.add(rowKey);
+    } else {
+      this.capitalGainsIgnoredLotRowKeys.delete(rowKey);
+    }
+  }
+
+  clearIgnoredCapitalGainsLotRows(): void {
+    this.capitalGainsIgnoredLotRowKeys.clear();
+  }
+
+  getLotDisplayName(lot: FinanceLotView): string {
+    if (lot.lotKey) {
+      return lot.lotKey;
+    }
+    if (lot.originalSourceId != null) {
+      return `Original lot ${lot.originalSourceId}`;
+    }
+    if (lot.originalLotId) {
+      return lot.originalLotId;
+    }
+    return 'Unknown lot';
+  }
+
+  getLotBuyDate(lot: FinanceLotView): string | null {
+    return lot.originalBuyDate ?? lot.buyDate ?? lot.openDate ?? null;
+  }
+
+  getLotSellDate(lot: FinanceLotView): string | null {
+    return lot.closeDate ?? lot.sellDate ?? null;
+  }
+
+  formatLotHoldingPeriod(lot: FinanceLotView): string {
+    const buyDate = this.parseDateOnly(this.getLotBuyDate(lot));
+    const sellDate = this.parseDateOnly(this.getLotSellDate(lot));
+    if (!buyDate || !sellDate) {
+      return '';
+    }
+
+    const days = Math.max(0, Math.floor((sellDate.getTime() - buyDate.getTime()) / 86400000));
+    const term = days > 365 ? 'Long term' : 'Short term';
+    if (days < 31) {
+      return `${term}, ${days} day${days === 1 ? '' : 's'}`;
+    }
+
+    const years = Math.floor(days / 365);
+    const months = Math.floor((days % 365) / 30);
+    const parts = [];
+    if (years > 0) {
+      parts.push(`${years} yr${years === 1 ? '' : 's'}`);
+    }
+    if (months > 0) {
+      parts.push(`${months} mo${months === 1 ? '' : 's'}`);
+    }
+    return `${term}, ${parts.join(' ') || `${days} days`}`;
+  }
+
+  formatLotPrice(value: number | null | undefined): string {
+    if (value == null || !Number.isFinite(value)) {
+      return '';
+    }
+    return value.toLocaleString(this.locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6,
+    });
+  }
+
+  formatLotFxRate(value: number | null | undefined): string {
+    if (value == null || !Number.isFinite(value) || value <= 0) {
+      return '';
+    }
+    return value.toLocaleString(this.locale, {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 6,
+    });
+  }
+
+  formatLotCurrency(value: number | null | undefined, currencyCode: string | null | undefined): string {
+    if (value == null || !Number.isFinite(value)) {
+      return '';
+    }
+    return formatCurrencyAmount(value, this.locale, currencyCode || this.result?.currencyCode || this.defaultCurrencyCode);
+  }
+
   private buildCategoryOptions(categories: ManagedCategory[]): ReportFilterOption[] {
     const categoryOnly = categories.filter(category => category.classificationId === 0);
     const byId = new Map(categoryOnly.map(category => [category.id, category]));
@@ -803,6 +1082,58 @@ export class IncomeExpensesReportComponent implements OnInit {
     return clone;
   }
 
+  private applyReportVariant(config: ReportConfig): ReportConfig {
+    if (this.reportVariant !== 'capital-gains') {
+      return config;
+    }
+
+    const capitalGainsCategory = this.findCapitalGainsCategory();
+    return {
+      ...config,
+      name: 'Capital Gains',
+      title: 'Capital Gains',
+      rowDimension: 'subcategory',
+      columnDimension: 'year',
+      defaultView: 'report',
+      datePreset: 'ALL',
+      startDate: null,
+      endDate: null,
+      categoryIds: capitalGainsCategory ? [capitalGainsCategory.id] : [],
+    };
+  }
+
+  private findCapitalGainsCategory(): ReportFilterOption | null {
+    const normalizedInvestmentIncome = this.normalizeCategoryName('Investment Income');
+    const normalizedCapitalGains = this.normalizeCategoryName('Capital Gains');
+    const categoryOnly = this.categories.filter(category => category.classificationId === 0);
+    const categoriesById = new Map(categoryOnly.map(category => [category.id, category]));
+    const capitalGainsCategory =
+      categoryOnly.find(category => {
+        if (this.normalizeCategoryName(category.name) !== normalizedCapitalGains) {
+          return false;
+        }
+        return this.getCategoryAncestorLabels(category.id, categoriesById)
+          .map(label => this.normalizeCategoryName(label))
+          .includes(normalizedInvestmentIncome);
+      }) ?? categoryOnly.find(category => this.normalizeCategoryName(category.name) === normalizedCapitalGains);
+
+    return capitalGainsCategory ? (this.categoryOptions.find(option => option.id === capitalGainsCategory.id) ?? null) : null;
+  }
+
+  private getCategoryAncestorLabels(categoryId: string, categoriesById: Map<string, ManagedCategory>): string[] {
+    const labels: string[] = [];
+    let current = categoriesById.get(categoryId);
+
+    while (current?.parentId) {
+      current = categoriesById.get(current.parentId);
+      if (current) {
+        labels.push(current.displayName || current.name);
+      }
+    }
+
+    return labels;
+  }
+
   private cloneConfig(config: ReportConfig): ReportConfig {
     return {
       ...config,
@@ -843,46 +1174,50 @@ export class IncomeExpensesReportComponent implements OnInit {
 
     switch (preset) {
       case '1M':
-        startDate.setMonth(startDate.getMonth() - 1);
-        startDate.setDate(startDate.getDate() + 1);
+        this.setWholeMonthRange(startDate, endDate, 1);
         break;
       case '3M':
-        startDate.setMonth(startDate.getMonth() - 3);
-        startDate.setDate(startDate.getDate() + 1);
+        this.setWholeMonthRange(startDate, endDate, 3);
         break;
       case '6M':
-        startDate.setMonth(startDate.getMonth() - 6);
-        startDate.setDate(startDate.getDate() + 1);
+        this.setWholeMonthRange(startDate, endDate, 6);
         break;
       case '12M':
-        startDate.setFullYear(startDate.getFullYear() - 1);
-        startDate.setDate(startDate.getDate() + 1);
+        this.setWholeMonthRange(startDate, endDate, 12);
         break;
       case '2Y':
-        startDate.setFullYear(startDate.getFullYear() - 2);
-        startDate.setDate(startDate.getDate() + 1);
+        this.setWholeMonthRange(startDate, endDate, 24);
         break;
       case '5Y':
-        startDate.setFullYear(startDate.getFullYear() - 5);
-        startDate.setDate(startDate.getDate() + 1);
+        this.setWholeMonthRange(startDate, endDate, 60);
         break;
       case '7Y':
-        startDate.setFullYear(startDate.getFullYear() - 7);
-        startDate.setDate(startDate.getDate() + 1);
+        this.setWholeMonthRange(startDate, endDate, 84);
         break;
       case '10Y':
-        startDate.setFullYear(startDate.getFullYear() - 10);
-        startDate.setDate(startDate.getDate() + 1);
+        this.setWholeMonthRange(startDate, endDate, 120);
         break;
       case 'YTD':
         startDate.setMonth(0, 1);
+        this.setCurrentMonthEnd(endDate);
         break;
       case 'ALL':
         startDate.setFullYear(2000, 0, 1);
+        this.setCurrentMonthEnd(endDate);
         break;
     }
 
     return [this.toDateInputValue(startDate), this.toDateInputValue(endDate)];
+  }
+
+  private setWholeMonthRange(startDate: Date, endDate: Date, monthCount: number): void {
+    startDate.setDate(1);
+    startDate.setMonth(startDate.getMonth() - (monthCount - 1));
+    this.setCurrentMonthEnd(endDate);
+  }
+
+  private setCurrentMonthEnd(date: Date): void {
+    date.setMonth(date.getMonth() + 1, 0);
   }
 
   private shouldShowEmptyState(): boolean {
@@ -1245,13 +1580,13 @@ export class IncomeExpensesReportComponent implements OnInit {
 
   private readWorkspaceState(): string | null {
     const storage = this.getStorage();
-    const storedValue = storage?.getItem(IncomeExpensesReportComponent.WORKSPACE_STORAGE_KEY);
+    const storedValue = storage?.getItem(this.workspaceStorageKey);
     if (storedValue) {
       this.clearLegacyWorkspaceCookie();
       return storedValue;
     }
 
-    const legacyCookie = this.cookieService.get(IncomeExpensesReportComponent.WORKSPACE_STORAGE_KEY);
+    const legacyCookie = this.cookieService.get(this.workspaceStorageKey);
     if (!legacyCookie) {
       return null;
     }
@@ -1268,14 +1603,14 @@ export class IncomeExpensesReportComponent implements OnInit {
     }
 
     try {
-      storage.setItem(IncomeExpensesReportComponent.WORKSPACE_STORAGE_KEY, value);
+      storage.setItem(this.workspaceStorageKey, value);
     } catch {
       // Ignore storage quota and browser storage errors.
     }
   }
 
   private clearLegacyWorkspaceCookie(): void {
-    this.cookieService.remove(IncomeExpensesReportComponent.WORKSPACE_STORAGE_KEY);
+    this.cookieService.remove(this.workspaceStorageKey);
   }
 
   private getStorage(): Storage | null {
@@ -1415,6 +1750,25 @@ export class IncomeExpensesReportComponent implements OnInit {
     return date.toISOString().slice(0, 10);
   }
 
+  private parseDateOnly(value: string | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+    const [year, month, day] = value.split('-').map(part => Number(part));
+    if (!year || !month || !day) {
+      return null;
+    }
+    return new Date(year, month - 1, day);
+  }
+
+  private normalizeCategoryName(value: string): string {
+    return value.trim().toLowerCase().replace(/&/g, 'and').replace(/\s+/g, ' ');
+  }
+
+  private resolveReportVariant(): ReportVariant {
+    return this.activatedRoute.snapshot.data['reportVariant'] === 'capital-gains' ? 'capital-gains' : 'income-expenses';
+  }
+
   private filterOptions(options: ReportFilterOption[], query: string): ReportFilterOption[] {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -1443,8 +1797,24 @@ export class IncomeExpensesReportComponent implements OnInit {
       return null;
     }
 
-    const currencyCode = transaction.originalCurrencyCode?.trim() || this.defaultCurrencyCode;
-    return `Original amount (${currencyCode}): ${this.formatCurrencyWithCode(transaction.originalAmount, currencyCode)}`;
+    const sourceCurrencyCode = transaction.originalCurrencyCode?.trim() || this.defaultCurrencyCode;
+    const targetCurrencyCode = (baseCurrencyCode ?? this.defaultCurrencyCode).trim() || this.defaultCurrencyCode;
+    const rateText = this.formatFxRate(transaction.fxRateToBase);
+    const baseAmountText = this.formatCurrencyWithCode(transaction.amount, targetCurrencyCode);
+    const originalAmountText = this.formatCurrencyWithCode(transaction.originalAmount, sourceCurrencyCode);
+
+    if (rateText) {
+      return `Converted from ${originalAmountText} (${sourceCurrencyCode}) to ${baseAmountText} (${targetCurrencyCode}). FX rate used: ${rateText} ${targetCurrencyCode}/${sourceCurrencyCode}.`;
+    }
+
+    return `Converted from ${originalAmountText} (${sourceCurrencyCode}) to ${baseAmountText} (${targetCurrencyCode}).`;
+  }
+
+  private formatFxRate(rate: number | null | undefined): string | null {
+    if (rate == null || !Number.isFinite(rate) || rate <= 0) {
+      return null;
+    }
+    return rate.toFixed(3);
   }
 
   private matchesSectionFilter(row: ReportResultRow, filter: SectionFilter = this.reportSectionFilter): boolean {

@@ -14,8 +14,10 @@ export class AccountList {
     private applicationConfigService: ApplicationConfigService,
   ) {}
 
-  get(): Observable<FinancialAccount[]> {
-    return this.http.get<FinancialAccount[]>(this.applicationConfigService.getEndpointFor('api/accounts/balances'));
+  get(includeClosed = false): Observable<FinancialAccount[]> {
+    return this.http.get<FinancialAccount[]>(
+      this.applicationConfigService.getEndpointFor(`api/accounts/balances?includeClosed=${String(includeClosed)}`),
+    );
   }
 
   getSimple(): Observable<FinancialAccount[]> {

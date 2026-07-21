@@ -64,8 +64,44 @@
   font-size: 1rem;
   line-height: 1;
   padding: 0 0.4rem 0 0;
+  opacity: 0;
+  transition:
+    color 120ms ease,
+    opacity 120ms ease;
 }
 
-.account-favourite-button:hover {
+.account-card:hover .account-favourite-button,
+.account-card:focus-within .account-favourite-button,
+.account-favourite-button--active {
+  opacity: 1;
+}
+
+.account-favourite-button:hover,
+.account-favourite-button:focus-visible {
   color: #8c6700;
+}
+
+.account-closed-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: var(--app-font-size-sm);
+  font-weight: var(--app-font-weight-strong);
+  white-space: nowrap;
+}
+
+.account-status-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--app-border-color);
+  border-radius: 0.25rem;
+  color: var(--app-text-muted);
+  font-size: var(--app-font-size-xs);
+  font-weight: var(--app-font-weight-strong);
+  line-height: 1.2;
+  text-transform: uppercase;
 }

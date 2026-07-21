@@ -445,7 +445,20 @@ public class FinanceSecurityService {
                                 lastPrice = fie.getPrice();
                                 lastPriceDate = fie.getDate();
                                 lastFX = fie.getRateToBase();
+                                lastFXDate = fie.getDate();
                             }
+                            this.storeSnapshotValue(
+                                valuesPerSecurity,
+                                usMap.get(usId),
+                                fie.getDate(),
+                                holdingBalance,
+                                lastPrice,
+                                fie.getPrice() == null,
+                                lastPriceDate,
+                                lastFX,
+                                lastFXDate,
+                                user.getLocalCurrency()
+                            );
                         }
                     }
                 }
@@ -819,7 +832,11 @@ public class FinanceSecurityService {
         }
         if (holding != null) {
             if (price != null && holding != null) {
-                FinanceSnapshot newSnapshot = new FinanceSnapshot(date);
+                FinanceSnapshot newSnapshot = findSnapshotByDate(listValues, date);
+                if (newSnapshot == null) {
+                    newSnapshot = new FinanceSnapshot(date);
+                    listValues.add(newSnapshot);
+                }
                 updateSnapshotValue(
                     newSnapshot,
                     holding,
@@ -831,9 +848,17 @@ public class FinanceSecurityService {
                     fxDate,
                     baseCurrency
                 );
-                listValues.add(newSnapshot);
             }
         }
+    }
+
+    private FinanceSnapshot findSnapshotByDate(List<FinanceSnapshot> snapshots, LocalDate date) {
+        for (FinanceSnapshot snapshot : snapshots) {
+            if (snapshot != null && snapshot.getDate() != null && snapshot.getDate().equals(date)) {
+                return snapshot;
+            }
+        }
+        return null;
     }
 
     private void updateSnapshotValue(
@@ -880,23 +905,23 @@ public class FinanceSecurityService {
             snapshot.setFxDate(fxDate);
         }
 
-        //if(snapshot.getCurrencyIsoCode() == null || snapshot.getCurrencyIsoCode().equals(baseCurrency)) {
-        snapshot.setValue(price.multiply(BigDecimal.valueOf(inv.getQuantity())));
-        // } else if(rateToBase == null || rateToBase == 0.0){
-        //     // Use original FX
-        //     if(snapshot.getFxToLocal() != null) {
-        //         snapshot.setValue(price.multiply(BigDecimal.valueOf(inv.getQuantity())).multiply(BigDecimal.valueOf(snapshot.getFxToLocal())));
-        //     } else {
-        //         // log warning
-        //         if(!snapshot.getCurrencyIsoCode().equals(baseCurrency)) {
-        //             log.warn("No FX rate to fall back on: " + snapshot.getCurrencyIsoCode());
-        //         }
-        //         snapshot.setValue(price.multiply(BigDecimal.valueOf(inv.getQuantity())));
-        //     }
-        // } else {
-        //     // use supplied FX
-        //     snapshot.setValue(price.multiply(BigDecimal.valueOf(inv.getQuantity())).multiply(BigDecimal.valueOf(rateToBase)));
-        // }
+        BigDecimal value = price.multiply(BigDecimal.valueOf(inv.getQuantity()));
+        if (snapshot.getCurrencyIsoCode() != null && !snapshot.getCurrencyIsoCode().equals(baseCurrency)) {
+            Double effectiveRateToBase = rateToBase != null && rateToBase > 0.0 ? rateToBase : snapshot.getFxToLocal();
+            if (effectiveRateToBase != null && effectiveRateToBase > 0.0) {
+                value = value.multiply(BigDecimal.valueOf(effectiveRateToBase));
+            } else {
+                log.warn(
+                    "No FX rate available for historical snapshot. currency={}, baseCurrency={}, date={}, price={}, quantity={}",
+                    snapshot.getCurrencyIsoCode(),
+                    baseCurrency,
+                    snapshot.getDate(),
+                    price,
+                    inv.getQuantity()
+                );
+            }
+        }
+        snapshot.setValue(value);
     }
 
     public Map<String, FinanceUserSecurity> mapUserSecurities(List<FinanceUserSecurity> includedUserSecurities) {
@@ -1235,6 +1260,10 @@ public class FinanceSecurityService {
                     evt.setCapitalDelta(0);
                 }
 
+                if (txn.getTransaction().getInvestmentActivityType() == FinanceInvestmentActivityType.REINVEST_DIVIDEND_COMBINED) {
+                    evt.setIncome(resolveIncomeAmount(txn));
+                }
+
                 openTransactions.add(new TransactionTrancheItem(txn.getTransaction()));
 
                 BigDecimal d = FinanceInvestmentEvent.setScale(new BigDecimal(quantity + (txn.getQuantity()), MC));
@@ -1252,7 +1281,7 @@ public class FinanceSecurityService {
                     // evt.setDate(txn.getDate());
                     evt = createFIE(user, userSecurityId, txn);
                 }
-                evt.setIncome(Math.abs(txn.getAmount().doubleValue()));
+                evt.setIncome(resolveIncomeAmount(txn));
                 // totalIncome = evt.getIncome();
             } else if (txn.getTransaction().getInvestmentActivityType() == FinanceInvestmentActivityType.SELL) {
                 CapitalGainEvent cge = trackPositionAfterSell(openTransactions, txn.getQuantity(), txn.getTransaction());
@@ -1321,6 +1350,16 @@ public class FinanceSecurityService {
         }
     }
 
+    private BigDecimal resolveIncomeAmount(FinanceInvestmentTransactionDTO txn) {
+        if (txn.getAmount() != null && txn.getRateToBase() != null && txn.getRateToBase() != 0) {
+            return txn.getAmount().abs().multiply(new BigDecimal(txn.getRateToBase(), FinanceInvestmentEvent.MC));
+        }
+        if (txn.getAmountBase() != null && txn.getAmountBase().compareTo(BigDecimal.ZERO) != 0) {
+            return txn.getAmountBase().abs();
+        }
+        return txn.getAmount() != null ? txn.getAmount().abs() : BigDecimal.ZERO;
+    }
+
     private FinanceInvestmentEvent createFIE(User user, String userSecurityId, FinanceInvestmentTransactionDTO txn) {
         //MathContext MC = FinanceInvestmentEvent.MC;
         FinanceInvestmentEvent evt = new FinanceInvestmentEvent();
@@ -1358,6 +1397,10 @@ public class FinanceSecurityService {
         LocalDate atDate
     ) {
         List<FinanceInvestmentSnapshotDetails> summaries = processSummaries(user, userSecurities, includeClosed, atDate);
+        List<FinanceInvestmentSnapshotDetails> rollupSummaries = summaries
+            .stream()
+            .filter(summary -> !summary.isIgnoredForRollup())
+            .toList();
 
         FinanceInvestmentPortfolioSummaryDTO result = new FinanceInvestmentPortfolioSummaryDTO();
         result.setDate(atDate);
@@ -1372,7 +1415,7 @@ public class FinanceSecurityService {
         BigDecimal totalReturn = BigDecimal.ZERO;
         BigDecimal totalValue = BigDecimal.ZERO;
         Double totalAyi = 0.0;
-        for (FinanceInvestmentSnapshotDetails summary : summaries) {
+        for (FinanceInvestmentSnapshotDetails summary : rollupSummaries) {
             if (summary != null) {
                 totalValue = totalValue.add(summary.getPrice().multiply(BigDecimal.valueOf(summary.getQuantity())));
                 totalCurrencyGain = totalCurrencyGain.add(summary.getTotalCurrencyGain());
@@ -1410,16 +1453,16 @@ public class FinanceSecurityService {
         result.setTotalAyi(totalAyi);
 
         // Get Events
-        List<FinanceInvestmentEvent> allEvents = this.investmentEventRepository.findAllByUserGuidOrderByDate(
-            user.getGuid().toString(),
-            atDate
-        );
+        List<String> rollupUserSecurityIds = rollupSummaries.stream().map(FinanceInvestmentSnapshotDetails::getUserSecurityId).toList();
+        List<FinanceInvestmentEvent> allEvents = rollupUserSecurityIds.isEmpty()
+            ? List.of()
+            : this.investmentEventRepository.findAllByUserSecurityIdsOrderByDate(rollupUserSecurityIds, atDate);
         LocalDate now = LocalDate.now();
         double ayi = calcAYIFromEvents(allEvents, totalCapitalInvested.doubleValue(), now, includeClosed);
 
         log.info("AYI: " + ayi + ", total: " + result.getTotalAyi());
 
-        setPercentages(result, summaries, ayi);
+        setPercentages(result, rollupSummaries, ayi);
 
         //
         // double md = processDataWithModifiedDietz(allEvents, result.getTotalValue(),
@@ -1500,6 +1543,8 @@ public class FinanceSecurityService {
         BigDecimal totalForeignCapital = BigDecimal.ZERO; // For currency gain calcs
         BigDecimal totalCapitalInBaseCurrency = BigDecimal.ZERO;
         BigDecimal totalForeignCapitalInBaseCurrency = BigDecimal.ZERO; // For currency gain calcs
+        BigDecimal totalClosedCapital = BigDecimal.ZERO;
+        BigDecimal totalClosedCapitalInBaseCurrency = BigDecimal.ZERO;
         BigDecimal totalIncome = BigDecimal.ZERO;
         BigDecimal totalRealisedCurrencyGain = BigDecimal.ZERO;
         BigDecimal totalRealisedCapitalGain = BigDecimal.ZERO;
@@ -1518,6 +1563,9 @@ public class FinanceSecurityService {
             }
             if (fie.getCapitalDelta() != null) {
                 totalCapital = totalCapital.add(fie.getCapitalDelta());
+                if (fie.getCapitalDelta().signum() < 0) {
+                    totalClosedCapital = totalClosedCapital.add(fie.getCapitalDelta().abs());
+                }
                 if (fie.getCurrencyCode() != null && !fie.getCurrencyCode().equals(user.getLocalCurrency())) {
                     totalForeignCapital = totalForeignCapital.add(fie.getCapitalDelta());
                 }
@@ -1525,6 +1573,9 @@ public class FinanceSecurityService {
             }
             if (fie.getBaseCurrencyCapitalDelta() != null) {
                 totalCapitalInBaseCurrency = totalCapitalInBaseCurrency.add(fie.getBaseCurrencyCapitalDelta());
+                if (fie.getBaseCurrencyCapitalDelta().signum() < 0) {
+                    totalClosedCapitalInBaseCurrency = totalClosedCapitalInBaseCurrency.add(fie.getBaseCurrencyCapitalDelta().abs());
+                }
                 if (fie.getCurrencyCode() != null && !fie.getCurrencyCode().equals(user.getLocalCurrency())) {
                     totalForeignCapitalInBaseCurrency = totalForeignCapitalInBaseCurrency.add(fie.getBaseCurrencyCapitalDelta());
                 }
@@ -1552,9 +1603,15 @@ public class FinanceSecurityService {
 
             if (quantity <= 0 && !includeClosed) {
                 totalCapital = BigDecimal.ZERO;
+                totalCapitalInBaseCurrency = BigDecimal.ZERO;
+                totalForeignCapital = BigDecimal.ZERO;
+                totalForeignCapitalInBaseCurrency = BigDecimal.ZERO;
+                totalClosedCapital = BigDecimal.ZERO;
+                totalClosedCapitalInBaseCurrency = BigDecimal.ZERO;
                 totalIncome = BigDecimal.ZERO;
                 totalRealisedCurrencyGain = BigDecimal.ZERO;
                 totalRealisedCapitalGain = BigDecimal.ZERO;
+                totalRealisedCapitalGainInBaseCurrency = BigDecimal.ZERO;
                 // totalFees = BigDecimal.ZERO;
                 positionOpenDate = null;
             }
@@ -1567,29 +1624,46 @@ public class FinanceSecurityService {
         BigDecimal currentValue = BigDecimal.ZERO;
         BigDecimal currentPrice = BigDecimal.ZERO;
         ZonedDateTime currentPriceDateTime = null;
+        LocalDate currentPriceDate = null;
 
         if (userSecurity.getSecurity() != null) {
             symbols.add(userSecurity.getSecurity().getSymbol());
             List<FinanceSecurityPrice> oprice = this.securitySPRepository.findLatestBySymbolsAndBeforeDate(symbols, atDate.plusDays(1));
             if (oprice == null || oprice.size() != 1) {
-                log.error("Couldn't find SP: " + userSecurity.getSecurity().getSymbol());
-                return null;
+                Optional<FinanceInvestmentEvent> latestPricedEvent = findLatestPricedEvent(events, atDate);
+                if (latestPricedEvent.isEmpty()) {
+                    log.error("Couldn't find SP: " + userSecurity.getSecurity().getSymbol());
+                    return null;
+                }
+                FinanceInvestmentEvent priceEvent = latestPricedEvent.get();
+                currentPrice = priceEvent.getPrice();
+                currentPriceDate = priceEvent.getDate();
+                log.warn(
+                    "Couldn't find SP: {} before {}, using latest investment event price {} from {}",
+                    userSecurity.getSecurity().getSymbol(),
+                    atDate,
+                    currentPrice,
+                    currentPriceDate
+                );
+            } else {
+                // Get calculate the latest gain....
+                currentPrice = oprice.get(0).getPrice();
+                currentPriceDateTime = oprice.get(0).getDate();
+                currentPriceDate = currentPriceDateTime.toLocalDate();
             }
-
-            // Get calculate the latest gain....
-            currentPrice = oprice.get(0).getPrice();
             currentValue = currentPrice.multiply(new BigDecimal(quantity));
-            currentPriceDateTime = oprice.get(0).getDate();
         } else {
             // Not set
         }
 
         FinanceInvestmentSnapshotDetails dto = new FinanceInvestmentSnapshotDetails();
         dto.setUserSecurityId(userSecurity.getId().toString());
+        dto.setIgnoredForRollup(userSecurity.isIgnoredForRollup());
+        dto.setIgnoredForRollupReason(userSecurity.getIgnoredForRollupReason());
         dto.setPrice(currentPrice);
         dto.setQuantity(quantity);
-        if (currentPriceDateTime != null) {
-            dto.setPriceDate(currentPriceDateTime.toLocalDate());
+        if (currentPriceDate != null) {
+            dto.setPriceDate(currentPriceDate);
         }
 
         dto.setTotalCapitalGain(BigDecimal.ZERO);
@@ -1603,8 +1677,13 @@ public class FinanceSecurityService {
         dto.setTotalCapitalGain(currentValue.subtract(totalCapital)); // .subtract(dto.getTotalFees())
         dto.setCurrencyIsoCode(userSecurity.getCurrencyCode());
 
+        BigDecimal capitalInvestedForReturn = includeClosed ? totalCapital.add(totalClosedCapital) : totalCapital;
+        BigDecimal capitalInvestedInBaseForReturn = includeClosed
+            ? totalCapitalInBaseCurrency.add(totalClosedCapitalInBaseCurrency)
+            : totalCapitalInBaseCurrency;
+
         if (userSecurity.getCurrencyCode() != null && !userSecurity.getCurrencyCode().equals(user.getLocalCurrency())) {
-            dto.setTotalCapitalInvested(totalCapitalInBaseCurrency);
+            dto.setTotalCapitalInvested(capitalInvestedInBaseForReturn);
             FinanceFX fx = fxService.getLatestFX(userSecurity.getCurrencyCode(), user.getLocalCurrency(), atDate.plusDays(1));
             if (fx == null) {
                 // Just get the last known
@@ -1620,7 +1699,7 @@ public class FinanceSecurityService {
             BigDecimal currentValueInBaseCurrency = currentValue.multiply(new BigDecimal(fx.getRate()));
             dto.setTotalCapitalGain(currentValueInBaseCurrency.subtract(totalCapitalInBaseCurrency).subtract(dto.getTotalCurrencyGain()));
         } else {
-            dto.setTotalCapitalInvested(totalCapital);
+            dto.setTotalCapitalInvested(capitalInvestedForReturn);
         }
 
         if (includeClosed) {
@@ -1647,7 +1726,13 @@ public class FinanceSecurityService {
         // HERE - What if zero? TODO
         // String type = includeClosed ? "all" : "onlyOpen";
 
-        double ayi = calcAYIFromEvents(events, totalCapital.doubleValue(), LocalDate.now(), includeClosed);
+        double ayi = calcAYIFromEvents(
+            events,
+            dto.getTotalCapitalInvested().doubleValue(),
+            LocalDate.now(),
+            includeClosed,
+            userSecurity.getCurrencyCode() != null && !userSecurity.getCurrencyCode().equals(user.getLocalCurrency())
+        );
         if (Double.isInfinite(ayi)) {
             ayi = 0;
         } else if (ayi < 1) {
@@ -1719,37 +1804,80 @@ public class FinanceSecurityService {
         return dto;
     }
 
+    private Optional<FinanceInvestmentEvent> findLatestPricedEvent(List<FinanceInvestmentEvent> events, LocalDate atDate) {
+        if (events == null || events.isEmpty()) {
+            return Optional.empty();
+        }
+        FinanceInvestmentEvent result = null;
+        for (FinanceInvestmentEvent event : events) {
+            if (event.getPrice() != null && event.getDate() != null && !event.getDate().isAfter(atDate)) {
+                result = event;
+            }
+        }
+        return Optional.ofNullable(result);
+    }
+
     public static double calcAYIFromEvents(
         List<FinanceInvestmentEvent> events,
         double totalCapital,
         LocalDate toDate,
         boolean includeClosed
     ) {
-        double ayi = 0;
+        return calcAYIFromEvents(events, totalCapital, toDate, includeClosed, false);
+    }
+
+    public static double calcAYIFromEvents(
+        List<FinanceInvestmentEvent> events,
+        double totalCapital,
+        LocalDate toDate,
+        boolean includeClosed,
+        boolean useBaseCurrencyCapital
+    ) {
+        if (events == null || events.isEmpty() || totalCapital == 0) {
+            return 0;
+        }
+        double capitalDays = 0;
+        double activeCapital = 0;
         double quantity = 0;
+        LocalDate previousDate = null;
         for (FinanceInvestmentEvent event : events) {
-            if (event.getCapitalDelta() != null && event.getCapitalDelta().doubleValue() > 0) {
-                // Not sell events.
-                long days = ChronoUnit.DAYS.between(event.getDate(), toDate);
-                double proporation = Math.abs(event.getCapitalDelta().doubleValue()) / totalCapital;
-                ayi = ayi + (days * proporation);
-                // System.out.println("ATI CALC: Days: " + days + ", Amount: " + event.getCapitalDelta()
-                //         + ", Total Captial: " + totalCapital);
+            if (previousDate != null && activeCapital != 0) {
+                capitalDays += activeCapital * ChronoUnit.DAYS.between(previousDate, event.getDate());
             }
 
-            if (event.getCapitalDelta() != null) {
-                quantity = quantity + event.getQuantity();
-                if (quantity == 0 && !includeClosed) {
-                    ayi = 0;
+            BigDecimal capitalDelta =
+                useBaseCurrencyCapital && event.getBaseCurrencyCapitalDelta() != null
+                    ? event.getBaseCurrencyCapitalDelta()
+                    : event.getCapitalDelta();
+            if (capitalDelta != null) {
+                activeCapital += capitalDelta.doubleValue();
+                if (Math.abs(activeCapital) < 0.00001) {
+                    activeCapital = 0;
                 }
             }
+            if (event.getQuantity() != null) {
+                quantity = quantity + event.getQuantity();
+                if (quantity == 0 && !includeClosed) {
+                    activeCapital = 0;
+                    capitalDays = 0;
+                }
+            }
+            previousDate = event.getDate();
+        }
+
+        if (previousDate != null && activeCapital != 0) {
+            capitalDays += activeCapital * ChronoUnit.DAYS.between(previousDate, toDate);
         }
 
         // Now div by 365 to get years
-        ayi = ayi / 365;
+        double ayi = capitalDays / totalCapital / 365;
 
-        System.out.println("AYI: " + ayi);
+        logStaticAyi(ayi);
         return ayi;
+    }
+
+    private static void logStaticAyi(double ayi) {
+        System.out.println("AYI: " + ayi);
     }
 
     public Optional<FinanceUserSecurity> getUserSecurity(User user, String id) {
@@ -1901,6 +2029,9 @@ public class FinanceSecurityService {
     }
 
     public static double calcReturn(double gain, double totalCapital, double ayi) {
+        if (totalCapital == 0 || ayi == 0) {
+            return 0;
+        }
         return (gain / totalCapital) / ayi;
     }
 
@@ -1910,6 +2041,9 @@ public class FinanceSecurityService {
     }
 
     public static double calcCAGR(double gain, double totalCapital, double ayi) {
+        if (totalCapital == 0 || ayi == 0) {
+            return 0;
+        }
         double a = 1 + (gain / totalCapital);
         // System.out.println("ATI: " + ati + ", totalCaptial: " + totalCapital + ",
         // Gain: " + gain);

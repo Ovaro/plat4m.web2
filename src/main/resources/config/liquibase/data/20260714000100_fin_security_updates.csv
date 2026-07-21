@@ -1,0 +1,18 @@
+id,active,capitalization_class,country,currency_code,exchange_mic,exchange_name,exchange_suffix,industry,name,sector,serial_date_time,short_name,symbol,type
+44cf0384-f881-4dc0-b427-fc1198804f14,TRUE,,United States,USD,XNAS,NASDAQ,,Internet Content & Information,Meta,Communication Services,,,META,1
+01ae554d-359b-4120-8267-982fcfd4ca17,TRUE,,United States,USD,XNYS,NYSE,,Financial Data & Stock Exchanges,S&P Global Inc.,Financial Services,,,SPGI,1
+5b4181d7-e053-424a-ae4d-e05018ad82be,TRUE,,United States,USD,XNYS,NYSE,,Healthcare Plans,S&P Global Inc.,Healthcare,,,UNH,1
+5f22fa1a-9cc0-4572-bca6-dbe83634e929,TRUE,,United States,USD,XNYS,NYSE,,REIT - Diversified,VICI Properties Inc.,Real Estate,,,VICI,1
+6b3ff2f6-ff69-4eb6-9e74-68dd35356164,TRUE,,United States,USD,XNAS,NASDAQ,,Software - Application,Salesforce Inc.,Technology,,,CRM,1
+7589abe1-d03a-41c9-9455-40181d067053,TRUE,,Australia,AUD,XASX,ASX,,ETF,iShares Global 100 ETF,Global Large-Stock Blend,,,IOO,11
+8a81b8ff-9498-40d7-ba06-4f14c6867719,TRUE,,Australia,AUD,XASX,ASX,,ETF,iShares Core S&P 500 ETF (Hedged),US Large Blend,,,IHVV,11
+51086b6c-e302-4fe0-8915-fb38015d4eaf,TRUE,,Australia,AUD,XASX,ASX,,ETF,Vanguard Australian Shares Index ETF,Australia Large Blend,,,VAS,11
+f5e8b805-4b37-4e27-9396-bdd0db20c62e,TRUE,,United States,USD,XNAS,NASDAQ,,Semiconductor Equipment & Materials,ASML Holding N.V.,Technology,,,ASML,1
+f4a25e25-28c4-45d6-8d75-8fccdcc3d632,TRUE,,United States,USD,XNYS,NYSE,,Credit Services,Visa,Financial Services,,,V,1
+c5692a87-be03-4351-b6e6-e2b68ea6650d,TRUE,,United States,USD,XNAS,NASDAQ,,Internet Retail,Amazon.com Inc,Consumer Cyclical,,,AMZN,1
+89f4ef19-269b-469b-82bc-adf579d677d3,TRUE,,Australia,AUD,XASX,ASX,AX,Packaging & Containers,Amcor plc,Consumer Cyclical,,,AMC,1
+44914d9a-51eb-485c-9e29-0b7ae3de280b,TRUE,,Australia,AUD,XASX,ASX,AX,Other Industrial Metals & Mining,Elevra Lithium Ltd,Basic Materials,,,ELV,1
+361bf426-bd9f-4d14-be40-41d70d5b39f1,TRUE,,United States,USD,XNYS,NYSE,,Healthcare Plans,CVS Health Corporation,Healthcare,,,CVS,1
+30b3c549-a94e-494e-83b1-18cd26c5b892,TRUE,,Australia,AUD,XASX,ASX,AX,Oil & Gas E&P,Woodside Energy Group,Energy,,,WDS,1
+c8ab2464-cd5e-4e30-b8c3-22885a338e16,TRUE,,United States,USD,XNAS,NASDAQ,,Software - Infrastructure,Microsoft Corporation,Technology,,,MSFT,1
+0c4e34ce-8318-4745-a3fc-6908f7eeb23a,TRUE,,Australia,AUD,XASX,ASX,AX,Other Industrial Metals & Mining,IGO Limited,Basic Materials,,,IGO,1

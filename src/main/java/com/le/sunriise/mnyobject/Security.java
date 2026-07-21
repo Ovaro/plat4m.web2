@@ -54,6 +54,10 @@ public interface Security {
 
     public abstract void setCurrencyId(String currencyId);
 
+    public abstract String getCountryId();
+
+    public abstract void setCountryId(String countryId);
+
     public abstract Integer getLinkId();
 
     public abstract void setLinkId(Integer id);

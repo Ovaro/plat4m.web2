@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260714000100-1" author="codex">
+        <loadUpdateData
+            file="config/liquibase/data/20260714000100_fin_security_updates.csv"
+            primaryKey="id"
+            separator=","
+            tableName="fin_security"
+            usePreparedStatements="true">
+            <column name="id" type="UUID"/>
+        </loadUpdateData>
+    </changeSet>
+</databaseChangeLog>

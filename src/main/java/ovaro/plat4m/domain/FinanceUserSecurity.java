@@ -51,6 +51,11 @@ public class FinanceUserSecurity implements Serializable {
 
     private String comment;
 
+    private boolean ignoredForRollup = false;
+
+    @Column(length = 2000)
+    private String ignoredForRollupReason;
+
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "parent_id", referencedColumnName = "id")
     @Fetch(FetchMode.JOIN)
@@ -110,6 +115,22 @@ public class FinanceUserSecurity implements Serializable {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public boolean isIgnoredForRollup() {
+        return ignoredForRollup;
+    }
+
+    public void setIgnoredForRollup(boolean ignoredForRollup) {
+        this.ignoredForRollup = ignoredForRollup;
+    }
+
+    public String getIgnoredForRollupReason() {
+        return ignoredForRollupReason;
+    }
+
+    public void setIgnoredForRollupReason(String ignoredForRollupReason) {
+        this.ignoredForRollupReason = ignoredForRollupReason;
     }
 
     public Integer getType() {

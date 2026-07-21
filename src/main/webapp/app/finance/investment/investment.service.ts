@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
 import {
   FinanceInvestmentSnapshotDetails,
+  FinanceInvestmentRollupIgnoreUpdate,
   FinanceLotGroup,
   FinanceResourceSnapshots,
   FinanceSecurityStoredPrice,
@@ -52,6 +53,17 @@ export class InvestmentTransactions {
         this.applicationConfigService.getEndpointFor('api/investment/' + id + '/summary?includeClosed=false'),
       );
     }
+  }
+
+  updateRollupIgnore(
+    id: string,
+    includeClosedPositions: boolean,
+    update: FinanceInvestmentRollupIgnoreUpdate,
+  ): Observable<FinanceInvestmentSnapshotDetails> {
+    return this.http.put<FinanceInvestmentSnapshotDetails>(
+      this.applicationConfigService.getEndpointFor(`api/investment/${id}/rollup-ignore?includeClosed=${includeClosedPositions}`),
+      update,
+    );
   }
 
   getHistory(userSecurityId: string, includeClosedPositions: boolean, periodAgo: string): Observable<FinanceResourceSnapshots[]> {

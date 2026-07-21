@@ -10,6 +10,10 @@ public class FinanceInvestmentPortfolioSummaryDTO extends FinanceInvestmentSnaps
 
     BigDecimal totalValue;
     Double totalAyi;
+    BigDecimal cashValue;
+    BigDecimal cashInterest;
+    Double cashReturnPercent;
+    BigDecimal expectedReturnCagr;
 
     LocalDate date;
 
@@ -37,6 +41,38 @@ public class FinanceInvestmentPortfolioSummaryDTO extends FinanceInvestmentSnaps
 
     public void setTotalAyi(Double totalAyi) {
         this.totalAyi = totalAyi;
+    }
+
+    public BigDecimal getCashValue() {
+        return cashValue;
+    }
+
+    public void setCashValue(BigDecimal cashValue) {
+        this.cashValue = cashValue;
+    }
+
+    public BigDecimal getCashInterest() {
+        return cashInterest;
+    }
+
+    public void setCashInterest(BigDecimal cashInterest) {
+        this.cashInterest = cashInterest;
+    }
+
+    public Double getCashReturnPercent() {
+        return cashReturnPercent;
+    }
+
+    public void setCashReturnPercent(Double cashReturnPercent) {
+        this.cashReturnPercent = cashReturnPercent;
+    }
+
+    public BigDecimal getExpectedReturnCagr() {
+        return expectedReturnCagr;
+    }
+
+    public void setExpectedReturnCagr(BigDecimal expectedReturnCagr) {
+        this.expectedReturnCagr = expectedReturnCagr;
     }
 
     public LocalDate getDate() {

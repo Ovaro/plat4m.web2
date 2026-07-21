@@ -94,7 +94,7 @@
 
   .manage-transactions-layout {
     display: grid;
-    grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr);
+    grid-template-columns: minmax(20rem, 24rem) minmax(0, 1fr);
     gap: 12px;
     align-items: start;
   }
@@ -128,7 +128,8 @@
 
   .manage-card--dialog {
     max-height: min(32rem, 62vh);
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .manage-card--transactions-list.manage-card--dialog {
@@ -138,6 +139,11 @@
   .manage-table--compact-transactions .manage-table__row {
     grid-template-columns: minmax(0, 1fr) 96px;
     align-items: center;
+    min-width: 0;
+  }
+
+  .manage-table--compact-transactions {
+    overflow: visible;
   }
 
   .manage-table--compact-transactions .manage-table__primary,

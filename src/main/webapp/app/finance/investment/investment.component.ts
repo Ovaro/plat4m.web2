@@ -7,6 +7,7 @@ import { InvestmentTransactions } from './investment.service';
 import {
   FinanceInvestmentSnapshotDetails,
   FinanceLotGroup,
+  FinanceLotView,
   FinanceResourceSnapshots,
   FinanceSecurityHolding,
   FinanceSecurityStoredPrice,
@@ -42,6 +43,27 @@ interface Group {
   name: string;
   value: string;
   groups: GroupData | null;
+}
+
+type LotStatusFilter = 'all' | 'open' | 'closed';
+type LotSortColumn =
+  | 'sourceId'
+  | 'lotKey'
+  | 'openDate'
+  | 'closeDate'
+  | 'quantity'
+  | 'accountName'
+  | 'status'
+  | 'costBasis'
+  | 'saleProceeds'
+  | 'realisedGainLoss';
+
+interface LotFamilyView {
+  key: string;
+  original: FinanceLotView;
+  rows: FinanceLotView[];
+  remainingQuantity: number;
+  realisedGainLoss: number;
 }
 
 export type AreaChartOptions = {
@@ -85,18 +107,29 @@ export class InvestmentComponent {
   protected priceDialogVisible = false;
   protected lotsDialogVisible = false;
   protected priceDeleteDialogVisible = false;
+  protected ignoreRollupDialogVisible = false;
   protected isPricesLoading = false;
   protected isLotsLoading = false;
   protected isPriceSaving = false;
+  protected isIgnoreRollupSaving = false;
   protected priceErrorMessage: string | null = null;
   protected lotsErrorMessage: string | null = null;
+  protected ignoreRollupErrorMessage: string | null = null;
   protected storedPrices: FinanceSecurityStoredPrice[] = [];
   protected lotGroups: FinanceLotGroup[] = [];
+  protected lotStatusFilter: LotStatusFilter = 'all';
+  protected lotSearchTerm = '';
+  protected lotSortColumn: LotSortColumn = 'openDate';
+  protected lotSortDirection: 'asc' | 'desc' = 'asc';
   protected editingStoredPrice: FinanceSecurityStoredPrice | null = null;
   protected deleteStoredPriceCandidate: FinanceSecurityStoredPrice | null = null;
   protected readonly priceForm = new FormGroup({
     date: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     price: new FormControl<number | null>(null, { validators: [Validators.required, Validators.min(0)] }),
+  });
+  protected readonly ignoreRollupForm = new FormGroup({
+    ignoredForRollup: new FormControl(false, { nonNullable: true }),
+    ignoredForRollupReason: new FormControl('', { nonNullable: true }),
   });
 
   //public investmen2!: InvestmentDetails | null;
@@ -302,9 +335,9 @@ export class InvestmentComponent {
           curve: 'straight',
         },
         markers: {
-          size: 1,
-          strokeOpacity: 0.1,
-          fillOpacity: 0.1,
+          size: 3,
+          strokeOpacity: 0.35,
+          fillOpacity: 1,
           hover: {
             size: 4,
             sizeOffset: 3,
@@ -390,6 +423,7 @@ export class InvestmentComponent {
       this.holding = this.getHolding(this.securityId);
       this.loadTransactions(this.securityId);
       this.loadHistory();
+      this.loadLots();
     }
   }
 
@@ -409,6 +443,10 @@ export class InvestmentComponent {
       return 'Reinvestment';
     } else if (value === 'DIVIDEND') {
       return 'Dividend';
+    } else if (value === 'ADD_SHARES' || value === 'ADD_SHARES2') {
+      return 'Add Shares';
+    } else if (value === 'REMOVE_SHARES') {
+      return 'Remove Shares';
     }
 
     return value;
@@ -416,6 +454,103 @@ export class InvestmentComponent {
 
   abs(value: number): number {
     return Math.abs(value);
+  }
+
+  hasTransactionFx(item: InvestmentTransaction): boolean {
+    return item.rateToBase != null && item.rateToBase !== 0;
+  }
+
+  marketValueFxTooltip(): string {
+    if (!this.investmentSummary?.fxToLocal) {
+      return '';
+    }
+    return this.fxTooltip(
+      'Base market value',
+      this.marketValue * this.investmentSummary.fxToLocal,
+      this.investmentSummary.currencyIsoCode,
+      'AUD',
+      this.investmentSummary.fxToLocal,
+    );
+  }
+
+  transactionPriceFxTooltip(item: InvestmentTransaction): string {
+    if (!this.hasTransactionFx(item)) {
+      return '';
+    }
+    return this.fxTooltip('Base price', Math.abs(item.price * item.rateToBase!), item.currencyCode, 'AUD', item.rateToBase!);
+  }
+
+  transactionFxTooltip(item: InvestmentTransaction): string {
+    if (!this.hasTransactionFx(item)) {
+      return '';
+    }
+    return this.fxTooltip('Base amount', this.incomeDisplayAmount(item), item.currencyCode, 'AUD', item.rateToBase!);
+  }
+
+  incomeDisplayAmount(item: InvestmentTransaction): number {
+    if (item.rateToBase != null && item.rateToBase !== 0) {
+      return Math.abs(item.amount * item.rateToBase);
+    }
+    if (item.amountBase != null) {
+      return Math.abs(item.amountBase);
+    }
+    return Math.abs(item.amount);
+  }
+
+  incomeDisplayCurrencyCode(item?: InvestmentTransaction): string {
+    if (item && this.hasTransactionFx(item)) {
+      return 'AUD';
+    }
+    return item?.currencyCode ?? this.holding?.currencyCode ?? this.investmentSummary?.currencyIsoCode ?? 'AUD';
+  }
+
+  incomeSourceCurrencyCode(item: InvestmentTransaction): string {
+    return item.currencyCode ?? this.holding?.currencyCode ?? this.investmentSummary?.currencyIsoCode ?? 'AUD';
+  }
+
+  incomeSourceAmount(item: InvestmentTransaction): number {
+    return Math.abs(item.amount);
+  }
+
+  incomeBaseCurrencyCode(): string {
+    return 'AUD';
+  }
+
+  formatCurrencyWithCode(value: number, currencyCode: string): string {
+    return `${currencyCode}${this.formatMoney(value, currencyCode)}`;
+  }
+
+  incomeFxTooltip(item: InvestmentTransaction): string {
+    if (!this.hasTransactionFx(item)) {
+      return '';
+    }
+    const sourceCurrency = this.incomeSourceCurrencyCode(item);
+    const baseCurrency = this.incomeBaseCurrencyCode();
+    return `FX ${sourceCurrency}/${baseCurrency} ${item.rateToBase}`;
+  }
+
+  investmentMetricCurrencyCode(): string {
+    return this.investmentSummary?.fxToLocal ? 'AUD' : (this.investmentSummary?.currencyIsoCode ?? 'AUD');
+  }
+
+  private fxTooltip(
+    label: string,
+    baseAmount: number,
+    sourceCurrencyCode: string | null | undefined,
+    baseCurrencyCode: string,
+    rate: number,
+  ): string {
+    const sourceCurrency = sourceCurrencyCode ?? this.holding?.currencyCode ?? baseCurrencyCode;
+    const baseAmountText = this.formatMoney(baseAmount, baseCurrencyCode);
+    return `${label} ${baseCurrencyCode} ${baseAmountText} @ ${sourceCurrency}/${baseCurrencyCode} ${rate}`;
+  }
+
+  private formatMoney(value: number, currencyCode: string): string {
+    return new Intl.NumberFormat(this.locale, {
+      style: 'currency',
+      currency: currencyCode,
+      currencyDisplay: 'narrowSymbol',
+    }).format(value);
   }
 
   currencyFormatter(value: any): string {
@@ -451,14 +586,21 @@ export class InvestmentComponent {
   }
 
   load(): void {
-    this.investmentPortfolio.get(null, this.includeClosedPositions).subscribe({
+    this.isLoading = true;
+    this.investmentPortfolio.get(null, true).subscribe({
       next: (res: FinanceSecurityHolding[]) => {
         this.isLoading = false;
-        this.holdings = res;
+        this.holdings = this.sortHoldingsForSelector(res ?? []);
         if (this.securityId) {
           this.holding = this.getHolding(this.securityId);
+          if (this.shouldReloadWithClosedPositions()) {
+            this.includeClosedPositions = true;
+            this.load();
+            return;
+          }
           this.loadTransactions(this.securityId);
           this.loadHistory();
+          this.loadLots();
         }
       },
       error: () => (this.isLoading = false),
@@ -472,6 +614,10 @@ export class InvestmentComponent {
       next: (res: InvestmentTransaction[]) => {
         this.isLoading = false;
         this.transactions = res;
+        this.ensureClosedInvestmentIncludesClosedPositions();
+        if (this.portfolioValueHistoryItems) {
+          this.applyHistoryToChart(this.portfolioValueHistoryItems);
+        }
         this.loadSummary(id);
       },
       error: () => (this.isLoading = false),
@@ -498,6 +644,7 @@ export class InvestmentComponent {
         this.investmentSummary = res;
         this.title = this.holding?.name ?? '';
         this.marketValue = Math.round((this.investmentSummary.price * this.investmentSummary.quantity + Number.EPSILON) * 100) / 100;
+        this.ensureClosedInvestmentIncludesClosedPositions();
       },
       error: () => (this.isSummaryLoading = false),
     });
@@ -542,6 +689,26 @@ export class InvestmentComponent {
     this.loadLots();
   }
 
+  setLotStatusFilter(filter: LotStatusFilter): void {
+    this.lotStatusFilter = filter;
+  }
+
+  sortLots(column: LotSortColumn): void {
+    if (this.lotSortColumn === column) {
+      this.lotSortDirection = this.lotSortDirection === 'asc' ? 'desc' : 'asc';
+      return;
+    }
+    this.lotSortColumn = column;
+    this.lotSortDirection = column === 'realisedGainLoss' ? 'desc' : 'asc';
+  }
+
+  lotSortIndicator(column: LotSortColumn): string {
+    if (this.lotSortColumn !== column) {
+      return '';
+    }
+    return this.lotSortDirection === 'asc' ? '^' : 'v';
+  }
+
   toggleActionsMenu(): void {
     this.actionsMenuOpen = !this.actionsMenuOpen;
   }
@@ -549,6 +716,51 @@ export class InvestmentComponent {
   refreshQuotesFromActionsMenu(): void {
     this.actionsMenuOpen = false;
     this.refreshQuotes();
+  }
+
+  openIgnoreRollupDialog(): void {
+    if (!this.securityId) {
+      return;
+    }
+    this.actionsMenuOpen = false;
+    this.ignoreRollupErrorMessage = null;
+    this.ignoreRollupForm.reset({
+      ignoredForRollup: this.investmentSummary?.ignoredForRollup ?? false,
+      ignoredForRollupReason: this.investmentSummary?.ignoredForRollupReason ?? '',
+    });
+    this.ignoreRollupDialogVisible = true;
+  }
+
+  saveIgnoreRollup(): void {
+    if (!this.securityId) {
+      return;
+    }
+    const ignoredForRollup = this.ignoreRollupForm.controls.ignoredForRollup.value;
+    const reason = this.ignoreRollupForm.controls.ignoredForRollupReason.value.trim();
+    this.isIgnoreRollupSaving = true;
+    this.ignoreRollupErrorMessage = null;
+    this.investmentTransactions
+      .updateRollupIgnore(this.securityId, this.includeClosedPositions, {
+        ignoredForRollup,
+        ignoredForRollupReason: ignoredForRollup && reason ? reason : null,
+      })
+      .subscribe({
+        next: summary => {
+          this.isIgnoreRollupSaving = false;
+          this.ignoreRollupDialogVisible = false;
+          this.investmentSummary = summary;
+          this.marketValue = Math.round((summary.price * summary.quantity + Number.EPSILON) * 100) / 100;
+        },
+        error: (error: HttpErrorResponse) => {
+          this.isIgnoreRollupSaving = false;
+          this.ignoreRollupErrorMessage = this.getQuoteRefreshErrorMessage(error);
+        },
+      });
+  }
+
+  getIgnoredRollupTooltip(): string {
+    const reason = this.investmentSummary?.ignoredForRollupReason?.trim();
+    return `Ignored in rolled up performance metrics${reason ? `: ${reason}` : '.'}`;
   }
 
   resetStoredPriceForm(): void {
@@ -673,13 +885,186 @@ export class InvestmentComponent {
     this.investmentTransactions.getLots(this.securityId).subscribe({
       next: lots => {
         this.lotGroups = lots;
+        this.lotSortColumn = 'openDate';
+        this.lotSortDirection = 'asc';
         this.isLotsLoading = false;
+        this.ensureClosedInvestmentIncludesClosedPositions();
+        if (this.portfolioValueHistoryItems) {
+          this.applyHistoryToChart(this.portfolioValueHistoryItems);
+        }
       },
       error: (error: HttpErrorResponse) => {
         this.lotsErrorMessage = this.getQuoteRefreshErrorMessage(error);
         this.isLotsLoading = false;
       },
     });
+  }
+
+  get lotRows(): FinanceLotView[] {
+    return this.lotGroups.flatMap(group => this.visibleLotRowsForGroup(group));
+  }
+
+  get filteredLotRows(): FinanceLotView[] {
+    const query = this.lotSearchTerm.trim().toLowerCase();
+    return this.lotRows.filter(lot => {
+      if (!this.matchesLotStatus(lot)) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return [lot.lotKey, lot.sourceId, lot.accountName, lot.securityName, lot.openDate, lot.closeDate, lot.buyDate, lot.sellDate]
+        .filter(value => value !== null && value !== undefined)
+        .some(value => `${value}`.toLowerCase().includes(query));
+    });
+  }
+
+  get sortedLotRows(): FinanceLotView[] {
+    const direction = this.lotSortDirection === 'asc' ? 1 : -1;
+    return [...this.filteredLotRows].sort((left, right) => this.compareLotValues(left, right) * direction);
+  }
+
+  get lotFamilies(): LotFamilyView[] {
+    return this.lotGroups.map(group => {
+      const rows = this.visibleLotRowsForGroup(group);
+      const remainingQuantity =
+        group.remainingLot?.quantity ??
+        rows.filter(lot => !this.isLotClosed(lot)).reduce((total, lot) => total + Math.abs(lot.quantity ?? 0), 0);
+      const realisedGainLoss = rows.reduce((total, lot) => total + (lot.realisedGainLoss ?? 0), 0);
+      return {
+        key: this.buildFamilyKey(group, rows),
+        original: group.originalLot,
+        rows,
+        remainingQuantity,
+        realisedGainLoss,
+      };
+    });
+  }
+
+  get filteredLotFamilies(): LotFamilyView[] {
+    const query = this.lotSearchTerm.trim().toLowerCase();
+    return this.lotFamilies
+      .map(family => ({
+        ...family,
+        rows: family.rows.filter(lot => this.matchesLotStatus(lot) && this.matchesLotSearch(lot, family, query)),
+      }))
+      .filter(family => family.rows.length > 0);
+  }
+
+  get sortedLotFamilies(): LotFamilyView[] {
+    const direction = this.lotSortDirection === 'asc' ? 1 : -1;
+    return [...this.filteredLotFamilies]
+      .sort((left, right) => this.compareLotValues(left.original, right.original) * direction)
+      .map(family => ({
+        ...family,
+        rows: [...family.rows].sort((left, right) => this.compareLotValues(left, right) * direction),
+      }));
+  }
+
+  get realisedLotRows(): FinanceLotView[] {
+    return this.lotRows.filter(lot => this.isLotClosed(lot) && lot.realisedGainLoss !== null && lot.realisedGainLoss !== undefined);
+  }
+
+  get totalRealisedGainLoss(): number {
+    return this.realisedLotRows.reduce((total, lot) => total + (lot.realisedGainLoss ?? 0), 0);
+  }
+
+  get openLotCount(): number {
+    return this.lotRows.filter(lot => !this.isLotClosed(lot)).length;
+  }
+
+  get closedLotCount(): number {
+    return this.lotRows.filter(lot => this.isLotClosed(lot)).length;
+  }
+
+  isLotClosed(lot: FinanceLotView): boolean {
+    return !!(lot.closeDate || lot.sellDate || lot.saleProceeds != null || lot.realisedGainLoss != null);
+  }
+
+  private visibleLotRowsForGroup(group: FinanceLotGroup): FinanceLotView[] {
+    return group.lots.filter(lot => !this.isStructuralZeroRemainingLot(lot, group.lots));
+  }
+
+  private isStructuralZeroRemainingLot(lot: FinanceLotView, groupRows: FinanceLotView[]): boolean {
+    if (this.isLotClosed(lot) || Math.abs(lot.quantity ?? 0) > 0) {
+      return false;
+    }
+    return groupRows.some(row => row.id !== lot.id && row.originalLotId === lot.id && this.isLotClosed(row));
+  }
+
+  private matchesLotStatus(lot: FinanceLotView): boolean {
+    if (this.lotStatusFilter === 'open') {
+      return !this.isLotClosed(lot);
+    }
+    if (this.lotStatusFilter === 'closed') {
+      return this.isLotClosed(lot);
+    }
+    return true;
+  }
+
+  private matchesLotSearch(lot: FinanceLotView, family: LotFamilyView, query: string): boolean {
+    if (!query) {
+      return true;
+    }
+    return [
+      family.key,
+      lot.lotKey,
+      lot.sourceId,
+      lot.originalSourceId,
+      lot.accountName,
+      lot.securityName,
+      lot.openDate,
+      lot.closeDate,
+      lot.buyDate,
+      lot.sellDate,
+    ]
+      .filter(value => value !== null && value !== undefined)
+      .some(value => `${value}`.toLowerCase().includes(query));
+  }
+
+  private buildLotKey(lot: FinanceLotView): string {
+    return `${lot.originalBuyDate ?? lot.buyDate ?? lot.openDate ?? 'Unknown date'} | ${lot.originalQuantity ?? lot.quantity ?? 'Unknown quantity'} @ ${
+      lot.originalPrice ?? 'Unknown price'
+    }`;
+  }
+
+  private buildFamilyKey(group: FinanceLotGroup, rows: FinanceLotView[]): string {
+    const originalQuantity = group.originalLot.originalQuantity ?? group.originalLot.quantity ?? 0;
+    if (Math.abs(originalQuantity) > 0) {
+      return group.originalLot.lotKey ?? this.buildLotKey(group.originalLot);
+    }
+    const displayLot = rows.find(row => Math.abs(row.quantity ?? 0) > 0) ?? group.originalLot;
+    return `${displayLot.originalBuyDate ?? displayLot.buyDate ?? displayLot.openDate ?? 'Unknown date'} | ${
+      Math.abs(displayLot.quantity ?? 0) || 'Unknown quantity'
+    } @ ${displayLot.originalPrice ?? 'Unknown price'}`;
+  }
+
+  private compareLotValues(left: FinanceLotView, right: FinanceLotView): number {
+    const leftValue = this.getLotSortValue(left);
+    const rightValue = this.getLotSortValue(right);
+    if (leftValue === rightValue) {
+      return (left.sourceId ?? 0) - (right.sourceId ?? 0);
+    }
+    if (leftValue === null || leftValue === undefined) {
+      return 1;
+    }
+    if (rightValue === null || rightValue === undefined) {
+      return -1;
+    }
+    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+      return leftValue - rightValue;
+    }
+    return `${leftValue}`.localeCompare(`${rightValue}`);
+  }
+
+  private getLotSortValue(lot: FinanceLotView): string | number | null {
+    if (this.lotSortColumn === 'lotKey') {
+      return lot.lotKey ?? this.buildLotKey(lot);
+    }
+    if (this.lotSortColumn === 'status') {
+      return this.isLotClosed(lot) ? 'Closed' : 'Open';
+    }
+    return lot[this.lotSortColumn] ?? null;
   }
 
   private getQuoteRefreshErrorMessage(error: HttpErrorResponse): string {
@@ -735,7 +1120,9 @@ export class InvestmentComponent {
 
   get onlyTrades(): InvestmentTransaction[] {
     if (this.transactions) {
-      return this.transactions.filter(x => x.type === 'BUY' || x.type === 'SELL' || x.type === 'REINVEST_DIVIDEND_COMBINED');
+      return this.transactions.filter(x =>
+        ['BUY', 'SELL', 'REINVEST_DIVIDEND_COMBINED', 'ADD_SHARES', 'ADD_SHARES2', 'REMOVE_SHARES'].includes(x.type),
+      );
     }
     return [];
   }
@@ -745,6 +1132,84 @@ export class InvestmentComponent {
       return this.transactions.filter(x => x.type === 'REINVEST_DIVIDEND_COMBINED' || x.type === 'DIVIDEND');
     }
     return [];
+  }
+
+  get isInvestmentClosed(): boolean {
+    const quantity = this.investmentSummary?.quantity ?? this.holding?.quantity;
+    return (
+      quantity !== null && quantity !== undefined && Math.abs(quantity) < 0.000001 && (this.closedLotCount > 0 || this.hasSellTransaction())
+    );
+  }
+
+  get showClosedPositionsSwitch(): boolean {
+    return this.closedLotCount > 0 && !this.isInvestmentClosed;
+  }
+
+  get closedInvestmentDate(): string | null {
+    const lastSellTimestamp = this.getLastSellTimestamp();
+    if (lastSellTimestamp == null) {
+      return null;
+    }
+    return formatDate(lastSellTimestamp, 'dd/MM/yyyy', this.locale);
+  }
+
+  private shouldReloadWithClosedPositions(): boolean {
+    return !!this.securityId && !this.includeClosedPositions && (this.holding == null || this.isHoldingClosed(this.holding));
+  }
+
+  private ensureClosedInvestmentIncludesClosedPositions(): void {
+    if (this.securityId && this.isInvestmentClosed && !this.includeClosedPositions) {
+      this.includeClosedPositions = true;
+      this.loadTransactions(this.securityId);
+      this.loadHistory();
+    }
+  }
+
+  private isHoldingClosed(holding: FinanceSecurityHolding | null): boolean {
+    return !!holding && Math.abs(holding.quantity ?? 0) < 0.000001;
+  }
+
+  isHoldingOptionClosed(holding: FinanceSecurityHolding | null): boolean {
+    return this.isHoldingClosed(holding);
+  }
+
+  private sortHoldingsForSelector(holdings: FinanceSecurityHolding[]): FinanceSecurityHolding[] {
+    const holdingById = new Map<string, FinanceSecurityHolding>();
+    holdings
+      .filter(holding => holding.id && holding.positionType !== 'cash')
+      .forEach(holding => {
+        const existing = holdingById.get(holding.id);
+        if (!existing) {
+          holdingById.set(holding.id, { ...holding });
+          return;
+        }
+        existing.quantity = (existing.quantity ?? 0) + (holding.quantity ?? 0);
+      });
+
+    return [...holdingById.values()].sort((left, right) => {
+      const leftClosed = this.isHoldingClosed(left);
+      const rightClosed = this.isHoldingClosed(right);
+      if (leftClosed !== rightClosed) {
+        return leftClosed ? 1 : -1;
+      }
+      return left.name.localeCompare(right.name);
+    });
+  }
+
+  private hasSellTransaction(): boolean {
+    return this.transactions?.some(transaction => transaction.type === 'SELL') ?? false;
+  }
+
+  private getLastSellTimestamp(): number | null {
+    const sellTimestamps =
+      this.transactions
+        ?.filter(transaction => transaction.type === 'SELL')
+        .map(transaction => Date.parse(transaction.date))
+        .filter(timestamp => !Number.isNaN(timestamp)) ?? [];
+    if (sellTimestamps.length === 0) {
+      return null;
+    }
+    return Math.max(...sellTimestamps);
   }
 
   //
@@ -766,17 +1231,41 @@ export class InvestmentComponent {
         console.log('Done Loading History');
         this.isLoadingHistory = false;
         this.portfolioValueHistoryItems = res;
-        this.setHistorySeries(this.configureHistorySeriesPerHolding(this.portfolioValueHistoryItems!, 'xy'));
-
-        if (this.showAnnotations) {
-          this.setHistoryAnnotations(this.processAnnotations(this.portfolioValueHistoryItems!));
-        } else {
-          this.setHistoryAnnotations({});
-        }
-        this.refreshHistoryChart();
+        this.applyHistoryToChart(this.portfolioValueHistoryItems);
       },
       error: () => ((this.isLoadingHistory = false), (this.showHistoryChart = false)),
     });
+  }
+
+  private applyHistoryToChart(portfolioValueHistoryItems: FinanceResourceSnapshots[]): void {
+    const visibleHistoryItems = this.trimHistoryAfterClose(portfolioValueHistoryItems);
+    this.setHistorySeries(this.configureHistorySeriesPerHolding(visibleHistoryItems, 'xy'));
+
+    if (this.showAnnotations) {
+      this.setHistoryAnnotations(this.processAnnotations(visibleHistoryItems));
+    } else {
+      this.setHistoryAnnotations({});
+    }
+    this.refreshHistoryChart();
+  }
+
+  private trimHistoryAfterClose(portfolioValueHistoryItems: FinanceResourceSnapshots[]): FinanceResourceSnapshots[] {
+    if (!this.isInvestmentClosed) {
+      return portfolioValueHistoryItems;
+    }
+    const lastSellTimestamp = this.getLastSellTimestamp();
+    if (lastSellTimestamp == null) {
+      return portfolioValueHistoryItems;
+    }
+    const lastSellDayEnd = new Date(lastSellTimestamp);
+    lastSellDayEnd.setHours(23, 59, 59, 999);
+    const cutoff = lastSellDayEnd.getTime();
+
+    return portfolioValueHistoryItems.map(item => ({
+      ...item,
+      snapshots: item.snapshots?.filter(snapshot => Date.parse(snapshot.date) <= cutoff) ?? [],
+      annotations: item.annotations?.filter(annotation => Date.parse(annotation.date) <= cutoff) ?? [],
+    }));
   }
 
   private configureHistorySeriesPerHolding(portfolioValueHistoryItems: FinanceResourceSnapshots[], type: string): ApexAxisChartSeries {
@@ -847,11 +1336,11 @@ export class InvestmentComponent {
     return '';
   }
   onChangeAnnotationsSwitch(event: any): void {
-    if (this.showAnnotations) {
-      this.setHistoryAnnotations(this.processAnnotations(this.portfolioValueHistoryItems!));
-    } else {
-      this.setHistoryAnnotations({});
+    if (this.portfolioValueHistoryItems) {
+      this.applyHistoryToChart(this.portfolioValueHistoryItems);
+      return;
     }
+    this.setHistoryAnnotations({});
     this.refreshHistoryChart();
   }
 

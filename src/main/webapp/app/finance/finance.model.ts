@@ -94,6 +94,9 @@ export class FinanceSecurityHolding {
     public accountId: string,
     public accountName: string,
     public priceDateTime: string,
+    public positionType?: 'security' | 'cash' | string | null,
+    public cashInterest?: number | null,
+    public cashReturnPercent?: number | null,
   ) {}
 }
 
@@ -106,6 +109,65 @@ export class InvestmentTransaction {
     public type: string,
     public currencyCode: string,
     public transaction: FinancialTransaction,
+    public amountBase?: number | null,
+    public rateToBase?: number | null,
+  ) {}
+}
+
+export class PortfolioTrade {
+  constructor(
+    public id: string,
+    public date: string,
+    public type: string,
+    public accountId: string,
+    public accountName: string,
+    public securityId: string,
+    public symbol: string,
+    public name: string,
+    public currencyCode: string,
+    public ignoredForRollup: boolean | null,
+    public ignoredForRollupReason: string | null,
+    public quantity: number,
+    public buyPrice: number,
+    public buyFxRate: number | null,
+    public currentPrice: number | null,
+    public currentFxRate: number | null,
+    public deltaAmountWithFx: number | null,
+    public deltaPercentWithFx: number | null,
+    public deltaAmountWithoutFx: number | null,
+    public deltaPercentWithoutFx: number | null,
+    public sold?: boolean,
+    public sellDate?: string | null,
+    public sellPrice?: number | null,
+    public sellQuantity?: number | null,
+    public sellFxRate?: number | null,
+    public openQuantity?: number | null,
+    public realizedDeltaAmountWithFx?: number | null,
+    public realizedDeltaPercentWithFx?: number | null,
+    public realizedDeltaAmountWithoutFx?: number | null,
+    public realizedDeltaPercentWithoutFx?: number | null,
+    public holdingYears?: number | null,
+    public dividendIncomeAmountWithFx?: number | null,
+    public dividendIncomeAmountWithoutFx?: number | null,
+    public dividends?: PortfolioTradeDividend[],
+  ) {}
+}
+
+export class PortfolioTradeDividend {
+  constructor(
+    public id: string | null,
+    public date: string,
+    public type: string,
+    public amountWithFx: number | null,
+    public amountWithoutFx: number | null,
+    public baseCurrencyCode: string | null,
+    public sourceCurrencyCode: string | null,
+    public sourceAmount: number | null,
+    public fxRate: number | null,
+    public transactionAmountWithFx?: number | null,
+    public transactionAmountWithoutFx?: number | null,
+    public transactionSourceAmount?: number | null,
+    public allocationRatio?: number | null,
   ) {}
 }
 
@@ -173,7 +235,47 @@ export class InvestmentPortfolioDetails {
     public totalFees: number,
     public currencyIsoCode: string,
     public userSecurityId?: string | null,
+    public cashValue?: number | null,
+    public cashInterest?: number | null,
+    public cashReturnPercent?: number | null,
+    public expectedReturnCagr?: number | null,
   ) {}
+}
+
+export interface CustomPortfolio {
+  id: string | null;
+  name: string;
+  description: string | null;
+  strategy: CustomPortfolioStrategy;
+  customStrategy: string | null;
+  expectedReturnCagr: number;
+  securityIds: string[];
+  accountIds: string[];
+}
+
+export type CustomPortfolioStrategy = 'GROWTH' | 'INCOME' | 'BALANCED' | 'DEFENSIVE' | 'SPECULATIVE' | 'THEMATIC' | 'INDEX_CORE' | 'CUSTOM';
+
+export interface CustomPortfolioSecurityOption {
+  id: string;
+  name: string;
+  symbol: string;
+  currencyCode: string;
+  ignoredForRollup: boolean | null;
+  currentQuantity: number | null;
+}
+
+export interface CustomPortfolioAccountOption {
+  id: string;
+  name: string;
+  type: number;
+  currencyCode: string;
+  closed: boolean | null;
+  currentBalance: number | null;
+}
+
+export interface CustomPortfolioOptions {
+  securities: CustomPortfolioSecurityOption[];
+  accounts: CustomPortfolioAccountOption[];
 }
 
 export class FinancialTransaction {
@@ -256,6 +358,8 @@ export class FinanceInvestmentSnapshotDetails {
     public totalCurrencyGainPC: number,
     public totalFees: number,
     public currencyIsoCode: string,
+    public ignoredForRollup?: boolean | null,
+    public ignoredForRollupReason?: string | null,
     public fxToLocal?: number | null,
     public fxDate?: string | null,
     public userSecurityId?: string | null,
@@ -319,8 +423,20 @@ export interface FinanceSecurityStoredPriceUpdate {
   comment: string | null;
 }
 
+export interface FinanceInvestmentRollupIgnoreUpdate {
+  ignoredForRollup: boolean;
+  ignoredForRollupReason: string | null;
+}
+
 export interface FinanceLotView {
   id: string;
+  sourceId: number | null;
+  lotKey: string | null;
+  originalLotId: string | null;
+  originalSourceId: number | null;
+  originalBuyDate: string | null;
+  originalQuantity: number | null;
+  originalPrice: number | null;
   quantity: number | null;
   lotType: number | null;
   accountId: string | null;
@@ -331,10 +447,21 @@ export interface FinanceLotView {
   sellDate: string | null;
   openDate: string | null;
   closeDate: string | null;
+  buyPrice: number | null;
+  sellPrice: number | null;
+  buyFxRate: number | null;
+  sellFxRate: number | null;
+  buyCurrencyCode: string | null;
+  sellCurrencyCode: string | null;
+  buyCharges: number | null;
+  sellCharges: number | null;
   buyTransactionId: string | null;
   sellTransactionId: string | null;
   openTransactionId: string | null;
   closeTransactionId: string | null;
+  costBasis: number | null;
+  saleProceeds: number | null;
+  realisedGainLoss: number | null;
 }
 
 export interface FinanceLotGroup {

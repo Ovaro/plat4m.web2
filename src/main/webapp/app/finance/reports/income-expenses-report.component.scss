@@ -280,9 +280,39 @@
   font-size: 0.82rem;
 }
 
+.capital-gains-report__table {
+  min-width: 112rem;
+}
+
+.capital-gains-report__table th,
+.capital-gains-report__table td {
+  vertical-align: top;
+}
+
+.capital-gains-report__table tfoot td {
+  font-weight: 700;
+  background: rgba(31, 76, 122, 0.08);
+}
+
+.capital-gains-report__ignore-column {
+  width: 4rem;
+  min-width: 4rem;
+  text-align: center !important;
+}
+
+.capital-gains-report__ignored-row td {
+  color: rgba(0, 0, 0, 0.46);
+  background: rgba(18, 36, 64, 0.035);
+  text-decoration: line-through;
+}
+
+.capital-gains-report__ignored-row input {
+  opacity: 1;
+}
+
 .report-table th,
 .report-table td {
-  padding: 0.42rem 0.55rem;
+  padding: 0.3rem 0.4rem;
   border-bottom: 1px solid rgba(18, 36, 64, 0.08);
   text-align: right;
   white-space: nowrap;
@@ -530,7 +560,7 @@
 
 .report-drilldown-dialog__table {
   width: 100%;
-  min-width: 56rem;
+  min-width: 96rem;
   border-collapse: collapse;
   font-size: 0.84rem;
 }
@@ -559,9 +589,45 @@
 
 .report-drilldown-dialog__amount-cell {
   display: inline-flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: 100%;
+}
+
+.report-drilldown-dialog__amount-line {
+  display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  width: 100%;
+  gap: 0.35rem;
+}
+
+.report-drilldown-dialog__fx-icon {
+  color: color-mix(in srgb, var(--app-colours-primary) 72%, var(--app-colours-text) 28%);
+  cursor: help;
+  font-size: 0.78rem;
+}
+
+.report-drilldown-dialog__amount-cell small {
+  color: var(--app-colours-muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.report-drilldown-dialog__lot-button {
+  min-height: 1.8rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--app-colours-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-colours-primary) 9%, transparent);
+  color: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.report-drilldown-dialog__lot-button:hover {
+  background: color-mix(in srgb, var(--app-colours-primary) 16%, transparent);
 }
 
 .report-drilldown-dialog__table tfoot td {

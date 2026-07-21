@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -42,6 +43,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -672,9 +674,62 @@ public class MsMoneyService {
         try {
             securityPriceRepository.saveAll(o);
         } catch (Exception e) {
-            log.warn("Got " + e.getMessage() + " exception, however ignoring since not critical to import process.");
-            fiStatus.setError(e.getMessage());
+            log.warn("Security price batch save failed, retrying row-by-row. Cause: {}", e.getMessage());
+            saveSecurityPricesIndividually(fiStatus, o, e);
         }
+    }
+
+    private void saveSecurityPricesIndividually(
+        FinanceImportStatus fiStatus,
+        List<FinanceSecurityPrice> securityPrices,
+        Exception batchException
+    ) {
+        String lastErrorMessage = batchException != null ? batchException.getMessage() : null;
+
+        for (FinanceSecurityPrice securityPrice : securityPrices) {
+            try {
+                securityPriceRepository.save(securityPrice);
+            } catch (DataIntegrityViolationException e) {
+                if (isDuplicateSecurityPriceException(e)) {
+                    log.warn("Skipping duplicate security price for symbol {} on {}.", securityPrice.getSymbol(), securityPrice.getDate());
+                } else {
+                    log.warn(
+                        "Failed to save security price for symbol {} on {}. Cause: {}",
+                        securityPrice.getSymbol(),
+                        securityPrice.getDate(),
+                        e.getMessage()
+                    );
+                    lastErrorMessage = e.getMessage();
+                }
+            } catch (Exception e) {
+                log.warn(
+                    "Failed to save security price for symbol {} on {}. Cause: {}",
+                    securityPrice.getSymbol(),
+                    securityPrice.getDate(),
+                    e.getMessage()
+                );
+                lastErrorMessage = e.getMessage();
+            }
+        }
+
+        if (lastErrorMessage != null && !lastErrorMessage.isBlank()) {
+            fiStatus.setError(lastErrorMessage);
+        }
+    }
+
+    private boolean isDuplicateSecurityPriceException(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            String message = current.getMessage();
+            if (
+                message != null &&
+                (message.contains("duplicate key value violates unique constraint") || message.contains("UK3exd1d0gds5p3eo1n4jt0g4mh"))
+            ) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     public FinanceImportStatus syncInstitutions(StopWatch sw, User user, OpenedDb oDB, MnyContext mnyContext, Source source)
@@ -962,7 +1017,8 @@ public class MsMoneyService {
         d.setMasterGuid(trimSguid(o.getGuid()));
         d.setSymbol(o.getSymbol());
         d.setName(o.getName()); // Name is included in case it is a user manual or they want to override.
-        d.setType(o.getType());
+        int importedType = resolveImportedSecurityType(o.getSymbol(), o.getType());
+        d.setType(importedType);
 
         Currency c = currencies.get(Integer.decode(o.getCurrencyId()));
 
@@ -972,19 +1028,22 @@ public class MsMoneyService {
         if (security == null) {
             security = this.securityService.handleUserSecurity(user, d, c.getIsoCode(), FETCH_SECUIRTY_INFO_FROM_WEB);
             if (security != null) {
+                applyImportedSecurityTypeOverride(security, importedType);
+                applyUnitedStatesExchangeDefaults(security);
                 applyAustralianExchangeDefaults(security);
                 security = securityRepository.save(security);
                 securityCache.put(security.getSymbol(), security);
             }
         }
 
-        FinanceSecurityType type = FinanceSecurityType.toSecurityType(o.getType());
+        FinanceSecurityType type = FinanceSecurityType.toSecurityType(importedType);
 
         if (
             security == null &&
             (type == FinanceSecurityType.STOCK ||
                 type == FinanceSecurityType.MUTUAL_FUND ||
                 type == FinanceSecurityType.INDEX ||
+                type == FinanceSecurityType.ETF ||
                 type == FinanceSecurityType.OTHER)
         ) {
             // Check there isn't a user-based security registered already
@@ -998,6 +1057,8 @@ public class MsMoneyService {
                 security.setSymbol(user.getGuid() + ":" + o.getId());
                 security.setName(o.getName());
                 security.setCurrencyCode(c.getIsoCode());
+                applyImportedSecurityTypeOverride(security, importedType);
+                applyUnitedStatesExchangeDefaults(security);
                 applyAustralianExchangeDefaults(security);
                 securityRepository.save(security);
             }
@@ -1037,12 +1098,97 @@ public class MsMoneyService {
         }
     }
 
+    private void applyUnitedStatesExchangeDefaults(FinanceSecurity security) {
+        if (security == null || !isUnitedStatesCountry(security.getCountry()) || hasExchangeMic(security)) {
+            return;
+        }
+
+        if (isNasdaqDefaultSymbol(security.getSymbol())) {
+            security.setExchangeMic("XNAS");
+            if (security.getExchangeName() == null || security.getExchangeName().isBlank()) {
+                security.setExchangeName("NASDAQ");
+            }
+            return;
+        }
+
+        security.setExchangeMic("XNYS");
+        if (security.getExchangeName() == null || security.getExchangeName().isBlank()) {
+            security.setExchangeName("NYSE");
+        }
+    }
+
+    private int resolveImportedSecurityType(String symbol, int defaultType) {
+        FinanceSecurityType overriddenType = getImportedSecurityTypeOverride(symbol);
+        return overriddenType != null ? overriddenType.value() : defaultType;
+    }
+
+    private void applyImportedSecurityTypeOverride(FinanceSecurity security, int importedType) {
+        FinanceSecurityType overriddenType = getImportedSecurityTypeOverride(security.getSymbol());
+        if (overriddenType == null) {
+            overriddenType = FinanceSecurityType.toSecurityType(importedType);
+        }
+        if (overriddenType != FinanceSecurityType.UNKNOWN) {
+            security.setType(overriddenType.value());
+        }
+    }
+
+    private FinanceSecurityType getImportedSecurityTypeOverride(String symbol) {
+        if (symbol == null) {
+            return null;
+        }
+
+        String normalizedSymbol = symbol.trim().toUpperCase();
+        switch (normalizedSymbol) {
+            case "IHVV":
+            case "VAS":
+            case "IOO":
+                return FinanceSecurityType.ETF;
+            case "US:V":
+            case "V":
+                return FinanceSecurityType.STOCK;
+            default:
+                return null;
+        }
+    }
+
+    private boolean hasExchangeMic(FinanceSecurity security) {
+        return security.getExchangeMic() != null && !security.getExchangeMic().isBlank();
+    }
+
     private boolean isAustraliaCountry(String country) {
         return country != null && "AUSTRALIA".equalsIgnoreCase(country.trim());
     }
 
+    private boolean isUnitedStatesCountry(String country) {
+        if (country == null) {
+            return false;
+        }
+        String normalizedCountry = country.trim();
+        return "UNITED STATES".equalsIgnoreCase(normalizedCountry) || "US".equalsIgnoreCase(normalizedCountry);
+    }
+
     private boolean isAustralianSecurity(String country, String currencyCode) {
         return isAustraliaCountry(country) || (currencyCode != null && "AUD".equalsIgnoreCase(currencyCode.trim()));
+    }
+
+    private boolean isNasdaqDefaultSymbol(String symbol) {
+        if (symbol == null) {
+            return false;
+        }
+
+        String normalizedSymbol = symbol.trim().toUpperCase();
+        switch (normalizedSymbol) {
+            case "META":
+            case "GOOG":
+            case "GOOGL":
+            case "MSFT":
+            case "CRM":
+            case "ASML":
+            case "AMZN":
+                return true;
+            default:
+                return false;
+        }
     }
 
     public FinanceAccount convertAccount(
@@ -1433,6 +1579,7 @@ public class MsMoneyService {
             transferLink.setFromId(fromId);
             transferLink.setLinkId(linkId);
             FinanceTransferLink savedTransferLink = this.transferLinkRepository.save(transferLink);
+            populateMissingTransferFxFromLinkedBase(user, fromId, linkId);
 
             if (!transferSourceLinks.containsKey(sourceTransferId)) {
                 newTransferSourceLinks.add(
@@ -1472,6 +1619,80 @@ public class MsMoneyService {
             .or(() -> this.transferLinkRepository.findByUserGuidAndTransactionId(user.getGuid().toString(), fromId))
             .or(() -> this.transferLinkRepository.findByUserGuidAndTransactionId(user.getGuid().toString(), linkId))
             .orElseGet(FinanceTransferLink::new);
+    }
+
+    private void populateMissingTransferFxFromLinkedBase(User user, UUID fromId, UUID linkId) {
+        Optional<FinanceTransaction> fromTransaction = this.transactionRepository.findById(fromId);
+        Optional<FinanceTransaction> linkTransaction = this.transactionRepository.findById(linkId);
+        if (fromTransaction.isEmpty() || linkTransaction.isEmpty()) {
+            return;
+        }
+
+        if (populateMissingTransferFxFromLinkedBase(user, fromTransaction.get(), linkTransaction.get())) {
+            this.transactionRepository.saveAll(List.of(fromTransaction.get(), linkTransaction.get()));
+        }
+    }
+
+    private boolean populateMissingTransferFxFromLinkedBase(
+        User user,
+        FinanceTransaction fromTransaction,
+        FinanceTransaction linkTransaction
+    ) {
+        String baseCurrencyCode = normalizeCurrencyCode(user.getLocalCurrency());
+        if (baseCurrencyCode == null) {
+            baseCurrencyCode = "AUD";
+        }
+
+        boolean updatedFrom = populateMissingTransferFxFromCounterpart(fromTransaction, linkTransaction, baseCurrencyCode);
+        boolean updatedLink = populateMissingTransferFxFromCounterpart(linkTransaction, fromTransaction, baseCurrencyCode);
+        return updatedFrom || updatedLink;
+    }
+
+    private boolean populateMissingTransferFxFromCounterpart(
+        FinanceTransaction foreignTransaction,
+        FinanceTransaction baseTransaction,
+        String baseCurrencyCode
+    ) {
+        if (
+            foreignTransaction == null ||
+            baseTransaction == null ||
+            foreignTransaction.getAmount() == null ||
+            baseTransaction.getAmount() == null ||
+            foreignTransaction.getAmount().signum() == 0 ||
+            baseTransaction.getAmount().signum() == 0 ||
+            foreignTransaction.getAmountBase() != null ||
+            foreignTransaction.getRateToBase() != null ||
+            sameCurrency(foreignTransaction.getCurrencyCode(), baseCurrencyCode) ||
+            !sameCurrency(baseTransaction.getCurrencyCode(), baseCurrencyCode)
+        ) {
+            return false;
+        }
+
+        BigDecimal sourceAmount = foreignTransaction.getAmount().abs();
+        BigDecimal baseAmount =
+            baseTransaction.getAmountBase() == null ? baseTransaction.getAmount().abs() : baseTransaction.getAmountBase().abs();
+        if (baseAmount.signum() == 0) {
+            return false;
+        }
+
+        BigDecimal signedBaseAmount = baseAmount.multiply(BigDecimal.valueOf(foreignTransaction.getAmount().signum()));
+        BigDecimal rateToBase = baseAmount.divide(sourceAmount, 12, RoundingMode.HALF_UP);
+        foreignTransaction.setAmountBase(signedBaseAmount);
+        foreignTransaction.setRateToBase(rateToBase.doubleValue());
+        return true;
+    }
+
+    private boolean sameCurrency(String left, String right) {
+        String normalizedLeft = normalizeCurrencyCode(left);
+        String normalizedRight = normalizeCurrencyCode(right);
+        return normalizedLeft != null && normalizedLeft.equals(normalizedRight);
+    }
+
+    private String normalizeCurrencyCode(String currencyCode) {
+        if (currencyCode == null || currencyCode.isBlank()) {
+            return null;
+        }
+        return currencyCode.trim().toUpperCase();
     }
 
     private String buildTransferSourceId(Integer fromId, Integer linkId) {
@@ -2009,6 +2230,9 @@ public class MsMoneyService {
             transferLink.setFromId(fromId);
             transferLink.setLinkId(linkId);
             FinanceTransferLink savedTransferLink = this.transferLinkRepository.save(transferLink);
+            if (populateMissingTransferFxFromLinkedBase(user, importedTransferLink.fromTransaction, importedTransferLink.linkTransaction)) {
+                this.transactionRepository.saveAll(List.of(importedTransferLink.fromTransaction, importedTransferLink.linkTransaction));
+            }
 
             if (!transferSourceLinks.containsKey(importedTransferLink.sourceId)) {
                 newTransferSourceLinks.add(
