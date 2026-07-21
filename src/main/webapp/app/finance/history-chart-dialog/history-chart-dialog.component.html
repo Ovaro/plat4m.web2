@@ -4,11 +4,14 @@
   [(visible)]="visible"
   (onShow)="onShow()"
   (onMaximize)="onMaximize()"
-  [style]="{ width: '80%' }"
+  [style]="{ width: '90vw', height: '80vh' }"
+  styleClass="history-chart-dialog"
   [maximizable]="true"
   [appendTo]="'body'"
 >
-  <jhi-history-chart *ngIf="visible" #historyChart></jhi-history-chart>
+  <div class="history-chart-dialog__body">
+    <jhi-history-chart *ngIf="visible" #historyChart></jhi-history-chart>
+  </div>
 </p-dialog>
 <!-- <div class="card flex justify-center" >
 

@@ -1,0 +1,23 @@
+::ng-deep .history-chart-dialog {
+  max-height: 90vh;
+}
+
+::ng-deep .history-chart-dialog.p-dialog-maximized {
+  width: 100vw;
+  max-width: none;
+}
+
+::ng-deep .history-chart-dialog .p-dialog-content {
+  height: calc(80vh - 4rem);
+  overflow: hidden;
+  padding: 0;
+}
+
+::ng-deep .history-chart-dialog.p-dialog-maximized .p-dialog-content {
+  height: calc(100vh - 4rem);
+}
+
+.history-chart-dialog__body {
+  height: 100%;
+  min-height: 0;
+}

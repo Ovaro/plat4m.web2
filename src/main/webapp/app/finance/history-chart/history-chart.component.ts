@@ -53,7 +53,7 @@ export class HistoryChartComponent implements OnInit {
       //series: [{name: 'series1', data:[{x: '2020-06-01', y: 23},{x: '2020-07-01', y: 54},{x: '2020-08-01', y: 24},{x: '2020-09-01', y: 3},{x: '2020-10-01', y: 43},{x: '2020-11-01', y: 15}]}],
       series: [],
       chart: {
-        height: 'auto',
+        height: '100%',
         type: 'area',
         stacked: true,
 

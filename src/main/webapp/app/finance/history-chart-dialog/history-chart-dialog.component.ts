@@ -53,10 +53,17 @@ export class HistoryChartDialogComponent {
   onShow() {
     if (this.historyChart) {
       this.historyChart.setData(this.toSetResourceSnapshots, this.toSetChartType, this.toSetCombineSeries);
+      this.redrawAfterLayout();
     }
   }
 
   onMaximize() {
-    this.historyChart.redrawChart();
+    this.redrawAfterLayout();
+  }
+
+  private redrawAfterLayout(): void {
+    window.setTimeout(() => {
+      this.historyChart?.redrawChart();
+    });
   }
 }

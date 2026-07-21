@@ -187,7 +187,7 @@ public class FinanceSecurityService {
         int days = 0;
         if (numberOfPeriods > 0) {
             long gap = ChronoUnit.DAYS.between(start, end);
-            days = (int) gap / numberOfPeriods;
+            days = Math.max(1, (int) gap / numberOfPeriods);
             period = Period.ofDays(days);
             log.debug("Gap: " + gap + ", Period: " + period.toString() + ", Period Days: " + days);
         } else {

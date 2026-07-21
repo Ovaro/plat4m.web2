@@ -18,6 +18,8 @@ import {
   providedIn: 'root', // Add this line
 })
 export class InvestmentTransactions {
+  private static readonly HISTORY_PERIOD_COUNT = 365;
+
   constructor(
     private http: HttpClient,
     private applicationConfigService: ApplicationConfigService,
@@ -69,7 +71,7 @@ export class InvestmentTransactions {
   getHistory(userSecurityId: string, includeClosedPositions: boolean, periodAgo: string): Observable<FinanceResourceSnapshots[]> {
     return this.http.get<FinanceResourceSnapshots[]>(
       this.applicationConfigService.getEndpointFor(
-        `api/portfolios/history?userSecurityId=${userSecurityId}&includeClosed=${includeClosedPositions}&periodAgo=${periodAgo}&numberOfPeriods=0`,
+        `api/portfolios/history?userSecurityId=${userSecurityId}&includeClosed=${includeClosedPositions}&periodAgo=${periodAgo}&numberOfPeriods=${InvestmentTransactions.HISTORY_PERIOD_COUNT}`,
       ),
     );
   }

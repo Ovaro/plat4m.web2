@@ -12,7 +12,7 @@
             [options]="holdings!"
             [(ngModel)]="securityId"
             [filter]="true"
-            filterBy="name"
+            filterBy="name,userSymbol,symbol"
             optionLabel="name"
             optionValue="id"
             (onChange)="onChangeHolding($event)"

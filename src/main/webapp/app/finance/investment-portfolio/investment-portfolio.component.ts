@@ -87,6 +87,8 @@ interface InvestmentSelectOption {
   id: string;
   name: string;
   symbol: string;
+  userSymbol: string;
+  stockSymbol: string;
   accountName: string;
   closed: boolean;
 }
@@ -1789,6 +1791,8 @@ export class InvestmentPortfolioComponent implements AfterViewInit, OnDestroy {
           id: holding.id,
           name: holding.name,
           symbol: holding.userSymbol || holding.symbol,
+          userSymbol: holding.userSymbol,
+          stockSymbol: holding.symbol,
           accountName: holding.accountName,
           closed,
         });
