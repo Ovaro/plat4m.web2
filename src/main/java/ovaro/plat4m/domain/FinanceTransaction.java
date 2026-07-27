@@ -96,6 +96,9 @@ public class FinanceTransaction implements Serializable {
     private String currencyCode;
     private BigDecimal amountBase;
     private Double rateToBase;
+    private boolean generated = false;
+    private UUID generatedBatchId;
+    private String generatedLabel;
 
     public String getCurrencyCode() {
         return currencyCode;
@@ -449,5 +452,29 @@ public class FinanceTransaction implements Serializable {
 
     public void setRateToBase(Double rateToBase) {
         this.rateToBase = rateToBase;
+    }
+
+    public boolean isGenerated() {
+        return generated;
+    }
+
+    public void setGenerated(boolean generated) {
+        this.generated = generated;
+    }
+
+    public UUID getGeneratedBatchId() {
+        return generatedBatchId;
+    }
+
+    public void setGeneratedBatchId(UUID generatedBatchId) {
+        this.generatedBatchId = generatedBatchId;
+    }
+
+    public String getGeneratedLabel() {
+        return generatedLabel;
+    }
+
+    public void setGeneratedLabel(String generatedLabel) {
+        this.generatedLabel = generatedLabel;
     }
 }

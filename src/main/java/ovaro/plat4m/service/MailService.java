@@ -53,6 +53,10 @@ public class MailService {
 
     @Async
     public void sendEmail(String to, String subject, String content, boolean isMultipart, boolean isHtml) {
+        sendEmailSync(to, subject, content, isMultipart, isHtml);
+    }
+
+    public boolean sendEmailSync(String to, String subject, String content, boolean isMultipart, boolean isHtml) {
         log.debug(
             "Send email[multipart '{}' and html '{}'] to '{}' with subject '{}' and content={}",
             isMultipart,
@@ -72,16 +76,22 @@ public class MailService {
             message.setText(content, isHtml);
             javaMailSender.send(mimeMessage);
             log.debug("Sent email to User '{}'", to);
+            return true;
         } catch (MailException | MessagingException e) {
             log.warn("Email could not be sent to user '{}'", to, e);
+            return false;
         }
     }
 
     @Async
     public void sendEmailFromTemplate(User user, String templateName, String titleKey) {
+        sendEmailFromTemplateSync(user, templateName, titleKey);
+    }
+
+    public boolean sendEmailFromTemplateSync(User user, String templateName, String titleKey) {
         if (user.getEmail() == null) {
             log.debug("Email doesn't exist for user '{}'", user.getLogin());
-            return;
+            return false;
         }
         Locale locale = Locale.forLanguageTag(user.getLangKey());
         Context context = new Context(locale);
@@ -89,13 +99,18 @@ public class MailService {
         context.setVariable(BASE_URL, jHipsterProperties.getMail().getBaseUrl());
         String content = templateEngine.process(templateName, context);
         String subject = messageSource.getMessage(titleKey, null, locale);
-        sendEmail(user.getEmail(), subject, content, false, true);
+        return sendEmailSync(user.getEmail(), subject, content, false, true);
     }
 
     @Async
     public void sendActivationEmail(User user) {
         log.debug("Sending activation email to '{}'", user.getEmail());
         sendEmailFromTemplate(user, "mail/activationEmail", "email.activation.title");
+    }
+
+    public boolean sendActivationEmailSync(User user) {
+        log.debug("Sending activation email to '{}'", user.getEmail());
+        return sendEmailFromTemplateSync(user, "mail/activationEmail", "email.activation.title");
     }
 
     @Async

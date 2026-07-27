@@ -1,23 +1,30 @@
 .transactions-container {
-  --transactions-editor-height: 270px; // min(17rem, 34vh)
-  position: relative;
-  height: 100%;
-  width: 100%;
+  --transactions-editor-height: 220px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  width: 100%;
   -webkit-overflow-scrolling: touch;
 }
 
 jhi-transactions {
-  height: inherit;
+  display: block;
+  height: 100%;
+  min-height: 0;
 }
 
 .transactions {
-  // height: inherit;
+  flex: 0 0 auto;
 }
 
 .transactions-workspace {
-  height: calc(100% - 44px);
+  flex: 1 1 auto;
+  height: auto;
   min-height: 0;
+  position: relative;
 }
 
 .transactions-workspace--editor-open {
@@ -25,9 +32,37 @@ jhi-transactions {
 }
 
 .transactions-grid {
+  height: 100%;
   min-height: 0;
   min-width: 0;
-  height: 100%;
+}
+
+:host-context(.theme-dark) .transactions-grid {
+  border-radius: 12px;
+  background: var(--app-colours-background-high-dark);
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-grid .ag-root-wrapper {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-grid .ag-header-cell-resize::after {
+  background-color: var(--app-colours-border-low-dark);
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-grid .ag-body-vertical-scroll-viewport::-webkit-scrollbar,
+:host-context(.theme-dark) ::ng-deep .transactions-grid .ag-body-horizontal-scroll-viewport::-webkit-scrollbar,
+:host-context(.theme-dark) ::ng-deep .transactions-grid .ag-center-cols-viewport::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+:host-context(.theme-dark) ::ng-deep .transactions-grid .ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb,
+:host-context(.theme-dark) ::ng-deep .transactions-grid .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb,
+:host-context(.theme-dark) ::ng-deep .transactions-grid .ag-center-cols-viewport::-webkit-scrollbar-thumb {
+  border: 2px solid var(--app-colours-background-high-dark);
+  border-radius: 999px;
+  background: var(--app-colours-border-high-dark);
 }
 
 .transactions-editor-panel {

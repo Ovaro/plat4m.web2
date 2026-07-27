@@ -12,5 +12,7 @@ import ovaro.plat4m.domain.FinanceInstitution;
 @Repository
 public interface FinanceInstitutionRepository extends JpaRepository<FinanceInstitution, String> {
     Optional<FinanceInstitution> findById(UUID uuid);
+    long countByGeneratedTrueAndGeneratedBatchId(UUID generatedBatchId);
+    void deleteAllByGeneratedTrueAndGeneratedBatchId(UUID generatedBatchId);
     //List<Account> findAccounts();
 }

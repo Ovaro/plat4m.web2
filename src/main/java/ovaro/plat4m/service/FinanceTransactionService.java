@@ -72,6 +72,7 @@ public class FinanceTransactionService {
     private SourceLinkRepository sourceLinkRepository;
     private FinanceUserSecurityRepository userSecurityRepository;
     private FinanceTransactionEditorLookupCacheService editorLookupCacheService;
+    private FinanceCategoryTemplateService categoryTemplateService;
 
     public FinanceTransactionService(
         FinanceTransactionRepository transactionRepository,
@@ -83,7 +84,8 @@ public class FinanceTransactionService {
         FinanceTransactionTagRepository transactionTagRepository,
         SourceLinkRepository sourceLinkRepository,
         FinanceUserSecurityRepository userSecurityRepository,
-        FinanceTransactionEditorLookupCacheService editorLookupCacheService
+        FinanceTransactionEditorLookupCacheService editorLookupCacheService,
+        FinanceCategoryTemplateService categoryTemplateService
     ) {
         this.transactionRepository = transactionRepository;
         this.transferLinkRepository = transferLinkRepository;
@@ -95,6 +97,7 @@ public class FinanceTransactionService {
         this.sourceLinkRepository = sourceLinkRepository;
         this.userSecurityRepository = userSecurityRepository;
         this.editorLookupCacheService = editorLookupCacheService;
+        this.categoryTemplateService = categoryTemplateService;
     }
 
     public Page<FinanceTransaction> getTransactions(String accountId, Pageable pageable) {
@@ -160,16 +163,19 @@ public class FinanceTransactionService {
     }
 
     public Page<FinanceResourceDTO> getCategoryOptions(User user, String query, Pageable pageable) {
+        this.categoryTemplateService.ensureDefaultCategoriesForUser(user);
         List<FinanceResourceDTO> filteredCategories = this.editorLookupCacheService.getCategoryOptions(user.getGuid().toString());
         return filterResourceOptions(filteredCategories, query, pageable);
     }
 
     public List<FinanceTreeNodeDTO> getCategoryTreeOptions(User user) {
+        this.categoryTemplateService.ensureDefaultCategoriesForUser(user);
         return this.editorLookupCacheService.getCategoryTreeOptions(user.getGuid().toString());
     }
 
     @Transactional
     public FinanceResourceDTO createCategory(User user, String rawName, String type, String parentCategoryId) {
+        this.categoryTemplateService.ensureDefaultCategoriesForUser(user);
         String normalizedRawName = trimToNull(rawName);
         if (normalizedRawName == null) {
             throw new IllegalArgumentException("Category name is required");
@@ -240,10 +246,11 @@ public class FinanceTransactionService {
     }
 
     @Transactional(readOnly = true)
-    public List<FinanceManageCategoryDTO> getManagedCategories(User user) {
+    public List<FinanceManageCategoryDTO> getManagedCategories(User user, boolean includeHidden) {
+        this.categoryTemplateService.ensureDefaultCategoriesForUser(user);
         String userGuid = user.getGuid().toString();
         return this.categoryRepository
-            .findAllByUserGuid(userGuid)
+            .findManagedByUserGuidOrSystem(userGuid, includeHidden)
             .stream()
             .map(category -> mapManagedCategory(category, userGuid))
             .sorted((left, right) -> compareNullableStrings(left.getDisplayName(), right.getDisplayName()))
@@ -262,17 +269,27 @@ public class FinanceTransactionService {
 
     @Transactional
     public FinanceManageCategoryDTO updateManagedCategory(User user, UUID categoryId, FinanceManageCategoryUpdateDTO update) {
-        FinanceCategory category = findUserCategory(user, categoryId);
+        FinanceCategory category = findAccessibleCategory(user, categoryId);
+        if (Boolean.TRUE.equals(category.getSystemCategory())) {
+            throw new IllegalStateException("System categories cannot be edited");
+        }
         applyManagedCategoryUpdate(user, category, update);
         FinanceCategory saved = this.categoryRepository.save(category);
+        updateManagedCategoryDescendants(user.getGuid().toString(), saved);
         invalidateCategoryCaches(user);
         return mapManagedCategory(saved, user.getGuid().toString());
     }
 
     @Transactional
     public void deleteManagedCategory(User user, UUID categoryId) {
-        FinanceCategory category = findUserCategory(user, categoryId);
-        if (this.categoryRepository.existsByParent_IdAndUserGuid(categoryId, user.getGuid().toString())) {
+        FinanceCategory category = findAccessibleCategory(user, categoryId);
+        if (Boolean.TRUE.equals(category.getSystemCategory())) {
+            throw new IllegalStateException("System categories cannot be deleted");
+        }
+        if (Boolean.TRUE.equals(category.getPlatformDefaultCategory())) {
+            throw new IllegalStateException("Default platform categories can be hidden but cannot be deleted");
+        }
+        if (this.categoryRepository.existsAccessibleChild(categoryId, user.getGuid().toString())) {
             throw new IllegalStateException("Categories with sub-categories cannot be deleted");
         }
         this.categoryRepository.delete(category);
@@ -281,7 +298,7 @@ public class FinanceTransactionService {
 
     @Transactional(readOnly = true)
     public List<FinanceTransactionRowDTO> getManagedCategoryTransactions(User user, UUID categoryId) {
-        FinanceCategory category = findUserCategory(user, categoryId);
+        FinanceCategory category = findAccessibleCategory(user, categoryId);
         String userGuid = user.getGuid().toString();
         List<UUID> categoryIds = collectCategoryBranchIds(userGuid, category);
         Map<String, Integer> accountTypesById = getAccountTypesById(userGuid);
@@ -912,7 +929,7 @@ public class FinanceTransactionService {
         }
 
         return this.categoryRepository
-            .findAllByClassificationIdAndUserGuid(EDITOR_CATEGORY_CLASSIFICATION_ID, user.getGuid().toString())
+            .findVisibleByClassificationIdAndUserGuidOrSystem(EDITOR_CATEGORY_CLASSIFICATION_ID, user.getGuid().toString())
             .stream()
             .filter(category -> normalizedName.equalsIgnoreCase(category.getName()))
             .filter(category -> {
@@ -987,7 +1004,12 @@ public class FinanceTransactionService {
             category.getClassificationId(),
             category.getLevel(),
             category.getComment(),
-            this.categoryRepository.existsByParent_IdAndUserGuid(category.getId(), userGuid)
+            this.categoryRepository.existsAccessibleChild(category.getId(), userGuid),
+            Boolean.TRUE.equals(category.getSystemCategory()),
+            category.getKnownCategoryKey(),
+            Boolean.TRUE.equals(category.getPlatformDefaultCategory()),
+            Boolean.TRUE.equals(category.getTemplateCategory()),
+            Boolean.TRUE.equals(category.getHidden())
         );
     }
 
@@ -1317,7 +1339,7 @@ public class FinanceTransactionService {
     }
 
     private List<UUID> collectCategoryBranchIds(String userGuid, FinanceCategory root) {
-        List<FinanceCategory> categories = this.categoryRepository.findAllByUserGuid(userGuid);
+        List<FinanceCategory> categories = this.categoryRepository.findAllByUserGuidOrSystem(userGuid);
         List<UUID> categoryIds = new ArrayList<>();
         appendCategoryBranchId(root, categories, categoryIds);
         return categoryIds;
@@ -1356,9 +1378,12 @@ public class FinanceTransactionService {
         FinanceCategory parent = null;
         String parentId = trimToNull(update.getParentId());
         if (parentId != null) {
-            parent = findUserCategory(user, UUID.fromString(parentId));
+            parent = findAccessibleCategory(user, UUID.fromString(parentId));
             if (category.getId() != null && category.getId().equals(parent.getId())) {
                 throw new IllegalArgumentException("A category cannot be its own parent");
+            }
+            if (category.getId() != null && isCategoryDescendant(user.getGuid().toString(), parent, category.getId())) {
+                throw new IllegalArgumentException("A category cannot be moved under one of its sub-categories");
             }
             classificationId = parent.getClassificationId();
         }
@@ -1368,6 +1393,8 @@ public class FinanceTransactionService {
         category.setClassificationId(classificationId);
         category.setLevel(parent == null || parent.getLevel() == null ? 0 : parent.getLevel() + 1);
         category.setComment(trimToNull(update.getComment()));
+        category.setKnownCategoryKey(normalizeCategoryKey(trimToNull(update.getKnownCategoryKey())));
+        category.setHidden(Boolean.TRUE.equals(update.getHidden()));
     }
 
     private void applyManagedPayeeUpdate(User user, FinancePayee payee, FinanceManagePayeeUpdateDTO update) {
@@ -1397,6 +1424,69 @@ public class FinanceTransactionService {
             .findById(categoryId)
             .filter(category -> user.getGuid().toString().equals(category.getUserGuid()))
             .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+    }
+
+    private FinanceCategory findAccessibleCategory(User user, UUID categoryId) {
+        return this.categoryRepository
+            .findByIdAndUserGuidOrSystem(categoryId, user.getGuid().toString())
+            .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+    }
+
+    private boolean isCategoryDescendant(String userGuid, FinanceCategory category, UUID ancestorId) {
+        FinanceCategory current = category;
+        while (current.getParent() != null) {
+            if (ancestorId.equals(current.getParent().getId())) {
+                return true;
+            }
+
+            UUID parentId = current.getParent().getId();
+            current = this.categoryRepository
+                .findByIdAndUserGuidOrSystem(parentId, userGuid)
+                .orElseThrow(() -> new IllegalArgumentException("Category parent not found"));
+        }
+
+        return false;
+    }
+
+    private void updateManagedCategoryDescendants(String userGuid, FinanceCategory root) {
+        List<FinanceCategory> categories = this.categoryRepository.findAllByUserGuidOrSystem(userGuid);
+        List<FinanceCategory> updatedCategories = new ArrayList<>();
+        updateManagedCategoryDescendants(root, categories, updatedCategories);
+        if (!updatedCategories.isEmpty()) {
+            this.categoryRepository.saveAll(updatedCategories);
+        }
+    }
+
+    private void updateManagedCategoryDescendants(
+        FinanceCategory parent,
+        List<FinanceCategory> categories,
+        List<FinanceCategory> updatedCategories
+    ) {
+        categories
+            .stream()
+            .filter(category -> category.getParent() != null && parent.getId().equals(category.getParent().getId()))
+            .filter(category -> !Boolean.TRUE.equals(category.getSystemCategory()))
+            .forEach(child -> {
+                child.setLevel(parent.getLevel() == null ? 0 : parent.getLevel() + 1);
+                child.setClassificationId(parent.getClassificationId());
+                updatedCategories.add(child);
+                updateManagedCategoryDescendants(child, categories, updatedCategories);
+            });
+    }
+
+    private String normalizeCategoryKey(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = value.trim().replace('\\', '/').replace(':', '/').replaceAll("\\s*/\\s*", "/").replaceAll("/+", "/");
+        if (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        if (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized.isBlank() ? null : normalized.toUpperCase();
     }
 
     private FinancePayee findUserPayee(User user, UUID payeeId) {

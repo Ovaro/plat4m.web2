@@ -11,8 +11,10 @@ export class FinanceManageDataService {
   private readonly http = inject(HttpClient);
   private readonly applicationConfigService = inject(ApplicationConfigService);
 
-  getCategories(): Observable<ManagedCategory[]> {
-    return this.http.get<ManagedCategory[]>(this.applicationConfigService.getEndpointFor('api/categories'));
+  getCategories(includeHidden = false): Observable<ManagedCategory[]> {
+    return this.http.get<ManagedCategory[]>(this.applicationConfigService.getEndpointFor('api/categories'), {
+      params: { includeHidden },
+    });
   }
 
   createCategory(update: ManagedCategoryUpdate): Observable<ManagedCategory> {

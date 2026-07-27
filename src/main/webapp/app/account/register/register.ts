@@ -25,6 +25,7 @@ export default class Register implements AfterViewInit {
   readonly errorEmailExists = signal(false);
   readonly errorUserExists = signal(false);
   readonly success = signal(false);
+  readonly activationEmailWarning = signal(false);
 
   registerForm = new FormGroup({
     login: new FormControl('', {
@@ -62,13 +63,18 @@ export default class Register implements AfterViewInit {
     this.error.set(false);
     this.errorEmailExists.set(false);
     this.errorUserExists.set(false);
+    this.activationEmailWarning.set(false);
 
     const { password, confirmPassword } = this.registerForm.getRawValue();
     if (password === confirmPassword) {
       const { login, email } = this.registerForm.getRawValue();
-      this.registerService
-        .save({ login, email, password, langKey: this.translateService.getCurrentLang() })
-        .subscribe({ next: () => this.success.set(true), error: response => this.processError(response) });
+      this.registerService.save({ login, email, password, langKey: this.translateService.getCurrentLang() }).subscribe({
+        next: response => {
+          this.activationEmailWarning.set(!response.activationEmailSent);
+          this.success.set(true);
+        },
+        error: response => this.processError(response),
+      });
     } else {
       this.doNotMatch.set(true);
     }

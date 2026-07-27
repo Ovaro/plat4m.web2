@@ -28,6 +28,10 @@
     <include file="config/liquibase/changelog/20260714000100_update_fin_security_seed_data.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260716000100_add_investment_rollup_ignore.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/20260716000200_add_custom_portfolios.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260721000100_add_dashboard_config.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260723000100_add_system_known_categories.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260724000100_add_default_category_template.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/20260724000200_add_generated_demo_metadata.xml" relativeToChangelogFile="false"/>
     <!-- jhipster-needle-liquibase-add-changelog - JHipster will add liquibase changelogs here -->
     <!-- jhipster-needle-liquibase-add-constraints-changelog - JHipster will add liquibase constraints changelogs here -->
     <!-- jhipster-needle-liquibase-add-incremental-changelog - JHipster will add incremental liquibase changelogs here -->

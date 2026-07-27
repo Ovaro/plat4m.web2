@@ -25,6 +25,7 @@ export interface DataTypeSpec {
   compositeDataTypeOperation: string | null;
   negativeAsPositive: boolean | null;
   detailedPanelSpec?: DetailPanelSpec;
+  summaryChartSpec?: SummaryChartSpec;
   expandGroups: boolean | null;
 }
 
@@ -32,6 +33,14 @@ export interface DetailPanelSpec {
   type: string;
   chartType?: string;
   combineSeries: boolean | null;
+}
+
+export interface SummaryChartSpec {
+  enabled: boolean;
+  chartType: 'line' | 'area' | 'bar';
+  combineSeries: boolean | null;
+  smooth: boolean | null;
+  showFill: boolean | null;
 }
 
 export class FinancialAccount {

@@ -11,6 +11,11 @@ public class FinanceManageCategoryDTO {
     private Integer level;
     private String comment;
     private Boolean hasChildren;
+    private Boolean systemCategory;
+    private String knownCategoryKey;
+    private Boolean platformDefaultCategory;
+    private Boolean templateCategory;
+    private Boolean hidden;
 
     public FinanceManageCategoryDTO() {}
 
@@ -23,7 +28,12 @@ public class FinanceManageCategoryDTO {
         Integer classificationId,
         Integer level,
         String comment,
-        Boolean hasChildren
+        Boolean hasChildren,
+        Boolean systemCategory,
+        String knownCategoryKey,
+        Boolean platformDefaultCategory,
+        Boolean templateCategory,
+        Boolean hidden
     ) {
         this.id = id;
         this.name = name;
@@ -34,6 +44,11 @@ public class FinanceManageCategoryDTO {
         this.level = level;
         this.comment = comment;
         this.hasChildren = hasChildren;
+        this.systemCategory = systemCategory;
+        this.knownCategoryKey = knownCategoryKey;
+        this.platformDefaultCategory = platformDefaultCategory;
+        this.templateCategory = templateCategory;
+        this.hidden = hidden;
     }
 
     public String getId() {
@@ -106,5 +121,45 @@ public class FinanceManageCategoryDTO {
 
     public void setHasChildren(Boolean hasChildren) {
         this.hasChildren = hasChildren;
+    }
+
+    public Boolean getSystemCategory() {
+        return systemCategory;
+    }
+
+    public void setSystemCategory(Boolean systemCategory) {
+        this.systemCategory = systemCategory;
+    }
+
+    public String getKnownCategoryKey() {
+        return knownCategoryKey;
+    }
+
+    public void setKnownCategoryKey(String knownCategoryKey) {
+        this.knownCategoryKey = knownCategoryKey;
+    }
+
+    public Boolean getPlatformDefaultCategory() {
+        return platformDefaultCategory;
+    }
+
+    public void setPlatformDefaultCategory(Boolean platformDefaultCategory) {
+        this.platformDefaultCategory = platformDefaultCategory;
+    }
+
+    public Boolean getTemplateCategory() {
+        return templateCategory;
+    }
+
+    public void setTemplateCategory(Boolean templateCategory) {
+        this.templateCategory = templateCategory;
+    }
+
+    public Boolean getHidden() {
+        return hidden;
+    }
+
+    public void setHidden(Boolean hidden) {
+        this.hidden = hidden;
     }
 }

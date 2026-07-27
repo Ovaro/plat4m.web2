@@ -45,7 +45,7 @@ describe('Register', () => {
   it('should update success to true after creating an account', inject(
     [RegisterService, TranslateService],
     (service: RegisterService, mockTranslateService: TranslateService) => {
-      vitest.spyOn(service, 'save').mockReturnValue(of({}));
+      vitest.spyOn(service, 'save').mockReturnValue(of({ activationEmailSent: true, message: 'ok' }));
       vitest.spyOn(mockTranslateService, 'getCurrentLang').mockReturnValue('en');
       comp.registerForm.patchValue({
         password: 'password',
@@ -63,6 +63,24 @@ describe('Register', () => {
       expect(comp.success()).toBe(true);
       expect(comp.errorUserExists()).toBe(false);
       expect(comp.errorEmailExists()).toBe(false);
+      expect(comp.error()).toBe(false);
+    },
+  ));
+
+  it('should show activation email warning when creating an account succeeds but email fails', inject(
+    [RegisterService, TranslateService],
+    (service: RegisterService, mockTranslateService: TranslateService) => {
+      vitest.spyOn(service, 'save').mockReturnValue(of({ activationEmailSent: false, message: 'email failed' }));
+      vitest.spyOn(mockTranslateService, 'getCurrentLang').mockReturnValue('en');
+      comp.registerForm.patchValue({
+        password: 'password',
+        confirmPassword: 'password',
+      });
+
+      comp.register();
+
+      expect(comp.success()).toBe(true);
+      expect(comp.activationEmailWarning()).toBe(true);
       expect(comp.error()).toBe(false);
     },
   ));

@@ -11,6 +11,7 @@ import { categoriesRoute } from './categories/categories.route';
 import { payeesRoute } from './payees/payees.route';
 import { fxRatesRoute } from './fx-rates/fx-rates.route';
 import { aiAssistantRoute } from './ai-assistant/ai-assistant.route';
+import { demoDataRoute } from './demo-data/demo-data.route';
 import { reportsHomeRoute } from './reports/reports-home.route';
 import { capitalGainsReportRoute, incomeExpensesReportRoute } from './reports/income-expenses-report.route';
 
@@ -18,6 +19,7 @@ const routes: Routes = [
   accountListRoute,
   plannerRoute,
   aiAssistantRoute,
+  demoDataRoute,
   dashboardRoute,
   transactionsBaseRoute,
   transactionsRoute,

@@ -7,12 +7,17 @@ import { ApplicationConfigService } from 'app/core/config/application-config.ser
 
 import { Registration } from './register.model';
 
+export type RegistrationResponse = {
+  activationEmailSent: boolean;
+  message: string;
+};
+
 @Injectable({ providedIn: 'root' })
 export class RegisterService {
   private readonly http = inject(HttpClient);
   private readonly applicationConfigService = inject(ApplicationConfigService);
 
-  save(registration: Registration): Observable<{}> {
-    return this.http.post(this.applicationConfigService.getEndpointFor('api/register'), registration);
+  save(registration: Registration): Observable<RegistrationResponse> {
+    return this.http.post<RegistrationResponse>(this.applicationConfigService.getEndpointFor('api/register'), registration);
   }
 }

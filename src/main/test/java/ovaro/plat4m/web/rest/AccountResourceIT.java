@@ -1,10 +1,14 @@
 package ovaro.plat4m.web.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Stream;
@@ -17,8 +21,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.mail.MailSendException;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import ovaro.plat4m.IntegrationTest;
@@ -31,6 +38,7 @@ import ovaro.plat4m.service.UserService;
 import ovaro.plat4m.service.dto.AdminUserDTO;
 import ovaro.plat4m.service.dto.PasswordChangeDTO;
 import ovaro.plat4m.web.rest.vm.KeyAndPasswordVM;
+import ovaro.plat4m.web.rest.vm.LoginVM;
 import ovaro.plat4m.web.rest.vm.ManagedUserVM;
 
 /**
@@ -60,11 +68,16 @@ class AccountResourceIT {
     @Autowired
     private MockMvc restAccountMockMvc;
 
+    @MockitoBean
+    private JavaMailSender javaMailSender;
+
     private Long numberOfUsers;
 
     @BeforeEach
     void countUsers() {
         numberOfUsers = userRepository.count();
+        when(javaMailSender.createMimeMessage()).thenReturn(new MimeMessage((Session) null));
+        doNothing().when(javaMailSender).send(any(MimeMessage.class));
     }
 
     @AfterEach
@@ -137,11 +150,49 @@ class AccountResourceIT {
 
         restAccountMockMvc
             .perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(validUser)))
-            .andExpect(status().isCreated());
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.activationEmailSent").value(true));
 
-        assertThat(userRepository.findOneByLogin("test-register-valid")).isPresent();
+        User registeredUser = userRepository.findOneByLogin("test-register-valid").orElseThrow();
+        assertThat(registeredUser.getGuid()).isNotNull();
 
         userService.deleteUser("test-register-valid");
+    }
+
+    @Test
+    @Transactional
+    void testRegisterActivatesUserWhenActivationEmailFails() throws Exception {
+        doThrow(MailSendException.class).when(javaMailSender).send(any(MimeMessage.class));
+
+        ManagedUserVM validUser = new ManagedUserVM();
+        validUser.setLogin("test-register-mail-fail");
+        validUser.setPassword("password");
+        validUser.setFirstName("Mail");
+        validUser.setLastName("Fail");
+        validUser.setEmail("test-register-mail-fail@example.com");
+        validUser.setLangKey(Constants.DEFAULT_LANGUAGE);
+        validUser.setAuthorities(Set.of(AuthoritiesConstants.USER));
+
+        restAccountMockMvc
+            .perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(validUser)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.activationEmailSent").value(false));
+
+        User user = userRepository.findOneByLogin("test-register-mail-fail").orElseThrow();
+        assertThat(user.isActivated()).isTrue();
+        assertThat(user.getActivationKey()).isNull();
+
+        LoginVM login = new LoginVM();
+        login.setUsername("test-register-mail-fail");
+        login.setPassword("password");
+        login.setRememberMe(true);
+
+        restAccountMockMvc
+            .perform(post("/api/authenticate").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(login)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id_token").isString());
+
+        userService.deleteUser("test-register-mail-fail");
     }
 
     @Test

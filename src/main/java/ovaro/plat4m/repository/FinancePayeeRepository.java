@@ -19,6 +19,8 @@ public interface FinancePayeeRepository extends JpaRepository<FinancePayee, Stri
     //List<Account> findAccounts();
     Optional<FinancePayee> findById(UUID uuid);
     List<FinancePayee> findByUserGuidOrderByNameAsc(String userGuid);
+    long countByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
+    void deleteAllByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
 
     @Query(
         "select p from FinancePayee p where p.userGuid = :userGuid and (p.hidden = false or p.hidden is null) order by lower(p.name), p.name"

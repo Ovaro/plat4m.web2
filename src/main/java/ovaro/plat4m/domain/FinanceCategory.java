@@ -41,6 +41,15 @@ public class FinanceCategory implements Serializable {
     private Integer classificationId;
     private Integer level;
     private String comment;
+    private Boolean systemCategory = false;
+    private String knownCategoryKey;
+    private Boolean platformDefaultCategory = false;
+    private Boolean templateCategory = false;
+    private Boolean hidden = false;
+    private UUID templateCategoryId;
+    private boolean generated = false;
+    private UUID generatedBatchId;
+    private String generatedLabel;
 
     public FinanceCategory() {}
 
@@ -56,6 +65,54 @@ public class FinanceCategory implements Serializable {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public Boolean getSystemCategory() {
+        return systemCategory;
+    }
+
+    public void setSystemCategory(Boolean systemCategory) {
+        this.systemCategory = systemCategory;
+    }
+
+    public String getKnownCategoryKey() {
+        return knownCategoryKey;
+    }
+
+    public void setKnownCategoryKey(String knownCategoryKey) {
+        this.knownCategoryKey = knownCategoryKey;
+    }
+
+    public Boolean getPlatformDefaultCategory() {
+        return platformDefaultCategory;
+    }
+
+    public void setPlatformDefaultCategory(Boolean platformDefaultCategory) {
+        this.platformDefaultCategory = platformDefaultCategory;
+    }
+
+    public Boolean getTemplateCategory() {
+        return templateCategory;
+    }
+
+    public void setTemplateCategory(Boolean templateCategory) {
+        this.templateCategory = templateCategory;
+    }
+
+    public Boolean getHidden() {
+        return hidden;
+    }
+
+    public void setHidden(Boolean hidden) {
+        this.hidden = hidden;
+    }
+
+    public UUID getTemplateCategoryId() {
+        return templateCategoryId;
+    }
+
+    public void setTemplateCategoryId(UUID templateCategoryId) {
+        this.templateCategoryId = templateCategoryId;
     }
 
     public UUID getId() {
@@ -112,5 +169,29 @@ public class FinanceCategory implements Serializable {
 
     public void setSourceParentId(Integer sourceParentId) {
         this.sourceParentId = sourceParentId;
+    }
+
+    public boolean isGenerated() {
+        return generated;
+    }
+
+    public void setGenerated(boolean generated) {
+        this.generated = generated;
+    }
+
+    public UUID getGeneratedBatchId() {
+        return generatedBatchId;
+    }
+
+    public void setGeneratedBatchId(UUID generatedBatchId) {
+        this.generatedBatchId = generatedBatchId;
+    }
+
+    public String getGeneratedLabel() {
+        return generatedLabel;
+    }
+
+    public void setGeneratedLabel(String generatedLabel) {
+        this.generatedLabel = generatedLabel;
     }
 }

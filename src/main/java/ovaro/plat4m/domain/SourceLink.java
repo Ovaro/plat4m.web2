@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
+import java.util.UUID;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 
@@ -52,6 +53,9 @@ public class SourceLink implements Serializable {
 
     protected boolean master;
     protected String originalInfo1;
+    protected boolean generated = false;
+    protected UUID generatedBatchId;
+    protected String generatedLabel;
 
     public String getUserGuid() {
         return userGuid;
@@ -123,6 +127,30 @@ public class SourceLink implements Serializable {
 
     public void setSourceEntity(String sourceEntity) {
         this.sourceEntity = sourceEntity;
+    }
+
+    public boolean isGenerated() {
+        return generated;
+    }
+
+    public void setGenerated(boolean generated) {
+        this.generated = generated;
+    }
+
+    public UUID getGeneratedBatchId() {
+        return generatedBatchId;
+    }
+
+    public void setGeneratedBatchId(UUID generatedBatchId) {
+        this.generatedBatchId = generatedBatchId;
+    }
+
+    public String getGeneratedLabel() {
+        return generatedLabel;
+    }
+
+    public void setGeneratedLabel(String generatedLabel) {
+        this.generatedLabel = generatedLabel;
     }
 
     @Override

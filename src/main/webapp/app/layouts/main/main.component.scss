@@ -13,6 +13,8 @@
   // margin-top: 20px;
   border: none;
   height: inherit;
+  margin-right: 10px;
+  padding-bottom: 10px;
 }
 
 .sidenav-container {
@@ -27,7 +29,7 @@
 
 .sidenav-visible {
   bottom: 0px;
-  margin-top: 56px;
+  margin-top: 42px;
   top: 0px;
   transform: none;
   visibility: visible;
@@ -56,13 +58,14 @@
 }
 
 .sidenav-light {
-  border-left-color: rgb(102, 102, 102);
+  //border-left-color: rgb(102, 102, 102);
   color: var(--ps-colors-text-icon-high-on-light);
-  background-color: var(--ps-colors-background-light-2);
+  // background-color: var(--ps-colors-background-light-2);
+  background-color: var(--ps-colors-background-light-3);
 }
 
 .sidenav-dark {
-  border-left-color: rgb(102, 102, 102);
+  //border-left-color: rgb(102, 102, 102);
   color: var(--ps-colors-text-icon-high-on-dark);
   //background-color: var(--ps-colors-background-dark-2);
 }
@@ -76,7 +79,7 @@
 }
 
 .sidenav-side {
-  border-right: solid 1px rgba(0, 0, 0, 0.12);
+  //border-right: solid 1px rgba(0, 0, 0, 0.12);
 }
 .sidenav-inner-container {
   width: 100%;
@@ -132,7 +135,7 @@
 }
 
 .header-buffer {
-  padding-top: 56px;
+  padding-top: 48px;
   height: inherit;
 }
 

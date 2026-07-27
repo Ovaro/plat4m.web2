@@ -1,20 +1,23 @@
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  ElementRef,
   EventEmitter,
   inject,
   NgZone,
-  OnInit,
+  OnDestroy,
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
-import { CommonModule, CurrencyPipe, formatCurrency, NgForOf, registerLocaleData } from '@angular/common';
-import { GridsterComponent, GridsterItemComponent, GridsterModule } from 'angular-gridster2';
-import { GridsterConfig, GridsterItem } from 'angular-gridster2';
+import { formatCurrency, registerLocaleData } from '@angular/common';
+import { GridStackOptions } from 'gridstack';
+import { GridstackComponent, GridstackItemComponent, nodesCB } from 'gridstack/dist/angular';
 import locale from '@angular/common/locales/en-AU';
 import {
   Annotation,
+  CustomPortfolio,
   FinanceIndicator,
   FinanceIndicators,
   FinanceNestedResource,
@@ -22,8 +25,10 @@ import {
   FinanceResourceSnapshots,
   FinanceSecurityHolding,
   FinanceSnapshot,
+  InvestmentPortfolioDetails,
   PanelSpec,
   Periods,
+  SnapshotWithDelta,
 } from '../finance.model';
 import { DashboardService } from './dashboard.service';
 
@@ -32,9 +37,12 @@ import SharedModule from 'app/shared/shared.module';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { FormsModule } from '@angular/forms';
 import { SplitterModule } from 'primeng/splitter';
-import { ParentDynamicComponent } from './parentDynamic.component';
 import { HistoryChartComponent } from '../history-chart/history-chart.component';
 import { HistoryChartDialogComponent } from '../history-chart-dialog/history-chart-dialog.component';
+import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
+import { DashboardConfig, DashboardGridItem, DashboardPanelDefinition, DashboardWidgetInstance } from './dashboard.types';
+import { DashboardPanelHostComponent } from './dashboard-panel-host.component';
+import { DashboardPanelConfigDialogComponent, DashboardPanelConfigSave } from './dashboard-panel-config-dialog.component';
 
 // declare type XYData = {
 //   x: any;
@@ -58,22 +66,15 @@ import { HistoryChartDialogComponent } from '../history-chart-dialog/history-cha
     SharedModule,
     SelectButtonModule,
     FormsModule,
-    GridsterModule,
+    GridstackComponent,
+    GridstackItemComponent,
     SplitterModule,
-    ParentDynamicComponent,
-    HistoryChartComponent,
+    DashboardPanelHostComponent,
+    DashboardPanelConfigDialogComponent,
     HistoryChartDialogComponent,
   ],
-  // standalone: true,
-  // imports: [
-  //   NgForOf,
-  //   GridsterComponent,
-  //   GridsterItemComponent,
-  //   ParentDynamicComponent
-  // ]
 })
-export class DashboardComponent {
-  //  implements OnInit
+export class DashboardComponent implements AfterViewInit, OnDestroy {
   static PERIOD_DEFAULT_COOKIE_ID = 'period-default';
   static RESOURCE_GROUP_PREFIX = 'rg/';
   static RG_ACCOUNTS_BY_TYPE = `{RESOURCE_GROUP_PREFIX}AccountsByType`;
@@ -82,11 +83,25 @@ export class DashboardComponent {
   static RG_ACCOUNT_CURRENCY_PREFIX = `{RESOURCE_GROUP_PREFIX}AccountCurrency-`;
 
   static CHILDREN_OF_PREFIX = 'childrenOf:';
+  static CUSTOM_PORTFOLIO_PREFIX = 'customPortfolio:';
   static JSON = JSON;
+  static MAX_GRID_COLUMNS = 10;
+  static MIN_STANDARD_PANEL_WIDTH = 132;
+  static MIN_WIDE_PANEL_WIDTH = 274;
+  static GRID_MARGIN = 8;
+  static MIN_GRID_COLUMN_WIDTH = Math.max(
+    DashboardComponent.MIN_STANDARD_PANEL_WIDTH + DashboardComponent.GRID_MARGIN * 2,
+    Math.ceil(DashboardComponent.MIN_WIDE_PANEL_WIDTH / 2) + DashboardComponent.GRID_MARGIN * 2,
+  );
 
-  options: GridsterConfig = {};
-  dashboard: Array<GridsterItem>;
-  liabilityPanel: GridsterItem;
+  options: GridStackOptions = {};
+  dashboard: DashboardGridItem[];
+  panelDefinitions: DashboardPanelDefinition[] = [];
+  dashboardConfigWarning: string | null = null;
+  liabilityPanel: any;
+  dashboardConfigReady = false;
+  responsiveRelayout = false;
+  currentGridColumns = DashboardComponent.MAX_GRID_COLUMNS;
   isLoading = false;
   isLoadingPortfolioIndicators = false;
   isLoadingAccountSnapshots = false;
@@ -94,12 +109,14 @@ export class DashboardComponent {
 
   panelSpecs: Array<PanelSpec>;
 
-  @ViewChild('gridster', { static: false }) gridster!: GridsterComponent;
+  @ViewChild('gridstack', { static: false }) gridstack!: GridstackComponent;
+  @ViewChild('dashboardGridFrame', { static: false }) dashboardGridFrame!: ElementRef<HTMLElement>;
+  @ViewChild('panelConfigDialog', { static: false }) panelConfigDialog!: DashboardPanelConfigDialogComponent;
 
-  selectedItem: GridsterItem | null = null;
-  refreshItem: GridsterItem | null = null;
+  selectedItem: DashboardGridItem | null = null;
+  refreshItem: DashboardGridItem | null = null;
 
-  resizeEvent: EventEmitter<GridsterItem> = new EventEmitter<GridsterItem>();
+  resizeEvent: EventEmitter<DashboardGridItem> = new EventEmitter<DashboardGridItem>();
 
   periods: Periods[];
   selectedPeriod: Periods;
@@ -110,6 +127,7 @@ export class DashboardComponent {
   portfolioSnapshots: FinanceResourceSnapshots[];
 
   financeIndicators: FinanceIndicator[];
+  private gridResizeObserver: ResizeObserver | null = null;
   //  eventsSubject: Subject<void> = new Subject<void>();
 
   itemChange(item: any, itemComponent: any) {
@@ -141,25 +159,17 @@ export class DashboardComponent {
     private zone: NgZone,
   ) {
     this.options = {
-      itemChangeCallback: this.itemChange,
-      // itemResizeCallback: item => {
-      //   // update DB with new size
-      //   // send the update to widgets
-      //   this.resizeEvent.emit(item);
-      // },
-      itemResizeCallback: this.itemResize,
-      displayGrid: 'none',
-      draggable: {
-        enabled: true,
-      },
-      gridType: 'fixed',
-      fixedRowHeight: 152,
-      fixedColWidth: 132,
-      keepFixedHeightInMobile: true,
-      mobileBreakpoint: 480,
+      column: DashboardComponent.MAX_GRID_COLUMNS,
+      cellHeight: 152,
+      margin: DashboardComponent.GRID_MARGIN,
+      float: true,
+      animate: true,
+      draggable: { handle: '.db-panel-container' },
+      resizable: { handles: 'se', autoHide: true },
+      alwaysShowResizeHandle: false,
     };
 
-    this.liabilityPanel = { cols: 1, rows: 1, y: 0, x: 4 };
+    this.liabilityPanel = this.toDashboardItem({ cols: 1, rows: 1, y: 0, x: 4, panelType: 'standard', section: '', dataTypeSpecs: [] });
     this.dashboard = [];
     this.panelSpecs = [];
 
@@ -179,6 +189,15 @@ export class DashboardComponent {
     this.portfolioSnapshots = [];
     this.financeIndicators = [];
     this.allResources = [];
+  }
+
+  ngAfterViewInit(): void {
+    this.setupResponsiveGrid();
+  }
+
+  ngOnDestroy(): void {
+    this.gridResizeObserver?.disconnect();
+    this.gridResizeObserver = null;
   }
 
   ngOnInit(): void {
@@ -749,6 +768,7 @@ export class DashboardComponent {
     // ];
 
     this.dashboard = this.processPanelSpecs(this.panelSpecs);
+    this.loadDashboardConfig();
 
     const savedPeriodDefault = this.getCookie(DashboardComponent.PERIOD_DEFAULT_COOKIE_ID);
     if (savedPeriodDefault) {
@@ -764,28 +784,29 @@ export class DashboardComponent {
     this.loadAccountIndicators();
   }
 
-  processPanelSpecs(panelSpecs: Array<PanelSpec>): Array<GridsterItem> {
-    let items: Array<GridsterItem> = [];
+  processPanelSpecs(panelSpecs: Array<PanelSpec>): DashboardGridItem[] {
+    let items: DashboardGridItem[] = [];
     let maxX = 0,
       maxY = 0;
     for (let i = 0; i < panelSpecs.length; i++) {
-      items.push({
-        cols: panelSpecs[i].cols,
-        rows: panelSpecs[i].rows,
-        x: panelSpecs[i].x,
-        y: panelSpecs[i].y,
-        type: panelSpecs[i].panelType,
-        selected: false,
-        header: panelSpecs[i].section,
-        // title: panelSpecs[i].dataTypeSpecs[0].title,
-        dataTypeSpecs: panelSpecs[i].dataTypeSpecs,
-        // title: panelSpecs[i].dataTypeSpecs[0].title, dataType: panelSpecs[i].dataTypeSpecs[0].dataType,
-        // compositeDataTypeOperation: panelSpecs[i].dataTypeSpecs[0].compositeDataTypeOperation,
-        // negativeAsPositive: panelSpecs[i].dataTypeSpecs[0].negativeAsPositive,
-        // detailedPanelSpec: panelSpecs[i].dataTypeSpecs[0].detailedPanelSpec,
-        // expandGroups: panelSpecs[i].dataTypeSpecs[0].expandGroups,
-        // secondaryTitles: ["Hello"]
-      });
+      items.push(
+        this.toDashboardItem({
+          cols: panelSpecs[i].cols,
+          rows: panelSpecs[i].rows,
+          x: panelSpecs[i].x,
+          y: panelSpecs[i].y,
+          panelType: panelSpecs[i].panelType,
+          section: panelSpecs[i].section,
+          // title: panelSpecs[i].dataTypeSpecs[0].title,
+          dataTypeSpecs: panelSpecs[i].dataTypeSpecs,
+          // title: panelSpecs[i].dataTypeSpecs[0].title, dataType: panelSpecs[i].dataTypeSpecs[0].dataType,
+          // compositeDataTypeOperation: panelSpecs[i].dataTypeSpecs[0].compositeDataTypeOperation,
+          // negativeAsPositive: panelSpecs[i].dataTypeSpecs[0].negativeAsPositive,
+          // detailedPanelSpec: panelSpecs[i].dataTypeSpecs[0].detailedPanelSpec,
+          // expandGroups: panelSpecs[i].dataTypeSpecs[0].expandGroups,
+          // secondaryTitles: ["Hello"]
+        }),
+      );
       if (panelSpecs[i].x > maxX) {
         maxX = panelSpecs[i].x;
       }
@@ -805,15 +826,263 @@ export class DashboardComponent {
     return items;
   }
 
+  private toDashboardItem(input: {
+    id?: string;
+    panelDefinitionId?: string;
+    cols: number;
+    rows: number;
+    x: number;
+    y: number;
+    panelType: string;
+    section: string;
+    dataTypeSpecs: any[];
+  }): DashboardGridItem {
+    const id = input.id ?? this.newId();
+    const minW = this.minColumnsForPanelType(input.panelType);
+    const originalDataTypeSpecs = structuredClone(input.dataTypeSpecs ?? []);
+    return {
+      id,
+      panelDefinitionId: input.panelDefinitionId ?? id,
+      x: input.x,
+      y: input.y,
+      w: Math.max(input.cols, minW),
+      h: input.rows,
+      minW,
+      cols: Math.max(input.cols, minW),
+      rows: input.rows,
+      type: input.panelType,
+      selected: false,
+      header: input.section,
+      section: input.section,
+      dataTypeSpecs: structuredClone(originalDataTypeSpecs),
+      originalDataTypeSpecs,
+    };
+  }
+
+  private newId(): string {
+    return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  private minColumnsForPanelType(panelType: string): number {
+    return panelType === 'wide' ? 2 : 1;
+  }
+
+  private setupResponsiveGrid(): void {
+    if (!this.dashboardGridFrame?.nativeElement) {
+      return;
+    }
+
+    this.updateResponsiveGridColumns(this.dashboardGridFrame.nativeElement.clientWidth);
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    this.gridResizeObserver = new ResizeObserver(entries => {
+      const width = entries[0]?.contentRect.width ?? this.dashboardGridFrame.nativeElement.clientWidth;
+      this.updateResponsiveGridColumns(width);
+    });
+    this.gridResizeObserver.observe(this.dashboardGridFrame.nativeElement);
+  }
+
+  private updateResponsiveGridColumns(containerWidth: number): void {
+    if (!containerWidth) {
+      return;
+    }
+
+    const nextColumns = Math.max(
+      2,
+      Math.min(DashboardComponent.MAX_GRID_COLUMNS, Math.floor(containerWidth / DashboardComponent.MIN_GRID_COLUMN_WIDTH)),
+    );
+
+    if (nextColumns === this.currentGridColumns) {
+      this.gridstack?.grid?.onResize(containerWidth);
+      return;
+    }
+
+    this.currentGridColumns = nextColumns;
+    this.options = {
+      ...this.options,
+      column: nextColumns,
+    };
+
+    const grid = this.gridstack?.grid;
+    if (!grid) {
+      this.changeDetectorRef.markForCheck();
+      return;
+    }
+
+    this.responsiveRelayout = true;
+    grid.column(nextColumns, 'compact');
+    grid.compact('compact');
+    grid.onResize(containerWidth);
+
+    window.setTimeout(() => {
+      this.responsiveRelayout = false;
+    }, 250);
+  }
+
+  private loadDashboardConfig(): void {
+    this.dashboardConfigReady = false;
+    this.dashboardService.getDashboardConfig().subscribe({
+      next: config => {
+        if (config.widgets?.length && config.panelDefinitions?.length) {
+          if (this.shouldMigrateLegacyDashboard(config)) {
+            this.seedLegacyDashboardConfig(config);
+            return;
+          }
+          this.applyDashboardConfig(config);
+          return;
+        }
+        this.seedLegacyDashboardConfig();
+      },
+      error: () => {
+        this.applyLocalDashboard(
+          this.dashboard.length ? this.dashboard : this.processPanelSpecs(this.panelSpecs),
+          'Dashboard settings could not be loaded. Showing the default dashboard.',
+        );
+      },
+    });
+  }
+
+  private seedLegacyDashboardConfig(fallbackConfig?: DashboardConfig): void {
+    const legacyItems = this.processPanelSpecs(this.panelSpecs);
+    const createRequests = legacyItems.map(item =>
+      this.dashboardService
+        .createDashboardPanel({
+          scope: 'USER',
+          name: item.dataTypeSpecs[0]?.title ?? item.header ?? 'Panel',
+          panelType: item.type,
+          dataTypeSpecs: item.originalDataTypeSpecs ?? item.dataTypeSpecs,
+        })
+        .pipe(
+          map(panel => ({ item, panel })),
+          catchError(() => of(null)),
+        ),
+    );
+
+    if (createRequests.length === 0) {
+      return;
+    }
+
+    forkJoin(createRequests)
+      .pipe(
+        switchMap(results => {
+          const migrated = results.filter(
+            (result): result is { item: DashboardGridItem; panel: DashboardPanelDefinition } => result !== null,
+          );
+          if (migrated.length === 0) {
+            throw new Error('No legacy dashboard panels could be migrated.');
+          }
+          this.panelDefinitions = migrated.map(result => result.panel);
+          this.dashboard = migrated.map(result => ({
+            ...result.item,
+            panelDefinitionId: result.panel.id!,
+          }));
+          return this.dashboardService.updateDashboardLayout({ widgets: this.layoutWidgets() });
+        }),
+      )
+      .subscribe({
+        next: config => this.applyDashboardConfig(config),
+        error: () => {
+          if (fallbackConfig) {
+            this.dashboardConfigWarning = 'Dashboard panel settings could not be saved. Showing your saved dashboard.';
+            this.applyDashboardConfig(fallbackConfig);
+          } else {
+            this.applyLocalDashboard(legacyItems, 'Dashboard panel settings could not be saved. Showing the default dashboard.');
+          }
+        },
+      });
+  }
+
+  private shouldMigrateLegacyDashboard(config: DashboardConfig): boolean {
+    const panelById = new Map((config.panelDefinitions ?? []).filter(panel => panel.id).map(panel => [panel.id!, panel]));
+    const widgets = config.widgets ?? [];
+    const hasUserWidget = widgets.some(widget => panelById.get(widget.panelDefinitionId)?.scope === 'USER');
+    const isPortableStarter = widgets.length > 0 && widgets.length < this.panelSpecs.length && !hasUserWidget;
+    return isPortableStarter;
+  }
+
+  private applyDashboardConfig(config: DashboardConfig): void {
+    this.dashboardConfigWarning = null;
+    this.panelDefinitions = config.panelDefinitions ?? [];
+    const definitionById = new Map(this.panelDefinitions.filter(panel => panel.id).map(panel => [panel.id!, panel]));
+    const persistedItems = (config.widgets ?? [])
+      .map(widget => {
+        const panel = definitionById.get(widget.panelDefinitionId);
+        if (!panel) {
+          return null;
+        }
+        return this.toDashboardItem({
+          id: widget.id,
+          panelDefinitionId: widget.panelDefinitionId,
+          cols: widget.w ?? 1,
+          rows: widget.h ?? 1,
+          x: widget.x ?? 0,
+          y: widget.y ?? 0,
+          panelType: panel.panelType,
+          section: widget.section ?? '',
+          dataTypeSpecs: panel.dataTypeSpecs,
+        });
+      })
+      .filter((item): item is DashboardGridItem => item !== null);
+    this.dashboard = this.mergeLegacyBridgePanels(persistedItems);
+    this.expandRGsAndChildrenOfInDashboardSpecs(this.allResources);
+    this.processAccountIndicators(this.financeIndicators);
+    this.processSummaryCharts();
+    this.dashboardConfigReady = true;
+    window.setTimeout(() => this.updateResponsiveGridColumns(this.dashboardGridFrame?.nativeElement?.clientWidth ?? 0));
+    this.changeDetectorRef.markForCheck();
+  }
+
+  private applyLocalDashboard(items: DashboardGridItem[], warning: string): void {
+    this.dashboardConfigWarning = warning;
+    this.panelDefinitions = [];
+    this.dashboard = items.map(item => ({
+      ...item,
+      localOnly: true,
+    }));
+    this.expandRGsAndChildrenOfInDashboardSpecs(this.allResources);
+    this.processAccountIndicators(this.financeIndicators);
+    this.processSummaryCharts();
+    this.dashboardConfigReady = true;
+    window.setTimeout(() => this.updateResponsiveGridColumns(this.dashboardGridFrame?.nativeElement?.clientWidth ?? 0));
+    this.changeDetectorRef.markForCheck();
+  }
+
+  private mergeLegacyBridgePanels(persistedItems: DashboardGridItem[]): DashboardGridItem[] {
+    if (persistedItems.length >= this.panelSpecs.length) {
+      return persistedItems;
+    }
+
+    const legacyItems = this.processPanelSpecs(this.panelSpecs);
+    const occupiedPositions = new Set(persistedItems.map(item => `${item.x}:${item.y}`));
+    const bridgeItems = legacyItems
+      .filter(item => !occupiedPositions.has(`${item.x}:${item.y}`))
+      .map(item => ({
+        ...item,
+        localOnly: true,
+      }));
+
+    console.debug('Dashboard bridge merge', {
+      persisted: persistedItems.length,
+      bridge: bridgeItems.length,
+      total: persistedItems.length + bridgeItems.length,
+      skippedPositions: Array.from(occupiedPositions),
+    });
+
+    return [...persistedItems, ...bridgeItems].sort((left, right) => left.y - right.y || left.x - right.x);
+  }
+
   incrementBy(num: number, by: number): number {
     num = num + by;
     return num;
   }
 
   changedOptions() {
-    if (this.options && this.options.api) {
-      //this.options.api.optionsChanged();
-    }
+    this.gridstack?.grid?.onResize();
   }
 
   removeItem(item: any) {
@@ -821,7 +1090,7 @@ export class DashboardComponent {
   }
 
   addItem() {
-    let item: GridsterItem = { x: 0, y: 0, rows: 1, cols: 1 };
+    let item = this.toDashboardItem({ x: 0, y: 0, rows: 1, cols: 1, panelType: 'standard', section: '', dataTypeSpecs: [] });
     this.dashboard.push(item);
   }
 
@@ -829,11 +1098,162 @@ export class DashboardComponent {
     // originalEvent: any, sizes: any
     // eslint-disable-next-line no-console
     // console.log('resize...');
-    // @ts-ignore
-    this.options!.api?.resize();
+    this.gridstack?.grid?.onResize();
   }
 
-  onClick(item: GridsterItem): void {
+  onGridChange(change: nodesCB): void {
+    if (!this.dashboardConfigReady || this.responsiveRelayout) {
+      return;
+    }
+    for (const node of change.nodes ?? []) {
+      const id = String(node.id ?? '');
+      const item = this.dashboard.find(candidate => candidate.id === id);
+      if (!item) {
+        continue;
+      }
+      item.x = node.x ?? item.x;
+      item.y = node.y ?? item.y;
+      item.w = node.w ?? item.w;
+      item.h = node.h ?? item.h;
+      item.cols = item.w;
+      item.rows = item.h;
+    }
+    this.dashboardService.updateDashboardLayout({ widgets: this.layoutWidgets() }).subscribe({
+      next: () => undefined,
+      error: () => undefined,
+    });
+  }
+
+  configurePanel(item: DashboardGridItem): void {
+    const panel =
+      this.panelDefinitions.find(definition => definition.id === item.panelDefinitionId) ??
+      ({
+        id: item.localOnly ? undefined : item.panelDefinitionId,
+        scope: 'USER',
+        name: item.dataTypeSpecs?.[0]?.title ?? item.header ?? 'Panel',
+        panelType: item.type,
+        dataTypeSpecs: item.originalDataTypeSpecs ?? item.dataTypeSpecs ?? [],
+      } satisfies DashboardPanelDefinition);
+    this.panelConfigDialog.open(
+      {
+        ...panel,
+        dataTypeSpecs: structuredClone(panel.dataTypeSpecs ?? []),
+      },
+      item.id,
+      item.header ?? '',
+    );
+  }
+
+  savePanelDefinition(config: DashboardPanelConfigSave): void {
+    const panel = this.preparePanelForSave(config.panel);
+    const request = panel.id ? this.dashboardService.updateDashboardPanel(panel) : this.dashboardService.createDashboardPanel(panel);
+    const oldPanelId = panel.id;
+    request.subscribe({
+      next: saved => {
+        const configuredItem = this.dashboard.find(item => item.id === config.widgetId);
+        const existingIndex = this.panelDefinitions.findIndex(definition => definition.id === saved.id);
+        if (existingIndex >= 0) {
+          this.panelDefinitions[existingIndex] = saved;
+        } else {
+          this.panelDefinitions.push(saved);
+        }
+        if (oldPanelId && oldPanelId !== saved.id) {
+          this.dashboard
+            .filter(item => item.panelDefinitionId === oldPanelId)
+            .forEach(item => {
+              item.panelDefinitionId = saved.id!;
+            });
+        }
+        if (configuredItem) {
+          configuredItem.panelDefinitionId = saved.id!;
+          configuredItem.header = config.section;
+          configuredItem.section = config.section;
+          configuredItem.localOnly = false;
+        }
+        this.dashboard
+          .filter(item => item.panelDefinitionId === saved.id)
+          .forEach(item => {
+            item.type = saved.panelType;
+            item.originalDataTypeSpecs = structuredClone(saved.dataTypeSpecs);
+            item.dataTypeSpecs = structuredClone(saved.dataTypeSpecs);
+          });
+        this.expandRGsAndChildrenOfInDashboardSpecs(this.allResources);
+        this.dashboardService.updateDashboardLayout({ widgets: this.layoutWidgets() }).subscribe({
+          next: () => {
+            this.processAccountIndicators(this.financeIndicators);
+            this.processSummaryCharts();
+            this.panelConfigDialog.saveSucceeded();
+            this.changeDetectorRef.markForCheck();
+          },
+          error: () => this.panelConfigDialog.saveFailed(),
+        });
+      },
+      error: () => this.panelConfigDialog.saveFailed(),
+    });
+  }
+
+  private preparePanelForSave(panel: DashboardPanelDefinition): DashboardPanelDefinition {
+    const visibleResourceIds = this.visibleResourceIds();
+    const sanitized = structuredClone(panel);
+    sanitized.dataTypeSpecs = (sanitized.dataTypeSpecs ?? [])
+      .map(spec => ({
+        ...spec,
+        dataType: (spec.dataType ?? []).filter(ref => this.isPersistableDataRef(ref, visibleResourceIds)),
+      }))
+      .filter(spec => spec.dataType.length > 0);
+    return sanitized;
+  }
+
+  private isPersistableDataRef(ref: string, visibleResourceIds: Set<string>): boolean {
+    if (!ref) {
+      return false;
+    }
+    if (ref.startsWith('sumAccountType-') || ref.startsWith(DashboardComponent.RESOURCE_GROUP_PREFIX)) {
+      return true;
+    }
+    if (ref.startsWith(DashboardComponent.CHILDREN_OF_PREFIX)) {
+      return visibleResourceIds.has(ref.substring(DashboardComponent.CHILDREN_OF_PREFIX.length));
+    }
+    return !this.isUuid(ref) || visibleResourceIds.size === 0 || visibleResourceIds.has(ref);
+  }
+
+  private visibleResourceIds(): Set<string> {
+    const ids = new Set<string>();
+    this.collectVisibleResourceIds(this.allResources ?? [], ids);
+    return ids;
+  }
+
+  private collectVisibleResourceIds(resources: FinanceNestedResource[], ids: Set<string>): void {
+    for (const resource of resources ?? []) {
+      if (resource.id) {
+        ids.add(resource.id);
+      }
+      if (resource.children?.length) {
+        this.collectVisibleResourceIds(resource.children, ids);
+      }
+    }
+  }
+
+  private isUuid(value: string): boolean {
+    return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value);
+  }
+
+  private layoutWidgets(): DashboardWidgetInstance[] {
+    const persistedPanelIds = new Set(this.panelDefinitions.map(panel => panel.id).filter(Boolean));
+    return this.dashboard
+      .filter(item => !item.localOnly && persistedPanelIds.has(item.panelDefinitionId))
+      .map(item => ({
+        id: item.id,
+        panelDefinitionId: item.panelDefinitionId,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        section: item.header,
+      }));
+  }
+
+  onClick(item: DashboardGridItem): void {
     // eslint-disable-next-line no-console
     // console.log('(DashboardComponent) click...: ' + JSON.stringify(item));
 
@@ -913,25 +1333,41 @@ export class DashboardComponent {
     console.log('================ Loading portfolio indicators...');
     this.isLoadingPortfolioIndicators = true;
 
-    this.dashboardService.getPortfolioIndicators(this.selectedPeriod.value).subscribe(
-      response => {
-        this.isLoadingPortfolioIndicators = false;
-        // eslint-disable-next-line no-console
-        // console.log(`Response: ${JSON.stringify(response)}`);
-        // this.changeDetectorRef.markForCheck();
-        if (response && response.indicators) {
-          for (let i = 0; i < response.indicators.length; i++) {
-            this.financeIndicators.push(response.indicators[i]);
+    this.dashboardService
+      .getPortfolioIndicators(this.selectedPeriod.value)
+      .pipe(
+        switchMap(response =>
+          this.loadCustomPortfolioIndicators().pipe(
+            map(customIndicators => ({
+              response,
+              customIndicators,
+            })),
+            catchError(() => of({ response, customIndicators: [] as FinanceIndicator[] })),
+          ),
+        ),
+      )
+      .subscribe(
+        ({ response, customIndicators }) => {
+          this.isLoadingPortfolioIndicators = false;
+          // eslint-disable-next-line no-console
+          // console.log(`Response: ${JSON.stringify(response)}`);
+          // this.changeDetectorRef.markForCheck();
+          if (response && response.indicators) {
+            for (let i = 0; i < response.indicators.length; i++) {
+              this.financeIndicators.push(response.indicators[i]);
+            }
           }
-        }
+          for (const customIndicator of customIndicators) {
+            this.financeIndicators.push(customIndicator);
+          }
 
-        this.processAccountIndicators(this.financeIndicators);
-        //this.processResourceTree(this.allResources);
-      },
-      error => {
-        this.isLoadingPortfolioIndicators = false;
-      },
-    );
+          this.processAccountIndicators(this.financeIndicators);
+          //this.processResourceTree(this.allResources);
+        },
+        error => {
+          this.isLoadingPortfolioIndicators = false;
+        },
+      );
   }
 
   loadAccountSnapshots(): void {
@@ -946,7 +1382,8 @@ export class DashboardComponent {
         // console.log(`Response: ${JSON.stringify(response)}`);
         // this.changeDetectorRef.markForCheck();
         this.accountSnapshots = response;
-        this.processDetailedPanel();
+        this.processSummaryCharts();
+        this.processDetailedPanel(false);
       },
       error => {
         this.isLoadingAccountSnapshots = false;
@@ -959,18 +1396,122 @@ export class DashboardComponent {
     console.log('Loading portfolio historical snapshots (caching)...');
     this.isLoadingAccountSnapshots = true;
 
-    this.dashboardService.getPortfolioSnapshots(true, this.selectedPeriod.value).subscribe(
-      response => {
-        this.isLoadingPortfolioSnapshots = false;
-        // eslint-disable-next-line no-console
-        // console.log(`Response: ${JSON.stringify(response)}`);
-        // this.changeDetectorRef.markForCheck();
-        this.portfolioSnapshots = response;
-      },
-      error => {
-        this.isLoadingPortfolioSnapshots = false;
-      },
+    this.dashboardService
+      .getPortfolioSnapshots(true, this.selectedPeriod.value)
+      .pipe(
+        switchMap(response =>
+          this.loadCustomPortfolioSnapshots().pipe(
+            map(customSnapshots => ({
+              response,
+              customSnapshots,
+            })),
+            catchError(() => of({ response, customSnapshots: [] as FinanceResourceSnapshots[] })),
+          ),
+        ),
+      )
+      .subscribe(
+        ({ response, customSnapshots }) => {
+          this.isLoadingPortfolioSnapshots = false;
+          // eslint-disable-next-line no-console
+          // console.log(`Response: ${JSON.stringify(response)}`);
+          // this.changeDetectorRef.markForCheck();
+          this.portfolioSnapshots = [...response, ...customSnapshots];
+          this.processSummaryCharts();
+        },
+        error => {
+          this.isLoadingPortfolioSnapshots = false;
+        },
+      );
+  }
+
+  private loadCustomPortfolioIndicators() {
+    return this.dashboardService.getCustomPortfolios().pipe(
+      switchMap(portfolios => {
+        const indicatorRequests = portfolios
+          .filter(portfolio => Boolean(portfolio.id))
+          .map(portfolio =>
+            forkJoin({
+              current: this.dashboardService.getCustomPortfolioSummaries(portfolio.id!, ''),
+              comparison: this.selectedPeriod.value
+                ? this.dashboardService.getCustomPortfolioSummaries(portfolio.id!, this.selectedPeriod.value)
+                : of(null),
+            }).pipe(map(({ current, comparison }) => this.toCustomPortfolioIndicator(portfolio, current, comparison))),
+          );
+
+        return indicatorRequests.length ? forkJoin(indicatorRequests) : of([] as FinanceIndicator[]);
+      }),
     );
+  }
+
+  private toCustomPortfolioIndicator(
+    portfolio: CustomPortfolio,
+    current: InvestmentPortfolioDetails,
+    comparison: InvestmentPortfolioDetails | null,
+  ): FinanceIndicator {
+    const id = DashboardComponent.CUSTOM_PORTFOLIO_PREFIX + portfolio.id;
+    const value = this.customPortfolioSummaryValue(current);
+    const comparisonValue = comparison ? this.customPortfolioSummaryValue(comparison) : null;
+    const snapshot = new SnapshotWithDelta(
+      id,
+      current.date,
+      value,
+      'customPortfolio',
+      comparisonValue as number,
+      comparisonValue == null,
+      null,
+      null,
+      current.currencyIsoCode,
+    );
+
+    return new FinanceIndicator(id, portfolio.name, '', current.currencyIsoCode, 'customPortfolio', snapshot);
+  }
+
+  private customPortfolioSummaryValue(summary: InvestmentPortfolioDetails): number {
+    const totalValue = (summary as InvestmentPortfolioDetails & { totalValue?: number | null }).totalValue;
+    if (totalValue != null) {
+      return Number(totalValue);
+    }
+
+    const holdingsValue = (summary.price ?? 0) * (summary.quantity ?? 0);
+    return holdingsValue + (summary.cashValue ?? 0);
+  }
+
+  private loadCustomPortfolioSnapshots() {
+    return this.dashboardService.getCustomPortfolios().pipe(
+      switchMap(portfolios => {
+        const snapshotRequests = portfolios
+          .filter(portfolio => Boolean(portfolio.id))
+          .map(portfolio =>
+            this.dashboardService
+              .getCustomPortfolioSnapshots(portfolio.id!, this.selectedPeriod.value)
+              .pipe(map(snapshots => this.toCustomPortfolioSnapshot(portfolio, snapshots))),
+          );
+
+        return snapshotRequests.length ? forkJoin(snapshotRequests) : of([] as FinanceResourceSnapshots[]);
+      }),
+    );
+  }
+
+  private toCustomPortfolioSnapshot(portfolio: CustomPortfolio, snapshots: FinanceResourceSnapshots[]): FinanceResourceSnapshots {
+    const id = DashboardComponent.CUSTOM_PORTFOLIO_PREFIX + portfolio.id;
+    const aggregate: FinanceResourceSnapshots = {
+      id,
+      name: portfolio.name,
+      symbol: '',
+      currencyCode: snapshots.find(snapshot => snapshot.currencyCode)?.currencyCode ?? '',
+      type: 'customPortfolio',
+      snapshots: [],
+      annotations: [],
+    };
+
+    for (const snapshot of snapshots) {
+      this.aggregateSnapshots(aggregate, snapshot);
+    }
+
+    aggregate.id = id;
+    aggregate.name = portfolio.name;
+    aggregate.type = 'customPortfolio';
+    return aggregate;
   }
 
   findResourceSnapshot(resourceId: string): FinanceResourceSnapshots | null {
@@ -1128,9 +1669,9 @@ export class DashboardComponent {
     }
   }
 
-  processDetailedPanel() {
-    if (this.selectedItem) {
-      let series = this.processSnapshots(this.selectedItem);
+  processDetailedPanel(openDialog = true) {
+    if (this.selectedItem && (openDialog || this.historyChartDialog?.visible)) {
+      let series = this.processSnapshots(this.selectedItem, openDialog);
 
       // Set the series
       // if (series) {
@@ -1141,7 +1682,90 @@ export class DashboardComponent {
     }
   }
 
+  processSummaryCharts(): void {
+    if (!this.dashboard?.length) {
+      return;
+    }
+
+    for (const item of this.dashboard) {
+      const spec = item.dataTypeSpecs?.[0];
+      if (!['standard', 'wide'].includes(item.type) || !spec?.summaryChartSpec?.enabled) {
+        delete item.summaryChartSeries;
+        this.resizeEvent.emit(item);
+        continue;
+      }
+      item.summaryChartSeries = this.createSummaryChartSeries(item);
+      this.resizeEvent.emit(item);
+    }
+
+    this.changeDetectorRef.markForCheck();
+  }
+
+  private createSummaryChartSeries(item: DashboardGridItem): any[] {
+    const spec = item.dataTypeSpecs?.[0];
+    const resourceIds = spec?.dataType ?? [];
+    if (!spec || resourceIds.length === 0) {
+      return [];
+    }
+
+    const snapshots = resourceIds
+      .map(resourceId => this.findResourceSnapshot(resourceId))
+      .filter((snapshot): snapshot is FinanceResourceSnapshots => snapshot !== null);
+
+    if (spec.summaryChartSpec?.combineSeries !== false) {
+      const combined = this.combineSnapshotSeries(snapshots, spec.negativeAsPositive === true);
+      return combined.length ? [{ name: spec.title || 'Total', data: combined }] : [];
+    }
+
+    return snapshots
+      .map(snapshot => ({
+        name: snapshot.name,
+        data: this.snapshotToSeries(snapshot, spec.negativeAsPositive === true),
+      }))
+      .filter(series => series.data.length > 0);
+  }
+
+  private combineSnapshotSeries(snapshots: FinanceResourceSnapshots[], negativeAsPositive: boolean): Array<{ x: string; y: number }> {
+    const valuesByDate = new Map<string, number>();
+
+    for (const snapshot of snapshots) {
+      for (const point of this.snapshotToSeries(snapshot, negativeAsPositive)) {
+        valuesByDate.set(point.x, (valuesByDate.get(point.x) ?? 0) + point.y);
+      }
+    }
+
+    return Array.from(valuesByDate.entries())
+      .sort(([left], [right]) => new Date(left).getTime() - new Date(right).getTime())
+      .map(([x, y]) => ({ x, y }));
+  }
+
+  private snapshotToSeries(snapshot: FinanceResourceSnapshots, negativeAsPositive: boolean): Array<{ x: string; y: number }> {
+    let lastKnownFxToLocal: number | null = null;
+
+    return (snapshot.snapshots ?? [])
+      .map(point => {
+        if (point.fxToLocal) {
+          lastKnownFxToLocal = point.fxToLocal;
+        }
+        let value = point.value ?? 0;
+        if (lastKnownFxToLocal) {
+          value = value * lastKnownFxToLocal;
+        }
+        if (negativeAsPositive) {
+          value = value * -1;
+        }
+        return {
+          x: point.date,
+          y: value,
+        };
+      })
+      .filter(point => point.x && Number.isFinite(point.y));
+  }
+
   processAccountIndicators(financeIndicators: FinanceIndicator[]) {
+    if (!financeIndicators?.length) {
+      return;
+    }
     // Set the values by datatype crawl.
     for (let i = 0; i < this.dashboard.length; i++) {
       if (this.dashboard[i].dataTypeSpecs) {
@@ -1153,7 +1777,7 @@ export class DashboardComponent {
           let result = this.performIndicatorCompositeCalcs(
             financeIndicators,
             this.dashboard[i].dataTypeSpecs[j].dataType,
-            this.dashboard[i].dataTypeSpecs[j].compositeDataTypeOperation,
+            this.dashboard[i].dataTypeSpecs[j].compositeDataTypeOperation ?? 'sum',
           );
           if (result != null) {
             values.push(result.value);
@@ -1282,7 +1906,13 @@ export class DashboardComponent {
   }
 
   expandRGsAndChildrenOfInDashboardSpecs(resources: FinanceNestedResource[]) {
+    if (!resources?.length) {
+      return;
+    }
     for (let i = 0; i < this.dashboard.length; i++) {
+      if (this.dashboard[i].originalDataTypeSpecs) {
+        this.dashboard[i].dataTypeSpecs = structuredClone(this.dashboard[i].originalDataTypeSpecs);
+      }
       let dataTypeSpecs = this.dashboard[i].dataTypeSpecs;
       for (let k = 0; k < dataTypeSpecs.length; k++) {
         let toAppend: ArrayAppend[] = [];
@@ -1376,7 +2006,7 @@ export class DashboardComponent {
     return result;
   }
 
-  processSnapshots(item: GridsterItem) {
+  processSnapshots(item: DashboardGridItem, openDialog = true) {
     let resourceIds: string[] | null = null;
     if (item != null) {
       resourceIds = item.dataTypeSpecs[0].dataType;
@@ -1396,15 +2026,19 @@ export class DashboardComponent {
           resourceSnapshots.push(resourceSnapshot);
         }
       }
-      let combineSeries = item.dataTypeSpecs[0].detailedPanelSpec?.combineSeries;
+      let combineSeries = item.dataTypeSpecs[0].detailedPanelSpec?.combineSeries ?? false;
       if (this.historyChart) {
-        this.historyChart.setData(resourceSnapshots, ct, combineSeries);
+        this.historyChart.setData(resourceSnapshots, ct as any, combineSeries);
       }
 
       if (this.historyChartDialog) {
         let header: string = item.dataTypeSpecs[0].title ? item.dataTypeSpecs[0].title : item.header ? item.header : 'Graph';
-        this.historyChartDialog.setData(header, resourceSnapshots, ct, combineSeries);
-        this.historyChartDialog.showDialog();
+        this.historyChartDialog.setData(header, resourceSnapshots, ct as any, combineSeries);
+        if (openDialog) {
+          this.historyChartDialog.showDialog();
+        } else if (this.historyChartDialog.visible) {
+          this.historyChartDialog.onShow();
+        }
       }
     }
   }

@@ -67,6 +67,7 @@ public class FinanceTransactionImportService {
     private final FinanceCategoryRepository categoryRepository;
     private final FinanceTransactionRepository transactionRepository;
     private final FinanceTransactionService transactionService;
+    private final FinanceCategoryTemplateService categoryTemplateService;
     private final FinanceTransactionImportRepository importRepository;
     private final FinanceTransactionImportRowRepository rowRepository;
     private final FinanceTransactionImportMemoryRepository memoryRepository;
@@ -80,6 +81,7 @@ public class FinanceTransactionImportService {
         FinanceCategoryRepository categoryRepository,
         FinanceTransactionRepository transactionRepository,
         FinanceTransactionService transactionService,
+        FinanceCategoryTemplateService categoryTemplateService,
         FinanceTransactionImportRepository importRepository,
         FinanceTransactionImportRowRepository rowRepository,
         FinanceTransactionImportMemoryRepository memoryRepository,
@@ -92,6 +94,7 @@ public class FinanceTransactionImportService {
         this.categoryRepository = categoryRepository;
         this.transactionRepository = transactionRepository;
         this.transactionService = transactionService;
+        this.categoryTemplateService = categoryTemplateService;
         this.importRepository = importRepository;
         this.rowRepository = rowRepository;
         this.memoryRepository = memoryRepository;
@@ -1172,7 +1175,8 @@ public class FinanceTransactionImportService {
     }
 
     private List<FinanceCategory> loadCategories(User user) {
-        return this.categoryRepository.findAllByClassificationIdAndUserGuid(0, user.getGuid().toString());
+        this.categoryTemplateService.ensureDefaultCategoriesForUser(user);
+        return this.categoryRepository.findVisibleByClassificationIdAndUserGuidOrSystem(0, user.getGuid().toString());
     }
 
     private List<FinanceAccount> loadAccounts(User user) {

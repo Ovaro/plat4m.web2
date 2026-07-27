@@ -65,15 +65,16 @@ export class AgGridThemeService {
   private getPlat4mThemeDefinition(colorMode: string, fontFamily: (string | { googleFont: string })[]): Theme {
     const isDark = colorMode === 'dark';
     const primary = '#1ca6f7';
-    const textHigh = isDark ? '#f4f7fb' : '#1f2937';
-    const textLow = isDark ? '#9ca8b7' : '#667085';
-    const backgroundLow = isDark ? '#111827' : '#f7f9fc';
-    const backgroundMed = isDark ? '#172033' : '#eef3f8';
-    const backgroundHigh = isDark ? '#1f2a3d' : '#ffffff';
-    const border = isDark ? 'rgba(244, 247, 251, 0.14)' : 'rgba(16, 24, 40, 0.12)';
-    const borderStrong = isDark ? 'rgba(244, 247, 251, 0.2)' : 'rgba(16, 24, 40, 0.18)';
-    const hover = isDark ? 'rgba(28, 166, 247, 0.13)' : 'rgba(28, 166, 247, 0.08)';
-    const selected = isDark ? 'rgba(28, 166, 247, 0.2)' : 'rgba(28, 166, 247, 0.16)';
+    const textHigh = isDark ? 'rgba(255, 255, 255, 0.92)' : '#1f2937';
+    const textLow = isDark ? 'rgba(255, 255, 255, 0.64)' : '#667085';
+    const backgroundLow = isDark ? '#0d0f12' : '#f7f9fc';
+    const backgroundMed = isDark ? '#191A1B' : '#eef3f8';
+    const backgroundHigh = isDark ? '#151719' : '#ffffff';
+    const backgroundRaised = isDark ? '#202225' : '#ffffff';
+    const border = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(16, 24, 40, 0.12)';
+    const borderStrong = isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(16, 24, 40, 0.18)';
+    const hover = isDark ? 'rgba(255, 255, 255, 0.055)' : 'rgba(28, 166, 247, 0.08)';
+    const selected = isDark ? 'rgba(28, 166, 247, 0.18)' : 'rgba(28, 166, 247, 0.16)';
 
     return themeQuartz.withPart(isDark ? colorSchemeDark : colorSchemeLight).withParams({
       accentColor: primary,
@@ -90,7 +91,7 @@ export class AgGridThemeService {
       fontFamily,
       fontSize: '0.72rem',
       foregroundColor: textHigh,
-      headerBackgroundColor: isDark ? 'color-mix(in srgb, #1ca6f7 18%, #172033)' : 'rgba(28, 166, 247, 0.07)',
+      headerBackgroundColor: isDark ? backgroundMed : 'rgba(28, 166, 247, 0.07)',
       headerFontSize: '0.72rem',
       headerFontWeight: 600,
       headerHeight: 34,
@@ -101,15 +102,15 @@ export class AgGridThemeService {
       iconButtonHoverBackgroundColor: hover,
       iconButtonHoverColor: primary,
       iconColor: textLow,
-      inputBackgroundColor: backgroundHigh,
+      inputBackgroundColor: backgroundRaised,
       inputBorder: `1px solid ${border}`,
       inputFocusBorder: `1px solid ${primary}`,
-      menuBackgroundColor: backgroundHigh,
+      menuBackgroundColor: backgroundRaised,
       menuBorder: `1px solid ${borderStrong}`,
       menuShadow: isDark ? '0 14px 34px rgba(0, 0, 0, 0.46)' : '0 14px 34px rgba(16, 24, 40, 0.14)',
       menuTextColor: textHigh,
-      oddRowBackgroundColor: isDark ? 'rgba(255, 255, 255, 0.018)' : 'rgba(16, 24, 40, 0.018)',
-      panelBackgroundColor: backgroundHigh,
+      oddRowBackgroundColor: isDark ? '#181a1d' : 'rgba(16, 24, 40, 0.018)',
+      panelBackgroundColor: backgroundRaised,
       pinnedColumnBorder: `1px solid ${borderStrong}`,
       rowBorder: `1px solid ${border}`,
       rowHeight: 31,

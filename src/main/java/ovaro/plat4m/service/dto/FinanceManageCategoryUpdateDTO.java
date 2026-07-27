@@ -6,6 +6,8 @@ public class FinanceManageCategoryUpdateDTO {
     private String parentId;
     private Integer classificationId;
     private String comment;
+    private String knownCategoryKey;
+    private Boolean hidden;
 
     public String getName() {
         return name;
@@ -37,5 +39,21 @@ public class FinanceManageCategoryUpdateDTO {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public String getKnownCategoryKey() {
+        return knownCategoryKey;
+    }
+
+    public void setKnownCategoryKey(String knownCategoryKey) {
+        this.knownCategoryKey = knownCategoryKey;
+    }
+
+    public Boolean getHidden() {
+        return hidden;
+    }
+
+    public void setHidden(Boolean hidden) {
+        this.hidden = hidden;
     }
 }

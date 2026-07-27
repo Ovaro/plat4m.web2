@@ -16,6 +16,8 @@ public interface FinanceLotRepository extends JpaRepository<FinanceLot, UUID> {
     Optional<FinanceLot> findByIdAndUserGuid(UUID id, String userGuid);
     List<FinanceLot> findAllByUserGuidAndIdIn(String userGuid, Collection<UUID> ids);
     List<FinanceLot> findByUserGuidAndSecurityIdOrderByOpenDateAscIdAsc(String userGuid, String securityId);
+    long countByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
+    void deleteAllByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
 
     @Query(
         """

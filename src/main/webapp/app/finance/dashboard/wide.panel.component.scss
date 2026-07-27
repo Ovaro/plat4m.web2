@@ -1,0 +1,78 @@
+.wide-panel {
+  column-gap: 0.55rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.wide-panel__primary {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  position: relative;
+}
+
+.wide-panel__primary-header {
+  align-items: flex-start;
+  display: flex;
+  min-width: 0;
+}
+
+.wide-panel__title {
+  min-width: 0;
+  overflow: hidden;
+  padding-right: 1.5rem;
+  text-overflow: ellipsis;
+}
+
+.wide-panel__primary-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+}
+
+.wide-panel__value {
+  margin-bottom: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wide-panel__chart {
+  bottom: -0.35rem;
+  height: 44px;
+  left: 0;
+  opacity: 0.95;
+  overflow: hidden;
+  pointer-events: auto;
+  position: absolute;
+  right: 0;
+  width: 100%;
+}
+
+.wide-panel__chart apx-chart,
+.wide-panel__chart .apexcharts-canvas {
+  display: block;
+  height: 44px !important;
+  width: 100% !important;
+}
+
+.wide-panel__details {
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.wide-panel__details .row {
+  margin-left: 0;
+  margin-right: 0;
+}

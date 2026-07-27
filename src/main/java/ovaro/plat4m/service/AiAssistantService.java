@@ -104,7 +104,7 @@ public class AiAssistantService {
         context.put("localCurrency", user.getLocalCurrency());
         context.put("dashboardMetrics", buildDashboardMetrics(user, accounts));
         context.put("accounts", compactAccounts(accounts));
-        context.put("categories", compactCategories(limit(financeTransactionService.getManagedCategories(user), MAX_CATEGORIES)));
+        context.put("categories", compactCategories(limit(financeTransactionService.getManagedCategories(user, false), MAX_CATEGORIES)));
         context.put("payees", compactPayees(limit(financeTransactionService.getManagedPayees(user, false), MAX_PAYEES)));
         context.put(
             "portfolioHoldings",

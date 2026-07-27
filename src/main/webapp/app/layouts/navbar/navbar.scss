@@ -20,8 +20,12 @@ Navbar
 
 .navbar-light {
   //background-color: var(--app-colours-background-med-light);
-  background-color: var(--ps-colors-background-light-3);
-  border-bottom: solid 1px rgba(0, 0, 0, 0.12);
+  //background-color: var(--ps-colors-background-light-3);
+  //border-bottom: solid 1px rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.7); /* Adjust color and opacity */
+  backdrop-filter: blur(10px); /* Applies the Gaussian blur */
+  -webkit-backdrop-filter: blur(10px); /* Safari support */
+  //box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -87,6 +91,9 @@ Navbar
   }
 }
 
+.navbar.scrolled {
+}
+
 .navbar-toggler {
   font-size: 1.5em;
   padding: 8px;
@@ -126,11 +133,12 @@ Navbar
 Logo styles
 ========================================================================== */
 .logo-img {
-  height: 45px;
-  width: 52px;
+  height: 28px;
+  width: 28px;
   display: inline-block;
   vertical-align: middle;
   background: url('../../../content/images/plat4m.png') no-repeat center center;
   background-size: contain;
-  margin-right: 10px;
+  margin-right: 2px;
+  margin-left: 0px;
 }

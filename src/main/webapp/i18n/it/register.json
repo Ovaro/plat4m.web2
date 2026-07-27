@@ -14,6 +14,7 @@
         }
       },
       "success": "<strong>La registrazione account è stata salvata!</strong> Controlla la tua email per confermare.",
+      "activationEmailWarning": "<strong>La registrazione account è stata salvata!</strong> Non è stato possibile inviare l'email di registrazione. Puoi accedere ora e reinviarla più tardi, se necessario.",
       "error": {
         "fail": "<strong>La registrazione dell'account è fallita!</strong> Riprova più tardi.",
         "userexists": "<strong>Il nome utente scelto è già registrato!</strong> Si prega di scegliere un altro nome utente.",

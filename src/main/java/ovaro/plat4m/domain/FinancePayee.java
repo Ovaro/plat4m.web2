@@ -37,6 +37,10 @@ public class FinancePayee implements Serializable {
     @Column(unique = true)
     private String masterGuid;
 
+    private boolean generated = false;
+    private UUID generatedBatchId;
+    private String generatedLabel;
+
     public UUID getId() {
         return id;
     }
@@ -91,5 +95,29 @@ public class FinancePayee implements Serializable {
 
     public void setMasterGuid(String masterGuid) {
         this.masterGuid = masterGuid;
+    }
+
+    public boolean isGenerated() {
+        return generated;
+    }
+
+    public void setGenerated(boolean generated) {
+        this.generated = generated;
+    }
+
+    public UUID getGeneratedBatchId() {
+        return generatedBatchId;
+    }
+
+    public void setGeneratedBatchId(UUID generatedBatchId) {
+        this.generatedBatchId = generatedBatchId;
+    }
+
+    public String getGeneratedLabel() {
+        return generatedLabel;
+    }
+
+    public void setGeneratedLabel(String generatedLabel) {
+        this.generatedLabel = generatedLabel;
     }
 }

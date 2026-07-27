@@ -22,6 +22,8 @@ public interface FinanceSecurityPriceRepository extends JpaRepository<FinanceSec
     Optional<FinanceSecurityPrice> findBySymbolAndDate(String symbol, ZonedDateTime date);
 
     List<FinanceSecurityPrice> findBySymbolOrderByDateDesc(String symbol);
+    long countByGeneratedTrueAndGeneratedBatchId(UUID generatedBatchId);
+    void deleteAllByGeneratedTrueAndGeneratedBatchId(UUID generatedBatchId);
 
     // @Query(value="SELECT DISTINCT ON (a.to_currency_id, a.from_currency_id) * " +
     // "FROM fin_fx a INNER JOIN fin_currency c ON uuid(a.from_currency_id) = c.id INNER JOIN fin_currency d ON uuid(a.to_currency_id) = d.id " +

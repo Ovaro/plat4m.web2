@@ -26,9 +26,12 @@ import ovaro.plat4m.domain.User;
 import ovaro.plat4m.repository.FinanceCategoryRepository;
 import ovaro.plat4m.security.SecurityUtils;
 import ovaro.plat4m.service.FinanceAccountService;
+import ovaro.plat4m.service.FinanceCategoryTemplateService;
+import ovaro.plat4m.service.FinanceCustomPortfolioService;
 import ovaro.plat4m.service.FinanceSecurityService;
 import ovaro.plat4m.service.UserService;
 import ovaro.plat4m.service.dto.FinanceAccountDTO;
+import ovaro.plat4m.service.dto.FinanceCustomPortfolioDTO;
 import ovaro.plat4m.service.dto.FinanceNestedResourceDTO;
 import ovaro.plat4m.service.dto.FinanceSecurityHoldingDTO;
 
@@ -43,6 +46,8 @@ public class FinanceGeneralResource {
 
     private FinanceSecurityService financeSecurityService;
     private FinanceAccountService financeAccountService;
+    private FinanceCustomPortfolioService financeCustomPortfolioService;
+    private FinanceCategoryTemplateService financeCategoryTemplateService;
 
     private FinanceCategoryRepository financeCategoryRepository;
     private final UserService userService;
@@ -62,6 +67,9 @@ public class FinanceGeneralResource {
 
     public static String SOURCE_ACCOUNT = "account";
     public static String SOURCE_PORTFOLIO = "portfolio";
+    public static String CUSTOM_PORTFOLIO_PREFIX = "customPortfolio:";
+    public static String CUSTOM_PORTFOLIOS_TYPE = "rg/InvestmentPortfolios";
+    public static String CUSTOM_PORTFOLIOS_TYPE_STR = "Investment Portfolios";
 
     public static String CATEGORY_TYPE_PREFIX = "rg/Category-";
     public static String CATEGORIES_TYPE = "IncomeExpense";
@@ -73,11 +81,15 @@ public class FinanceGeneralResource {
         UserService userService,
         FinanceSecurityService financeSecurityService,
         FinanceAccountService financeAccountService,
+        FinanceCustomPortfolioService financeCustomPortfolioService,
+        FinanceCategoryTemplateService financeCategoryTemplateService,
         FinanceCategoryRepository financeCategoryRepository
     ) {
         this.financeSecurityService = financeSecurityService;
         this.userService = userService;
         this.financeAccountService = financeAccountService;
+        this.financeCustomPortfolioService = financeCustomPortfolioService;
+        this.financeCategoryTemplateService = financeCategoryTemplateService;
         this.financeCategoryRepository = financeCategoryRepository;
     }
 
@@ -184,15 +196,41 @@ public class FinanceGeneralResource {
         // Group functions
         dtos.add(groupByAccountType(accounts, allAccounts));
         dtos.add(groupByAccountCurrency(accounts, allAccounts));
+        dtos.add(getCustomPortfolios(u.get()));
 
-        dtos.add(getCategories());
+        dtos.add(getCategories(u.get()));
 
         return new ResponseEntity<>(dtos, HttpStatus.OK);
     }
 
-    private FinanceNestedResourceDTO getCategories() {
+    private FinanceNestedResourceDTO getCustomPortfolios(User user) {
+        FinanceNestedResourceDTO group = new FinanceNestedResourceDTO(CUSTOM_PORTFOLIOS_TYPE, CUSTOM_PORTFOLIOS_TYPE_STR);
+        group.setIndicatorSource(SOURCE_PORTFOLIO);
+        group.setHistorySource(SOURCE_PORTFOLIO);
+
+        for (FinanceCustomPortfolioDTO portfolio : this.financeCustomPortfolioService.findAll(user)) {
+            FinanceNestedResourceDTO dto = new FinanceNestedResourceDTO(
+                CUSTOM_PORTFOLIO_PREFIX + portfolio.getId().toString(),
+                portfolio.getName(),
+                null,
+                null,
+                "customPortfolio"
+            );
+            dto.setIndicatorSource(SOURCE_PORTFOLIO);
+            dto.setHistorySource(SOURCE_PORTFOLIO);
+            group.addChild(dto);
+        }
+
+        return group;
+    }
+
+    private FinanceNestedResourceDTO getCategories(User user) {
         // Map<String, FinanceCategory> parentRegistry = new HashMap<String, FinanceCategory>();
-        List<FinanceCategory> all = this.financeCategoryRepository.findAllByClassificationId(0);
+        this.financeCategoryTemplateService.ensureDefaultCategoriesForUser(user);
+        List<FinanceCategory> all = this.financeCategoryRepository.findVisibleByClassificationIdAndUserGuidOrSystem(
+            0,
+            user.getGuid().toString()
+        );
         Map<String, FinanceNestedResourceDTO> indexedCategoryDTOs = new HashMap<String, FinanceNestedResourceDTO>();
         for (FinanceCategory category : all) {
             FinanceNestedResourceDTO dto = new FinanceNestedResourceDTO(category.getId().toString(), category.getName());
@@ -303,5 +341,4 @@ public class FinanceGeneralResource {
     //     }
     //     return grp;
     // }
-
 }

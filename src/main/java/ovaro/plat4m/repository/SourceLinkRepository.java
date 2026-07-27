@@ -2,6 +2,7 @@ package ovaro.plat4m.repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +18,8 @@ public interface SourceLinkRepository extends JpaRepository<SourceLink, Long> {
     List<SourceLink> findByUserGuidAndSourceEntityAndSourceTypeId(String userGuid, String sourceEntity, String sourceTypeId);
     SourceLink findByUserGuidAndSourceEntityAndSourceId(String userGuid, String sourceEntity, String sourceId);
     List<SourceLink> findByUserGuidAndLocalIdIn(String userGuid, List<String> localIds);
+    long countByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
+    void deleteAllByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
 
     Optional<SourceLink> findByUserGuidAndSourceIdAndSourceEntityAndSourceTypeId(
         String userGuid,

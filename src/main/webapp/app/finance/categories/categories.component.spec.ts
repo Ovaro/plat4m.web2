@@ -22,6 +22,11 @@ describe('CategoriesComponent', () => {
       level: 0,
       hasChildren: false,
       comment: null,
+      systemCategory: false,
+      knownCategoryKey: null,
+      platformDefaultCategory: false,
+      templateCategory: false,
+      hidden: false,
     },
   ];
 
@@ -73,7 +78,38 @@ describe('CategoriesComponent', () => {
     expect((component as any).categoryTransactionsSum).toBe(-25);
     expect((component as any).categoryTransactionsAverage).toBe(-25);
   });
+
+  it('excludes descendants from move parent options', () => {
+    (component as any).categories = [
+      buildCategory('expense', 'Expense', null),
+      buildCategory('housing', 'Housing', 'expense'),
+      buildCategory('rates', 'Rates', 'housing'),
+      buildCategory('income', 'Income', null),
+    ];
+    (component as any).openMoveDialog((component as any).categories[1]);
+
+    expect((component as any).moveParentOptions.map((category: ManagedCategory) => category.id)).toEqual(['expense', 'income']);
+  });
 });
+
+function buildCategory(id: string, name: string, parentId: string | null): ManagedCategory {
+  return {
+    id,
+    name,
+    displayName: parentId ? `${parentId}: ${name}` : name,
+    classificationId: 0,
+    parentId,
+    parentName: parentId,
+    level: parentId ? 1 : 0,
+    hasChildren: false,
+    comment: null,
+    systemCategory: false,
+    knownCategoryKey: null,
+    platformDefaultCategory: false,
+    templateCategory: false,
+    hidden: false,
+  };
+}
 
 function buildTransaction(id: string, date: string, amount: number): FinancialTransaction {
   return {

@@ -1,25 +1,44 @@
-<div *ngIf="widget && widget.dataTypeSpecs && widget.dataTypeSpecs.length > 0" class="db-panel-title">
-  {{ widget.dataTypeSpecs[0].title }}
-</div>
+<div class="standard-panel" [class.standard-panel--with-chart]="summaryChartOptions">
+  <div class="standard-panel__header">
+    <div *ngIf="widget && widget.dataTypeSpecs && widget.dataTypeSpecs.length > 0" class="db-panel-title standard-panel__title">
+      {{ widget.dataTypeSpecs[0].title }}
+    </div>
+  </div>
 
-<div *ngIf="isLoading || !widget.values" class="db-panel-primary-value">
-  <p-skeleton></p-skeleton>
-</div>
+  <div *ngIf="isLoading || !widget.values" class="db-panel-primary-value standard-panel__value">
+    <p-skeleton></p-skeleton>
+  </div>
 
-<div *ngIf="!isLoading && widget.values && widget.values.length > 0" class="db-panel-primary-value">
-  <span *ngIf="!widget.values[0] && widget.values[0] !== 0">-</span
-  ><span *ngIf="!widget.dataTypeSpecs[0].negativeAsPositive">
-    {{ widget.values[0] | currency: defaultCurrencyCode : 'symbol-narrow' : '0.0' }}</span
+  <div
+    *ngIf="!isLoading && widget.values && widget.values.length > 0"
+    class="db-panel-primary-value standard-panel__value"
+    [pTooltip]="valueDeltaTooltip()"
+    [tooltipDisabled]="!valueDeltaTooltip()"
+    tooltipPosition="top"
   >
-  <span *ngIf="widget.dataTypeSpecs[0].negativeAsPositive">
-    {{ widget.values[0] * -1 | currency: defaultCurrencyCode : 'symbol-narrow' : '0.0' }}</span
-  >
-</div>
+    <span *ngIf="!widget.values[0] && widget.values[0] !== 0">-</span
+    ><span *ngIf="!widget.dataTypeSpecs[0].negativeAsPositive">
+      {{ widget.values[0] | currency: defaultCurrencyCode : 'symbol-narrow' : '0.0' }}</span
+    >
+    <span *ngIf="widget.dataTypeSpecs[0].negativeAsPositive">
+      {{ widget.values[0] * -1 | currency: defaultCurrencyCode : 'symbol-narrow' : '0.0' }}</span
+    >
+  </div>
 
-<jhi-delta-value
-  pTooltip="Was {{ widget.comparisonValues[0] | currency }}"
-  tooltipPosition="top"
-  *ngIf="!isLoading && widget.comparisonValues && widget.comparisonValues[0]"
-  class="datawell-data-comparison float-right"
-  [params]="{ value: widget.values[0], comparison: widget.comparisonValues[0], currencyCode: widget.currencyCode, pcOnly: true }"
-></jhi-delta-value>
+  <div class="standard-panel__footer">
+    <div class="standard-panel__chart" *ngIf="summaryChartOptions">
+      <apx-chart
+        [series]="summaryChartOptions.series"
+        [chart]="summaryChartOptions.chart"
+        [stroke]="summaryChartOptions.stroke"
+        [fill]="summaryChartOptions.fill"
+        [grid]="summaryChartOptions.grid"
+        [plotOptions]="summaryChartOptions.plotOptions"
+        [xaxis]="summaryChartOptions.xaxis"
+        [yaxis]="summaryChartOptions.yaxis"
+        [tooltip]="summaryChartOptions.tooltip"
+        [colors]="summaryChartOptions.colors"
+      ></apx-chart>
+    </div>
+  </div>
+</div>

@@ -9,6 +9,7 @@ eg $input-color: red;
 @use 'bootstrap-variables';
 // Import Bootstrap source files from node_modules
 @use 'bootstrap/scss/bootstrap';
+@import 'gridstack/dist/gridstack.min.css';
 //@import '~bootswatch/dist/lux/bootswatch';
 
 /* jhipster-needle-scss-add-vendor JHipster will add new css style */

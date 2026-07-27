@@ -36,6 +36,8 @@ public interface FinanceTransactionRepository extends JpaRepository<FinanceTrans
     List<FinanceTransaction> findAllByUserGuidAndIdIn(String userGuid, Collection<UUID> ids);
     List<FinanceTransaction> findAllByUserGuidAndParentIdOrderByNumberAscDateAscIdAsc(String userGuid, UUID parentId);
     void deleteAllByUserGuidAndParentId(String userGuid, UUID parentId);
+    long countByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
+    void deleteAllByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
 
     @Query(
         "select f from FinanceTransaction f " +

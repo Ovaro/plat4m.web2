@@ -1,14 +1,14 @@
 <div class="standard-page-container">
   <div class="accounts">
     <div class="top-sticky-row">
-      <div class="row">
-        <div class="col">
+      <div class="row account-list-header">
+        <div class="col account-list-header__title">
           <div class="breadcrumbs">
             <div class="primary-breadcrumb" jhiTranslate="{{ title() }}">{{ title() }}</div>
           </div>
         </div>
-        <div class="col">
-          <ul class="filter-toggle-list float-right">
+        <div class="col account-list-header__filters">
+          <ul class="filter-toggle-list account-list-filter-toggle-list float-right">
             <li>
               <a class="filter-toggle" [class.filter-toggle-selected]="!filterBanking()" (click)="toggleFilterBanking()">Banking</a>
             </li>
@@ -60,9 +60,9 @@
               </li>
             </div>
             <li *ngFor="let account of onlyBankAccounts()" class="account-card">
-              <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
+              <!-- <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                 {{ account.institution?.name }}
-              </div>
+              </div> -->
               <button
                 type="button"
                 class="account-favourite-button"
@@ -120,9 +120,9 @@
                 </li>
               </div>
               <li *ngFor="let account of onlyLiabilityAccounts()" class="account-card">
-                <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
+                <!-- <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
-                </div>
+                </div> -->
                 <button
                   type="button"
                   class="account-favourite-button"
@@ -180,9 +180,9 @@
                 </li>
               </div>
               <li *ngFor="let account of onlyCreditAccounts()" class="account-card">
-                <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
+                <!-- <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
-                </div>
+                </div> -->
                 <button
                   type="button"
                   class="account-favourite-button"
@@ -243,9 +243,9 @@
                 </li>
               </div>
               <li *ngFor="let account of onlyInvestmentAccounts()" class="account-card">
-                <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
+                <!-- <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
-                </div>
+                </div> -->
                 <button
                   type="button"
                   class="account-favourite-button"
@@ -307,9 +307,9 @@
                 </li>
               </div>
               <li *ngFor="let account of onlyAssetAccounts()" class="account-card">
-                <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
+                <!-- <div role="gridcell" class="" style="flex-grow: 0" *ngIf="account.institution?.icon">
                   {{ account.institution?.name }}
-                </div>
+                </div> -->
                 <button
                   type="button"
                   class="account-favourite-button"

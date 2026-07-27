@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet author="codex" id="20260723000100-1">
+        <addColumn tableName="fin_category">
+            <column name="system_category" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="known_category_key" type="varchar(255)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet author="codex" id="20260723000100-2">
+        <insert tableName="fin_category">
+            <column name="id" value="00000000-0000-0000-0000-000000000101"/>
+            <column name="classification_id" valueNumeric="0"/>
+            <column name="level" valueNumeric="0"/>
+            <column name="name" value="INCOME"/>
+            <column name="system_category" valueBoolean="true"/>
+            <column name="known_category_key" value="INCOME"/>
+        </insert>
+        <insert tableName="fin_category">
+            <column name="id" value="00000000-0000-0000-0000-000000000102"/>
+            <column name="classification_id" valueNumeric="0"/>
+            <column name="level" valueNumeric="0"/>
+            <column name="name" value="EXPENSE"/>
+            <column name="system_category" valueBoolean="true"/>
+            <column name="known_category_key" value="EXPENSE"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

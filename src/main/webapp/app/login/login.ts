@@ -72,6 +72,7 @@ export default class LoginComponent {
   registering = false;
   registered = false;
   registrationError: string | null = null;
+  registrationWarning: string | null = null;
 
   forgotPasswordEmailFocus = false;
   forgotPasswordEmail: string | null = null;
@@ -288,6 +289,7 @@ export default class LoginComponent {
     // console.log('Registering...');
     const name = parseFullName(this.fullname);
     this.registrationError = null;
+    this.registrationWarning = null;
     const langKey = 'en';
     // "title":"","first":"Sdsd","middle":"Sdsd","last":"Ds","nick":"","suffix":""
     const registration = {
@@ -304,10 +306,14 @@ export default class LoginComponent {
       langKey,
     };
     this.registering = true;
-    this.registerService.save(registration).subscribe(
-      () => {
+    this.registerService.save(registration).subscribe({
+      next: response => {
         this.registered = true;
         this.registering = false;
+        if (!response.activationEmailSent) {
+          this.registrationWarning =
+            'Your account was created, but we could not send the registration email. You can sign in now and resend it later if needed.';
+        }
         this.determineFormTitle();
         setTimeout(() => {
           // console.log('Logging in...');
@@ -317,8 +323,8 @@ export default class LoginComponent {
           this.login();
         }, 1500);
       },
-      response => this.processError(response),
-    );
+      error: response => this.processError(response),
+    });
   }
 
   requestResetPassword(): void {
@@ -386,6 +392,7 @@ export default class LoginComponent {
 
   private processError(response: HttpErrorResponse): void {
     this.registering = false;
+    this.registrationWarning = null;
     // console.log('Error: ' + JSON.stringify(response));
     if (response.status === 400 && response.error === 'login already in use') {
       this.registrationError = 'Login already exists';

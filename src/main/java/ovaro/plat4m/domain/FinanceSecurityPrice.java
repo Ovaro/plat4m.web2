@@ -60,6 +60,9 @@ public class FinanceSecurityPrice implements Serializable {
     // @JoinColumn(name = "symbol", referencedColumnName = "symbol")
     // @Fetch(FetchMode.JOIN)
     private String symbol;
+    private boolean generated = false;
+    private UUID generatedBatchId;
+    private String generatedLabel;
 
     public FinanceSecurityPrice() {}
 
@@ -161,5 +164,29 @@ public class FinanceSecurityPrice implements Serializable {
 
     public void setSymbol(String symbol) {
         this.symbol = symbol;
+    }
+
+    public boolean isGenerated() {
+        return generated;
+    }
+
+    public void setGenerated(boolean generated) {
+        this.generated = generated;
+    }
+
+    public UUID getGeneratedBatchId() {
+        return generatedBatchId;
+    }
+
+    public void setGeneratedBatchId(UUID generatedBatchId) {
+        this.generatedBatchId = generatedBatchId;
+    }
+
+    public String getGeneratedLabel() {
+        return generatedLabel;
+    }
+
+    public void setGeneratedLabel(String generatedLabel) {
+        this.generatedLabel = generatedLabel;
     }
 }

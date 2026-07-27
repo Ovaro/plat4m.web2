@@ -177,7 +177,7 @@
 
   <div class="investment-portfolio-header">
     <div class="top-sticky-row">
-      <div class="row">
+      <div class="row investment-portfolio-toolbar">
         <div class="col col-auto">
           <div class="breadcrumbs">
             <div class="primary-breadcrumb" style="padding-top: 4px">{{ title }}</div>
@@ -241,17 +241,18 @@
             </ng-template>
           </p-select>
         </div>
-        <div class="col col-auto">
+        <div class="col-auto investment-portfolio-toolbar__actions">
           <button type="button" class="btn btn-outline-secondary investment-refresh-button" (click)="openCreatePortfolioDialog()">
             New Portfolio
           </button>
-        </div>
-        <div class="col col-auto" *ngIf="customPortfolioId">
-          <button type="button" class="btn btn-outline-secondary investment-refresh-button" (click)="openEditPortfolioDialog()">
+          <button
+            *ngIf="customPortfolioId"
+            type="button"
+            class="btn btn-outline-secondary investment-refresh-button"
+            (click)="openEditPortfolioDialog()"
+          >
             Edit Portfolio
           </button>
-        </div>
-        <div class="col col-auto">
           <button type="button" class="btn btn-outline-secondary investment-refresh-button" (click)="refreshQuotes()">
             <span
               *ngIf="isRefreshingQuotes"

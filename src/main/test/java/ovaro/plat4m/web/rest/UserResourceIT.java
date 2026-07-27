@@ -169,6 +169,7 @@ class UserResourceIT {
         assertThat(convertedUser.getEmail()).isEqualTo(DEFAULT_EMAIL);
         assertThat(convertedUser.getImageUrl()).isEqualTo(DEFAULT_IMAGEURL);
         assertThat(convertedUser.getLangKey()).isEqualTo(DEFAULT_LANGKEY);
+        assertThat(userRepository.findOneByLogin(DEFAULT_LOGIN).orElseThrow().getGuid()).isNotNull();
     }
 
     @Test

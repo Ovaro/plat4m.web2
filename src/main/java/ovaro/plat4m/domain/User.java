@@ -37,6 +37,13 @@ public class User extends AbstractAuditingEntity<Long> implements Serializable {
     //@GeneratedValue(strategy = GenerationType.AUTO)
     private UUID guid;
 
+    @PrePersist
+    public void ensureGuid() {
+        if (guid == null) {
+            guid = UUID.randomUUID();
+        }
+    }
+
     @NotNull
     @Pattern(regexp = Constants.LOGIN_REGEX)
     @Size(min = 1, max = 50)
@@ -226,6 +233,7 @@ public class User extends AbstractAuditingEntity<Long> implements Serializable {
     }
 
     public UUID getGuid() {
+        ensureGuid();
         return guid;
     }
 

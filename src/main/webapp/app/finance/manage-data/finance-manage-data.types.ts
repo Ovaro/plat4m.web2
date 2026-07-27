@@ -8,6 +8,11 @@ export interface ManagedCategory {
   level: number | null;
   comment: string | null;
   hasChildren: boolean;
+  systemCategory: boolean;
+  knownCategoryKey: string | null;
+  platformDefaultCategory: boolean;
+  templateCategory: boolean;
+  hidden: boolean;
 }
 
 export interface ManagedCategoryUpdate {
@@ -15,6 +20,8 @@ export interface ManagedCategoryUpdate {
   parentId: string | null;
   classificationId: number;
   comment: string | null;
+  knownCategoryKey: string | null;
+  hidden: boolean;
 }
 
 export interface ManagedPayee {

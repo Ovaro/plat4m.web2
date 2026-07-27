@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet author="codex" id="20260724000100-1">
+        <addColumn tableName="fin_category">
+            <column name="platform_default_category" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="template_category" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="hidden" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="template_category_id" type="uuid"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet author="codex" id="20260724000100-2">
+        <update tableName="fin_category">
+            <column name="platform_default_category" valueBoolean="true"/>
+            <where>id in ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000102')</where>
+        </update>
+    </changeSet>
+
+    <changeSet author="codex" id="20260724000100-3">
+        <loadData
+            file="config/liquibase/data/default_fin_categories.csv"
+            relativeToChangelogFile="false"
+            separator=","
+            tableName="fin_category"
+            usePreparedStatements="true">
+            <column name="id" type="uuid"/>
+            <column name="parent_category_id" type="uuid"/>
+            <column name="name" type="string"/>
+            <column name="known_category_key" type="string"/>
+            <column name="classification_id" type="numeric"/>
+            <column name="level" type="numeric"/>
+            <column name="system_category" type="boolean"/>
+            <column name="platform_default_category" type="boolean"/>
+            <column name="template_category" type="boolean"/>
+            <column name="hidden" type="boolean"/>
+        </loadData>
+    </changeSet>
+</databaseChangeLog>

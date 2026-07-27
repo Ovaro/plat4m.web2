@@ -21,4 +21,6 @@ public interface FinanceUserSecurityRepository extends JpaRepository<FinanceUser
     List<FinanceUserSecurity> findByUserGuid(String userGuid);
     Optional<FinanceUserSecurity> findByIdAndUserGuid(UUID id, String userGuid);
     List<FinanceUserSecurity> findAllByUserGuidAndIdIn(String userGuid, Collection<UUID> ids);
+    long countByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
+    void deleteAllByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
 }

@@ -1,14 +1,16 @@
-<div class="row" *ngIf="widget">
-  <div class="col">
-    <div class="row">
-      <div class="db-panel-title" *ngIf="widget.dataTypeSpecs[0] && widget.dataTypeSpecs[0].title">{{ widget.dataTypeSpecs[0].title }}</div>
+<div class="wide-panel" *ngIf="widget">
+  <div class="wide-panel__primary">
+    <div class="wide-panel__primary-header">
+      <div class="db-panel-title wide-panel__title" *ngIf="widget.dataTypeSpecs[0] && widget.dataTypeSpecs[0].title">
+        {{ widget.dataTypeSpecs[0].title }}
+      </div>
     </div>
-    <div class="row">
-      <div class="col">
+    <div class="wide-panel__primary-body">
+      <div>
         <div *ngIf="isLoading || !widget.values" class="db-panel-primary-value">
           <p-skeleton></p-skeleton>
         </div>
-        <div *ngIf="!isLoading && widget.values" class="db-panel-primary-value">
+        <div *ngIf="!isLoading && widget.values" class="db-panel-primary-value wide-panel__value">
           <span *ngIf="!widget.value && widget.title">-</span
           ><span *ngIf="!widget.negativeAsPositive"> {{ widget.values[0] | currency: defaultCurrencyCode : 'symbol-narrow' : '0.0' }}</span>
           <span *ngIf="widget.negativeAsPositive">
@@ -23,10 +25,24 @@
           [params]="{ value: widget.values[0], comparison: widget.comparisonValues[0], currencyCode: widget.currencyCode, pcOnly: true }"
         ></jhi-delta-value>
       </div>
+      <div class="wide-panel__chart" *ngIf="summaryChartOptions">
+        <apx-chart
+          [series]="summaryChartOptions.series"
+          [chart]="summaryChartOptions.chart"
+          [stroke]="summaryChartOptions.stroke"
+          [fill]="summaryChartOptions.fill"
+          [grid]="summaryChartOptions.grid"
+          [plotOptions]="summaryChartOptions.plotOptions"
+          [xaxis]="summaryChartOptions.xaxis"
+          [yaxis]="summaryChartOptions.yaxis"
+          [tooltip]="summaryChartOptions.tooltip"
+          [colors]="summaryChartOptions.colors"
+        ></apx-chart>
+      </div>
     </div>
   </div>
 
-  <div class="col" style="margin-left: 2px">
+  <div class="wide-panel__details">
     <div *ngIf="widget.dataTypeSpecs && widget.dataTypeSpecs.length > 1">
       <div class="row">
         <div class="db-panel-minor-title" *ngIf="widget.dataTypeSpecs[1] && widget.dataTypeSpecs[1].title">

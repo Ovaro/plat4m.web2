@@ -61,6 +61,9 @@ class FinanceTransactionServiceTest {
     @Mock
     private FinanceTransactionEditorLookupCacheService editorLookupCacheService;
 
+    @Mock
+    private FinanceCategoryTemplateService categoryTemplateService;
+
     private FinanceTransactionService service;
 
     @BeforeEach
@@ -74,7 +77,9 @@ class FinanceTransactionServiceTest {
             tagRepository,
             transactionTagRepository,
             sourceLinkRepository,
-            editorLookupCacheService
+            null,
+            editorLookupCacheService,
+            categoryTemplateService
         );
     }
 

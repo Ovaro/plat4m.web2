@@ -303,9 +303,11 @@ public class FinanceAccountResource {
     }
 
     @GetMapping("/categories")
-    public ResponseEntity<List<FinanceManageCategoryDTO>> getCategories() throws IOException {
+    public ResponseEntity<List<FinanceManageCategoryDTO>> getCategories(
+        @RequestParam(name = "includeHidden", defaultValue = "false") boolean includeHidden
+    ) throws IOException {
         Optional<User> u = getCurrentUser();
-        return new ResponseEntity<>(financeTransactionService.getManagedCategories(u.get()), HttpStatus.OK);
+        return new ResponseEntity<>(financeTransactionService.getManagedCategories(u.get(), includeHidden), HttpStatus.OK);
     }
 
     @PostMapping("/categories")

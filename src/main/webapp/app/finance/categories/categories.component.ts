@@ -37,6 +37,7 @@ export class CategoriesComponent implements OnInit {
   protected transferAccountOptions: TransactionOption[] = [];
   protected searchText = '';
   protected classificationFilter: CategoryFilter = 'category';
+  protected includeHidden = false;
   protected isLoading = false;
   protected transactionsLoading = false;
   protected isSaving = false;
@@ -45,6 +46,7 @@ export class CategoriesComponent implements OnInit {
   protected editorVisible = false;
   protected deleteCandidate: ManagedCategory | null = null;
   protected editingCategory: ManagedCategory | null = null;
+  protected moveCandidate: ManagedCategory | null = null;
   protected selectedTransactionCategory: ManagedCategory | null = null;
   protected categoryTransactions: FinancialTransaction[] = [];
   protected categoryTransactionsFilter = '';
@@ -63,6 +65,12 @@ export class CategoriesComponent implements OnInit {
     classificationId: new FormControl(0, { nonNullable: true }),
     parentId: new FormControl<string | null>(null),
     comment: new FormControl<string | null>(null),
+    knownCategory: new FormControl(false, { nonNullable: true }),
+    knownCategoryKey: new FormControl<string | null>(null),
+    hidden: new FormControl(false, { nonNullable: true }),
+  });
+  protected readonly moveForm = new FormGroup({
+    parentId: new FormControl<string | null>(null),
   });
 
   private readonly manageDataService = inject(FinanceManageDataService);
@@ -88,7 +96,17 @@ export class CategoriesComponent implements OnInit {
 
   get parentOptions(): ManagedCategory[] {
     const classificationId = this.form.controls.classificationId.value;
-    return this.categories.filter(category => category.id !== this.editingCategory?.id && category.classificationId === classificationId);
+    return this.categories.filter(category => this.isValidParentOption(category, this.editingCategory, classificationId));
+  }
+
+  get moveParentOptions(): ManagedCategory[] {
+    if (!this.moveCandidate) {
+      return [];
+    }
+
+    return this.categories.filter(category =>
+      this.isValidParentOption(category, this.moveCandidate, this.moveCandidate?.classificationId ?? category.classificationId),
+    );
   }
 
   get deleteDialogVisible(): boolean {
@@ -98,6 +116,16 @@ export class CategoriesComponent implements OnInit {
   set deleteDialogVisible(visible: boolean) {
     if (!visible) {
       this.deleteCandidate = null;
+    }
+  }
+
+  get moveDialogVisible(): boolean {
+    return this.moveCandidate !== null;
+  }
+
+  set moveDialogVisible(visible: boolean) {
+    if (!visible) {
+      this.moveCandidate = null;
     }
   }
 
@@ -182,7 +210,7 @@ export class CategoriesComponent implements OnInit {
   load(): void {
     this.isLoading = true;
     this.errorMessage = null;
-    this.manageDataService.getCategories().subscribe({
+    this.manageDataService.getCategories(this.includeHidden).subscribe({
       next: categories => {
         this.categories = categories;
         this.expandedCategoryIds = new Set([
@@ -218,11 +246,22 @@ export class CategoriesComponent implements OnInit {
   openAddDialog(): void {
     this.editingCategory = null;
     this.errorMessage = null;
-    this.form.reset({ name: '', classificationId: this.classificationFilter === 'who' ? 1 : 0, parentId: null, comment: null });
+    this.form.reset({
+      name: '',
+      classificationId: this.classificationFilter === 'who' ? 1 : 0,
+      parentId: null,
+      comment: null,
+      knownCategory: false,
+      knownCategoryKey: null,
+      hidden: false,
+    });
     this.editorVisible = true;
   }
 
   openEditDialog(category: ManagedCategory): void {
+    if (category.systemCategory) {
+      return;
+    }
     this.editingCategory = category;
     this.errorMessage = null;
     this.form.reset({
@@ -230,6 +269,9 @@ export class CategoriesComponent implements OnInit {
       classificationId: category.classificationId,
       parentId: category.parentId,
       comment: category.comment,
+      knownCategory: !!category.knownCategoryKey,
+      knownCategoryKey: category.knownCategoryKey,
+      hidden: !!category.hidden,
     });
     this.editorVisible = true;
   }
@@ -279,6 +321,8 @@ export class CategoriesComponent implements OnInit {
       classificationId: this.form.controls.classificationId.value,
       parentId: this.form.controls.parentId.value || null,
       comment: this.form.controls.comment.value?.trim() || null,
+      knownCategoryKey: this.getKnownCategoryKeyForSave(),
+      hidden: this.form.controls.hidden.value,
     };
     const request = this.editingCategory
       ? this.manageDataService.updateCategory(this.editingCategory.id, update)
@@ -299,8 +343,57 @@ export class CategoriesComponent implements OnInit {
   }
 
   confirmDelete(category: ManagedCategory): void {
+    if (category.systemCategory || category.platformDefaultCategory) {
+      return;
+    }
     this.deleteCandidate = category;
     this.errorMessage = null;
+  }
+
+  openMoveDialog(category: ManagedCategory): void {
+    if (category.systemCategory) {
+      return;
+    }
+    this.moveCandidate = category;
+    this.errorMessage = null;
+    this.moveForm.reset({ parentId: category.parentId });
+  }
+
+  moveCategory(): void {
+    if (!this.moveCandidate) {
+      return;
+    }
+
+    const category = this.moveCandidate;
+    this.isSaving = true;
+    this.errorMessage = null;
+    this.manageDataService
+      .updateCategory(category.id, {
+        name: category.name,
+        classificationId: category.classificationId,
+        parentId: this.moveForm.controls.parentId.value || null,
+        comment: category.comment,
+        knownCategoryKey: category.knownCategoryKey,
+        hidden: category.hidden,
+      })
+      .subscribe({
+        next: () => {
+          const movedParentId = this.moveForm.controls.parentId.value;
+          this.isSaving = false;
+          this.moveCandidate = null;
+          if (movedParentId) {
+            this.expandedCategoryIds = new Set([...this.expandedCategoryIds, movedParentId]);
+          }
+          this.changeDetectorRef.markForCheck();
+          this.load();
+        },
+        error: error => {
+          this.errorMessage = this.getErrorMessage(error, 'Moving the category failed.');
+          this.isSaving = false;
+          this.moveCandidate = null;
+          this.changeDetectorRef.markForCheck();
+        },
+      });
   }
 
   deleteCategory(): void {
@@ -362,6 +455,12 @@ export class CategoriesComponent implements OnInit {
       return 'Who';
     }
     return 'Category';
+  }
+
+  toggleKnownCategory(): void {
+    if (this.form.controls.knownCategory.value && !this.form.controls.knownCategoryKey.value) {
+      this.form.controls.knownCategoryKey.setValue(this.getSuggestedKnownCategoryKey());
+    }
   }
 
   getAccountName(accountId: string | null | undefined): string {
@@ -432,6 +531,35 @@ export class CategoriesComponent implements OnInit {
       .sort((left, right) => left.name.localeCompare(right.name));
   }
 
+  private isValidParentOption(category: ManagedCategory, movedCategory: ManagedCategory | null, classificationId: number): boolean {
+    if (category.classificationId !== classificationId) {
+      return false;
+    }
+
+    if (!movedCategory) {
+      return true;
+    }
+
+    if (category.id === movedCategory.id) {
+      return false;
+    }
+
+    return !this.isDescendantOf(category, movedCategory.id);
+  }
+
+  private isDescendantOf(category: ManagedCategory, ancestorId: string): boolean {
+    let parentId = category.parentId;
+    while (parentId) {
+      if (parentId === ancestorId) {
+        return true;
+      }
+
+      parentId = this.categories.find(candidate => candidate.id === parentId)?.parentId ?? null;
+    }
+
+    return false;
+  }
+
   private matchesTypeFilter(category: ManagedCategory): boolean {
     return (
       this.classificationFilter === 'all' ||
@@ -447,7 +575,8 @@ export class CategoriesComponent implements OnInit {
       category.name.toLowerCase().includes(query) ||
       category.displayName.toLowerCase().includes(query) ||
       (category.parentName ?? '').toLowerCase().includes(query) ||
-      (category.comment ?? '').toLowerCase().includes(query)
+      (category.comment ?? '').toLowerCase().includes(query) ||
+      (category.knownCategoryKey ?? '').toLowerCase().includes(query)
     );
   }
 
@@ -482,5 +611,40 @@ export class CategoriesComponent implements OnInit {
 
   private filterTransactionsByRange(transactions: FinancialTransaction[], range: TransactionHistoryRange): FinancialTransaction[] {
     return filterTransactionsByRange(transactions, range);
+  }
+
+  private getKnownCategoryKeyForSave(): string | null {
+    if (this.editingCategory?.platformDefaultCategory) {
+      return this.editingCategory.knownCategoryKey;
+    }
+
+    if (!this.form.controls.knownCategory.value) {
+      return null;
+    }
+
+    return this.form.controls.knownCategoryKey.value?.trim() || this.getSuggestedKnownCategoryKey();
+  }
+
+  private getSuggestedKnownCategoryKey(): string {
+    const selectedParent = this.categories.find(category => category.id === this.form.controls.parentId.value);
+    const pathSegments = [...(selectedParent ? this.getCategoryPathSegments(selectedParent) : []), this.form.controls.name.value]
+      .map(segment => this.sanitizeKnownCategoryKeySegment(segment))
+      .filter(Boolean);
+    return pathSegments
+      .join('/')
+      .replace(/[:\\]/g, '/')
+      .replace(/\s*\/\s*/g, '/')
+      .replace(/\/+/g, '/')
+      .replace(/^\/|\/$/g, '')
+      .toUpperCase();
+  }
+
+  private getCategoryPathSegments(category: ManagedCategory): string[] {
+    const parent = category.parentId ? this.categories.find(candidate => candidate.id === category.parentId) : null;
+    return [...(parent ? this.getCategoryPathSegments(parent) : []), category.name];
+  }
+
+  private sanitizeKnownCategoryKeySegment(segment: string): string {
+    return segment.trim().replace(/\//g, '_');
   }
 }

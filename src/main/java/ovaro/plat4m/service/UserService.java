@@ -66,6 +66,16 @@ public class UserService {
         });
     }
 
+    public void activateUser(String login) {
+        LOG.debug("Activating user {}", login);
+        userRepository.findOneByLogin(login).ifPresent(user -> {
+            user.setActivated(true);
+            user.setActivationKey(null);
+            this.clearUserCaches(user);
+            LOG.debug("Activated user: {}", user);
+        });
+    }
+
     public Optional<User> completePasswordReset(String newPassword, String key) {
         LOG.debug("Reset user password for reset key {}", key);
         return userRepository
@@ -106,6 +116,7 @@ public class UserService {
             }
         });
         User newUser = new User();
+        newUser.setGuid(UUID.randomUUID());
         String encryptedPassword = passwordEncoder.encode(password);
         newUser.setLogin(userDTO.getLogin().toLowerCase());
         // new user gets initially a generated password
@@ -142,6 +153,7 @@ public class UserService {
 
     public User createUser(AdminUserDTO userDTO) {
         User user = new User();
+        user.setGuid(UUID.randomUUID());
         user.setLogin(userDTO.getLogin().toLowerCase());
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());

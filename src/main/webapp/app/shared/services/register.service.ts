@@ -13,7 +13,10 @@ export class Register {
     private applicationConfigService: ApplicationConfigService,
   ) {}
 
-  save(account: any): Observable<any> {
-    return this.http.post(this.applicationConfigService.getEndpointFor(`${this.resourceUrl}register`), account);
+  save(account: any): Observable<{ activationEmailSent: boolean; message: string }> {
+    return this.http.post<{ activationEmailSent: boolean; message: string }>(
+      this.applicationConfigService.getEndpointFor(`${this.resourceUrl}register`),
+      account,
+    );
   }
 }

@@ -62,6 +62,9 @@ public class FinanceUserSecurity implements Serializable {
     private FinanceUserSecurity linked;
 
     private Integer type;
+    private boolean generated = false;
+    private UUID generatedBatchId;
+    private String generatedLabel;
 
     public FinanceUserSecurity() {}
 
@@ -179,5 +182,29 @@ public class FinanceUserSecurity implements Serializable {
 
     public void setEventsValid(boolean eventsValid) {
         this.eventsValid = eventsValid;
+    }
+
+    public boolean isGenerated() {
+        return generated;
+    }
+
+    public void setGenerated(boolean generated) {
+        this.generated = generated;
+    }
+
+    public UUID getGeneratedBatchId() {
+        return generatedBatchId;
+    }
+
+    public void setGeneratedBatchId(UUID generatedBatchId) {
+        this.generatedBatchId = generatedBatchId;
+    }
+
+    public String getGeneratedLabel() {
+        return generatedLabel;
+    }
+
+    public void setGeneratedLabel(String generatedLabel) {
+        this.generatedLabel = generatedLabel;
     }
 }

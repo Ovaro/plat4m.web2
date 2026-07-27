@@ -110,7 +110,10 @@ public class FinanceTransactionEditorLookupCacheService {
     }
 
     private List<FinanceResourceDTO> getCategoryOptionsByClassification(String userGuid, Integer classificationId) {
-        List<FinanceCategory> categories = this.categoryRepository.findAllByClassificationIdAndUserGuid(classificationId, userGuid);
+        List<FinanceCategory> categories = this.categoryRepository.findVisibleByClassificationIdAndUserGuidOrSystem(
+            classificationId,
+            userGuid
+        );
         categories.sort(Comparator.comparing(FinanceCategory::getName, String.CASE_INSENSITIVE_ORDER));
 
         List<FinanceResourceDTO> flattenedCategories = new ArrayList<>();
@@ -124,7 +127,10 @@ public class FinanceTransactionEditorLookupCacheService {
     }
 
     private List<FinanceTreeNodeDTO> getCategoryTreeOptionsByClassification(String userGuid, Integer classificationId) {
-        List<FinanceCategory> categories = this.categoryRepository.findAllByClassificationIdAndUserGuid(classificationId, userGuid);
+        List<FinanceCategory> categories = this.categoryRepository.findVisibleByClassificationIdAndUserGuidOrSystem(
+            classificationId,
+            userGuid
+        );
         categories.sort(Comparator.comparing(FinanceCategory::getName, String.CASE_INSENSITIVE_ORDER));
 
         return categories

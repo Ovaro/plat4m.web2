@@ -26,10 +26,30 @@
   width: 300px;
 }
 
+.investment-portfolio-toolbar {
+  align-items: center;
+  gap: 0.5rem 0;
+}
+
+.investment-portfolio-toolbar > .col {
+  min-width: 0;
+}
+
+.investment-portfolio-toolbar__actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .investment-account-filter {
   display: flex;
   align-items: center;
+  flex: 1 1 18rem;
   gap: 0.5rem;
+  min-width: 13rem;
 }
 
 .investment-account-filter__label {
@@ -40,11 +60,14 @@
 }
 
 :host ::ng-deep .investment-account-filter__select {
-  min-width: 15rem;
+  flex: 1 1 auto;
+  min-width: 11rem;
+  width: clamp(11rem, 18vw, 16rem);
 }
 
 :host ::ng-deep .investment-account-filter__select--investment {
-  min-width: 18rem;
+  min-width: 13rem;
+  width: clamp(13rem, 22vw, 20rem);
 }
 
 .investment-select-option {
@@ -90,14 +113,18 @@
 .investment-refresh-button {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  min-width: 10.5rem;
+  gap: 0.35rem;
+  min-width: 0;
   justify-content: center;
+  min-height: 2.4rem;
   border-color: var(--ps-surface-border-subtle, #cbd5e1);
   background-color: var(--ps-surface-raised, #fff);
   color: var(--ps-text-primary, #334155);
   font-size: 0.85rem;
   font-weight: 600;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  white-space: nowrap;
 }
 
 .investment-refresh-button:hover:not(:disabled),

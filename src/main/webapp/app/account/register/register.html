@@ -4,9 +4,16 @@
       <h1 data-cy="registerTitle" jhiTranslate="register.title">Registration</h1>
 
       @if (success()) {
-        <div class="alert alert-success" jhiTranslate="register.messages.success">
-          <strong>Registration saved!</strong> Please check your email for confirmation.
-        </div>
+        @if (activationEmailWarning()) {
+          <div class="alert alert-warning" jhiTranslate="register.messages.activationEmailWarning">
+            <strong>Registration saved!</strong> We could not send the registration email. You can sign in now and resend it later if
+            needed.
+          </div>
+        } @else {
+          <div class="alert alert-success" jhiTranslate="register.messages.success">
+            <strong>Registration saved!</strong> Please check your email for confirmation.
+          </div>
+        }
       }
 
       @if (error()) {

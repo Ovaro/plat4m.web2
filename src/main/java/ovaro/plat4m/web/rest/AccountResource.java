@@ -18,6 +18,7 @@ import ovaro.plat4m.service.dto.PasswordChangeDTO;
 import ovaro.plat4m.web.rest.errors.*;
 import ovaro.plat4m.web.rest.vm.KeyAndPasswordVM;
 import ovaro.plat4m.web.rest.vm.ManagedUserVM;
+import ovaro.plat4m.web.rest.vm.RegistrationResponseVM;
 
 /**
  * REST controller for managing the current user's account.
@@ -56,13 +57,23 @@ public class AccountResource {
      * @throws LoginAlreadyUsedException {@code 400 (Bad Request)} if the login is already used.
      */
     @PostMapping("/register")
-    @ResponseStatus(HttpStatus.CREATED)
-    public void registerAccount(@Valid @RequestBody ManagedUserVM managedUserVM) {
+    public ResponseEntity<RegistrationResponseVM> registerAccount(@Valid @RequestBody ManagedUserVM managedUserVM) {
         if (isPasswordLengthInvalid(managedUserVM.getPassword())) {
             throw new InvalidPasswordException();
         }
         User user = userService.registerUser(managedUserVM, managedUserVM.getPassword());
-        mailService.sendActivationEmail(user);
+        boolean activationEmailSent = mailService.sendActivationEmailSync(user);
+        if (!activationEmailSent) {
+            userService.activateUser(user.getLogin());
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            new RegistrationResponseVM(
+                activationEmailSent,
+                activationEmailSent
+                    ? "Registration saved. Please check your email for confirmation."
+                    : "Registration saved, but the activation email could not be sent. You can sign in now and resend it later if needed."
+            )
+        );
     }
 
     /**

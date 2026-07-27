@@ -3,12 +3,15 @@ import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { ApplicationConfigService } from 'app/core/config/application-config.service';
+import { DashboardConfig, DashboardLayoutUpdate, DashboardPanelDefinition } from './dashboard.types';
 import {
+  CustomPortfolio,
   FinanceIndicators,
   FinanceNestedResource,
   FinanceResourceSnapshots,
   FinanceSecurityHolding,
   FinancialAccount,
+  InvestmentPortfolioDetails,
   SnapshotWithDelta,
 } from '../finance.model';
 
@@ -81,5 +84,45 @@ export class DashboardService {
 
   getResources(): Observable<FinanceNestedResource[]> {
     return this.http.get<FinanceNestedResource[]>(this.applicationConfigService.getEndpointFor('api/resources'));
+  }
+
+  getCustomPortfolios(): Observable<CustomPortfolio[]> {
+    return this.http.get<CustomPortfolio[]>(this.applicationConfigService.getEndpointFor('api/custom-portfolios'));
+  }
+
+  getCustomPortfolioSummaries(customPortfolioId: string, periodAgo: string): Observable<InvestmentPortfolioDetails> {
+    return this.http.get<InvestmentPortfolioDetails>(
+      this.applicationConfigService.getEndpointFor(
+        `api/portfolios/summaries?customPortfolioId=${customPortfolioId}&includeClosed=true&periodAgo=${periodAgo}`,
+      ),
+    );
+  }
+
+  getCustomPortfolioSnapshots(customPortfolioId: string, periodAgo: string): Observable<FinanceResourceSnapshots[]> {
+    return this.http.get<FinanceResourceSnapshots[]>(
+      this.applicationConfigService.getEndpointFor(
+        `api/portfolios/history?customPortfolioId=${customPortfolioId}&includeClosed=true&periodAgo=${periodAgo}&numberOfPeriods=0`,
+      ),
+    );
+  }
+
+  getDashboardConfig(): Observable<DashboardConfig> {
+    return this.http.get<DashboardConfig>(this.applicationConfigService.getEndpointFor('api/dashboard/config'));
+  }
+
+  updateDashboardLayout(update: DashboardLayoutUpdate): Observable<DashboardConfig> {
+    return this.http.put<DashboardConfig>(this.applicationConfigService.getEndpointFor('api/dashboard/config/layout'), update);
+  }
+
+  getDashboardPanels(): Observable<DashboardPanelDefinition[]> {
+    return this.http.get<DashboardPanelDefinition[]>(this.applicationConfigService.getEndpointFor('api/dashboard/panels'));
+  }
+
+  createDashboardPanel(panel: DashboardPanelDefinition): Observable<DashboardPanelDefinition> {
+    return this.http.post<DashboardPanelDefinition>(this.applicationConfigService.getEndpointFor('api/dashboard/panels'), panel);
+  }
+
+  updateDashboardPanel(panel: DashboardPanelDefinition): Observable<DashboardPanelDefinition> {
+    return this.http.put<DashboardPanelDefinition>(this.applicationConfigService.getEndpointFor(`api/dashboard/panels/${panel.id}`), panel);
   }
 }

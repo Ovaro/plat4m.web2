@@ -1,0 +1,180 @@
+id,parent_category_id,name,known_category_key,classification_id,level,system_category,platform_default_category,template_category,hidden
+ae9b72eb-0f96-54e5-9bc6-6c004f101cb4,00000000-0000-0000-0000-000000000102,Alimony & Child Support,EXPENSE/ALIMONY & CHILD SUPPORT,0,1,false,true,true,false
+37142427-7858-5826-a407-54bed129d38b,00000000-0000-0000-0000-000000000102,Asset Purchase,EXPENSE/ASSET PURCHASE,0,1,false,true,true,false
+2f8f1472-1eac-56c1-a9d2-719587ead57d,00000000-0000-0000-0000-000000000102,Bank Charges,EXPENSE/BANK CHARGES,0,1,false,true,true,false
+bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,00000000-0000-0000-0000-000000000102,Bills,EXPENSE/BILLS,0,1,false,true,true,false
+94c43303-ca01-59bb-ae5c-aec4a55ab8bc,00000000-0000-0000-0000-000000000102,Bond,EXPENSE/BOND,0,1,false,true,true,false
+a5702234-9628-5801-bb23-d0bacb81ad75,00000000-0000-0000-0000-000000000102,Car & Auto,EXPENSE/CAR_VEHICLE,0,1,false,true,true,false
+b2ca4893-c429-5ce7-bad3-d7acb274afae,00000000-0000-0000-0000-000000000102,Cash Withdrawal,EXPENSE/CASH WITHDRAWAL,0,1,false,true,true,false
+83d98d2b-bcb2-5b78-a012-a1753b844db6,00000000-0000-0000-0000-000000000102,Clothing,EXPENSE/CLOTHING,0,1,false,true,true,false
+b577bd4f-e5e7-521a-a4be-12d60253b74b,00000000-0000-0000-0000-000000000102,Food & Groceries,EXPENSE/FOOD & GROCERIES,0,1,false,true,true,false
+f8103a88-78a3-525f-b4ed-d91ad88b6290,00000000-0000-0000-0000-000000000102,Gifts & Donations,EXPENSE/GIFTS,0,1,false,true,true,false
+240a8509-d7db-5df0-a8a2-55b17767d041,00000000-0000-0000-0000-000000000102,Healthcare,EXPENSE/HEALTHCARE,0,1,false,true,true,false
+943d7363-ed80-573f-a8ad-deadb6c5753f,00000000-0000-0000-0000-000000000102,Household,EXPENSE/HOUSEHOLD,0,1,false,true,true,false
+7abbb8be-3b6f-559a-828c-c75382c8b05d,00000000-0000-0000-0000-000000000102,Insurance,EXPENSE/INSURANCE,0,1,false,true,true,false
+00b3af88-80db-5c35-8afa-a3060261b362,00000000-0000-0000-0000-000000000102,Investment,EXPENSE/INVESTMENT,0,1,false,true,true,false
+d03a16fc-df77-5627-97d1-1a6864887e7f,00000000-0000-0000-0000-000000000102,Job Expense,EXPENSE/JOB EXPENSE,0,1,false,true,true,false
+825b14a9-8777-5841-9145-3c57aed908bb,00000000-0000-0000-0000-000000000102,Kids/Children,EXPENSE/KIDS,0,1,false,true,true,false
+63ea4634-2c5a-519c-bb57-8a03f2d16d65,00000000-0000-0000-0000-000000000102,Hobbies & Leisure,EXPENSE/LEISURE,0,1,false,true,true,false
+f15ebc6f-41e3-536c-897b-c2643503e17e,00000000-0000-0000-0000-000000000102,Miscellaneous,EXPENSE/MISCELLANEOUS,0,1,false,true,true,false
+de891214-f726-5f2a-bb07-9899339e8ef4,00000000-0000-0000-0000-000000000102,Personal Care,EXPENSE/PERSONAL CARE,0,1,false,true,true,false
+52fff94d-a9bd-547e-8dc4-1d425d0ac8b9,00000000-0000-0000-0000-000000000102,Pet Care,EXPENSE/PET CARE,0,1,false,true,true,false
+ab80125d-5024-556e-8546-b1db5421ce45,00000000-0000-0000-0000-000000000102,Sport,EXPENSE/SPORT,0,1,false,true,true,false
+802a3e7e-b9bc-5222-9ccb-5fa3186a241d,00000000-0000-0000-0000-000000000102,Tax & Accounting,EXPENSE/TAX & ACCOUNTING,0,1,false,true,true,false
+0dd11749-b47d-506f-ab96-9f1a3790ca52,00000000-0000-0000-0000-000000000102,Transport,EXPENSE/TRANSPORT,0,1,false,true,true,false
+4c8a3028-7f8d-5071-b12c-624693ee4608,00000000-0000-0000-0000-000000000102,Travel/Vacation,EXPENSE/TRAVEL_VACATION,0,1,false,true,true,false
+a1ef6b05-e9f0-5486-9bf2-b4044565eb2e,00000000-0000-0000-0000-000000000101,Investment Income,INCOME/INVESTMENT INCOME,0,1,false,true,true,false
+ca189fd7-bcfc-5662-a33a-7a2ab9221ecf,00000000-0000-0000-0000-000000000101,Other Income,INCOME/OTHER INCOME,0,1,false,true,true,false
+1982d338-cdbf-5c5c-87bf-6647efafb70a,00000000-0000-0000-0000-000000000101,Retirement Income,INCOME/RETIREMENT INCOME,0,1,false,true,true,false
+3a05cf56-f45f-573b-9e83-ce615dc84a51,00000000-0000-0000-0000-000000000101,Wages & Salary,INCOME/WAGES & SALARY,0,1,false,true,true,false
+c67c9e16-52d3-548a-9f3a-3668be8e85b1,802a3e7e-b9bc-5222-9ccb-5fa3186a241d,Tax Advice,EXPENSE/ACCOUNTANT/TAX ADVICE,0,2,false,true,true,false
+d908de22-3200-5d9c-a71a-6157cd983902,802a3e7e-b9bc-5222-9ccb-5fa3186a241d,Tax Refund Processing,EXPENSE/ACCOUNTANT/TAX REFUND PROCESSING,0,2,false,true,true,false
+be357479-6107-5137-a479-af9870faf4ed,37142427-7858-5826-a407-54bed129d38b,Appliances,EXPENSE/ASSET PURCHASE/APPLIANCES,0,2,false,true,true,false
+fd73893c-7063-5646-a88f-e3bae8fdcbcd,37142427-7858-5826-a407-54bed129d38b,Misc,EXPENSE/ASSET PURCHASE/MISC,0,2,false,true,true,false
+55ec980e-6f8d-5edb-b666-827c8838e030,2f8f1472-1eac-56c1-a9d2-719587ead57d,3rd Party Fee,EXPENSE/BANK CHARGES/3RD PARTY FEE,0,2,false,true,true,false
+16faa2cb-9af9-5615-a10e-7ce885f89313,2f8f1472-1eac-56c1-a9d2-719587ead57d,Annual Charge,EXPENSE/BANK CHARGES/ANNUAL CHARGE,0,2,false,true,true,false
+83bdb5bf-0ec3-593c-88c5-4d09004e737a,2f8f1472-1eac-56c1-a9d2-719587ead57d,Currency Conversion Fee,EXPENSE/BANK CHARGES/CURRENCY CONVERSION FEE,0,2,false,true,true,false
+115f2705-2c85-534f-aacf-7447e877adb8,2f8f1472-1eac-56c1-a9d2-719587ead57d,Excess Transaction Fee,EXPENSE/BANK CHARGES/EXCESS TRANSACTION FEE,0,2,false,true,true,false
+e0cebdc3-d642-5762-9801-884e909503a0,2f8f1472-1eac-56c1-a9d2-719587ead57d,Goverment Duty,EXPENSE/BANK CHARGES/GOVERMENT DUTY,0,2,false,true,true,false
+dc0accbb-b7b0-5837-bc0e-9c26cf39b926,2f8f1472-1eac-56c1-a9d2-719587ead57d,Mortgage Charges,EXPENSE/BANK CHARGES/MORTGAGE CHARGES,0,2,false,true,true,false
+01292b7a-65d3-5e5b-8dad-480878b0f1d9,2f8f1472-1eac-56c1-a9d2-719587ead57d,Withdrawal Fee,EXPENSE/BANK CHARGES/WITHDRAWAL FEE,0,2,false,true,true,false
+9686062c-c843-57fb-a6e5-63c277ce07b2,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Cable/Satellite/Pay Television,EXPENSE/BILLS/CABLE_SATELLITE_PAY TELEVISION,0,2,false,true,true,false
+2348e00a-9a7d-544e-af23-d65fac5a0a8a,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Council Rates,EXPENSE/BILLS/COUNCIL RATES,0,2,false,true,true,false
+09ac4219-119c-52a4-9569-1447dbde2e41,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Electricity,EXPENSE/BILLS/ELECTRICITY,0,2,false,true,true,false
+c654e5db-9b44-525a-9992-6615652da901,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Garbage & Recycle,EXPENSE/BILLS/GARBAGE & RECYCLE,0,2,false,true,true,false
+6764ba2e-ffe5-5bd7-bd46-a29c9f11e41a,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Gym,EXPENSE/BILLS/GYM,0,2,false,true,true,false
+351a8fb5-5fd2-58f7-884d-c0cec772f657,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Health Club,EXPENSE/BILLS/HEALTH CLUB,0,2,false,true,true,false
+1d58464b-05c5-55e6-98b0-43bcc118e07a,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Homeowner's Dues,EXPENSE/BILLS/HOMEOWNER'S DUES,0,2,false,true,true,false
+e7459c85-a3bb-50d2-a996-4dac23a75f06,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Internet,EXPENSE/BILLS/INTERNET,0,2,false,true,true,false
+e2520508-aee1-507a-ae8d-039e9a11678e,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Membership Fees,EXPENSE/BILLS/MEMBERSHIP FEES,0,2,false,true,true,false
+5c8dabc1-5875-5ac8-973f-b5f16c7a0eee,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Mobile & Cellular,EXPENSE/BILLS/MOBILE & CELLULAR,0,2,false,true,true,false
+33e6ce57-fe88-5dfc-8ab1-7cccb638743e,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Natural Gas/Oil,EXPENSE/BILLS/NATURAL GAS_OIL,0,2,false,true,true,false
+e1804357-5231-5310-96fa-3bc90bef243f,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Newspaper,EXPENSE/BILLS/NEWSPAPER,0,2,false,true,true,false
+55a031f7-e5af-568a-a2b5-4739f1f7594b,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Rent,EXPENSE/BILLS/RENT,0,2,false,true,true,false
+07585a12-a312-5916-a214-2c1f8ac0367a,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Telephone,EXPENSE/BILLS/TELEPHONE,0,2,false,true,true,false
+94d73ace-388a-5bce-8b17-1760d1c862a0,bebe64b0-dfc9-5ee1-80d1-5e29f8157e07,Water & Sewerage,EXPENSE/BILLS/WATER,0,2,false,true,true,false
+53035602-188e-5c11-bb51-4ba05cd42621,94c43303-ca01-59bb-ae5c-aec4a55ab8bc,Electricity,EXPENSE/BOND/ELECTRICITY,0,2,false,true,true,false
+80db1b7d-cabf-58c2-bd7c-26d8b56fef25,94c43303-ca01-59bb-ae5c-aec4a55ab8bc,Rental Bond,EXPENSE/BOND/RENTAL BOND,0,2,false,true,true,false
+71aa3086-5c42-576f-a42b-e68992d6dc09,a5702234-9628-5801-bb23-d0bacb81ad75,Car Accessory,EXPENSE/CAR_VEHICLE/CAR ACCESSORY,0,2,false,true,true,false
+673dfbce-fe0a-5ace-842a-5db11f6baf33,a5702234-9628-5801-bb23-d0bacb81ad75,Car Payment,EXPENSE/CAR_VEHICLE/CAR PAYMENT,0,2,false,true,true,false
+f4580189-dcb5-59a2-96fc-3a6f4fabee38,a5702234-9628-5801-bb23-d0bacb81ad75,Maintenance,EXPENSE/CAR_VEHICLE/MAINTENANCE,0,2,false,true,true,false
+0f99a427-4b88-5099-82b4-a27898b6304c,a5702234-9628-5801-bb23-d0bacb81ad75,Parking,EXPENSE/CAR_VEHICLE/PARKING,0,2,false,true,true,false
+208e3a82-d4b7-544d-a435-f81f770c317e,a5702234-9628-5801-bb23-d0bacb81ad75,Petrol/Gas,EXPENSE/CAR_VEHICLE/PETROL_GAS,0,2,false,true,true,false
+f68f1c8f-d541-5694-abc2-19ad88f2fd0a,a5702234-9628-5801-bb23-d0bacb81ad75,Registration,EXPENSE/CAR_VEHICLE/REGISTRATION,0,2,false,true,true,false
+b2fa5290-021e-563c-b50a-c5e8809d31c8,a5702234-9628-5801-bb23-d0bacb81ad75,Road Side Assistance,EXPENSE/CAR_VEHICLE/ROAD SIDE ASSISTANCE,0,2,false,true,true,false
+88eda5c4-bbe5-5a22-bcd6-915fd6a15513,a5702234-9628-5801-bb23-d0bacb81ad75,Stamp Duty,EXPENSE/CAR_VEHICLE/STAMP DUTY,0,2,false,true,true,false
+f907535b-2dd8-5ce7-a8af-1cc14df2b9d6,a5702234-9628-5801-bb23-d0bacb81ad75,Toll Road,EXPENSE/CAR_VEHICLE/TOLL ROAD,0,2,false,true,true,false
+5c33d2e5-139f-5cb9-8ed2-9bf1818774b6,a5702234-9628-5801-bb23-d0bacb81ad75,Traffic Fines,EXPENSE/CAR_VEHICLE/TRAFFIC FINES,0,2,false,true,true,false
+75760315-0017-5fd7-8a27-6a7f1a2d4ea2,f8103a88-78a3-525f-b4ed-d91ad88b6290,Charitable Donations,EXPENSE/CHARITABLE DONATIONS,0,2,false,true,true,false
+d47ded88-6fe1-5fbe-b7b4-961253fc3e37,83d98d2b-bcb2-5b78-a012-a1753b844db6,Accessories,EXPENSE/CLOTHING/ACCESSORIES,0,2,false,true,true,false
+2225f16a-2d8c-5604-9e5a-45178419f0e9,83d98d2b-bcb2-5b78-a012-a1753b844db6,Alterations,EXPENSE/CLOTHING/ALTERATIONS,0,2,false,true,true,false
+3ac673a0-26dd-57e4-8b1e-d3e51c433f94,83d98d2b-bcb2-5b78-a012-a1753b844db6,Cleaning,EXPENSE/CLOTHING/CLEANING,0,2,false,true,true,false
+c235c991-9f29-5ed0-9f01-3df64c031410,83d98d2b-bcb2-5b78-a012-a1753b844db6,Clothes,EXPENSE/CLOTHING/CLOTHES,0,2,false,true,true,false
+d8a955b5-0dd1-50a6-8428-d9aa17648508,83d98d2b-bcb2-5b78-a012-a1753b844db6,Shoes,EXPENSE/CLOTHING/SHOES,0,2,false,true,true,false
+c1e01b8a-3d9c-53a8-9760-223eca504615,b577bd4f-e5e7-521a-a4be-12d60253b74b,Coffee & Tea,EXPENSE/FOOD & GROCERIES/COFFEE & TEA,0,2,false,true,true,false
+82e998fc-6078-542c-bfa9-88ad92c55265,b577bd4f-e5e7-521a-a4be-12d60253b74b,Dining Out,EXPENSE/FOOD & GROCERIES/DINING OUT,0,2,false,true,true,false
+ed22d3ec-dc3d-5d3d-8324-6696c6bdb8cd,b577bd4f-e5e7-521a-a4be-12d60253b74b,Fast Food/Lunch,EXPENSE/FOOD & GROCERIES/FAST FOOD_LUNCH,0,2,false,true,true,false
+b5f1aca0-861c-503a-9702-a34108ebb7f6,b577bd4f-e5e7-521a-a4be-12d60253b74b,Groceries,EXPENSE/FOOD & GROCERIES/GROCERIES,0,2,false,true,true,false
+e5894214-6d05-5bb4-82c3-2dd84de1a379,b577bd4f-e5e7-521a-a4be-12d60253b74b,Wine & Alcohol,EXPENSE/FOOD & GROCERIES/WINE & ALCOHOL,0,2,false,true,true,false
+5305c6f3-8a8f-565f-a6b9-6ec0d30ef124,f8103a88-78a3-525f-b4ed-d91ad88b6290,Adhoc,EXPENSE/GIFTS/ADHOC,0,2,false,true,true,false
+d1cc67ad-eeaa-59df-ab0e-03b8772a7156,f8103a88-78a3-525f-b4ed-d91ad88b6290,Birthday,EXPENSE/GIFTS/BIRTHDAY,0,2,false,true,true,false
+b6adce07-ebb9-5756-a563-f82e97257cae,f8103a88-78a3-525f-b4ed-d91ad88b6290,Christmas,EXPENSE/GIFTS/CHRISTMAS,0,2,false,true,true,false
+9ddff9f2-d651-5e45-8899-80dac46e82fe,f8103a88-78a3-525f-b4ed-d91ad88b6290,Valentines,EXPENSE/GIFTS/VALENTINES,0,2,false,true,true,false
+0f0146b4-1f86-5077-9a58-d9a8e48290e5,f8103a88-78a3-525f-b4ed-d91ad88b6290,Wedding / Anniversary,EXPENSE/GIFTS/WEDDING _ ANNIVERSARY,0,2,false,true,true,false
+0e9e8602-230d-5070-aef6-7a75beb22c50,240a8509-d7db-5df0-a8a2-55b17767d041,Acupunture,EXPENSE/HEALTHCARE/ACUPUNTURE,0,2,false,true,true,false
+5defe2cd-e9ac-58a6-897f-29b24bf53010,240a8509-d7db-5df0-a8a2-55b17767d041,Birth,EXPENSE/HEALTHCARE/BIRTH,0,2,false,true,true,false
+afe130d7-8680-52b4-8faa-3d9da6e7984c,240a8509-d7db-5df0-a8a2-55b17767d041,Chiro,EXPENSE/HEALTHCARE/CHIRO,0,2,false,true,true,false
+d5ac0102-d232-5390-8f00-bff23aca6a02,240a8509-d7db-5df0-a8a2-55b17767d041,Dental,EXPENSE/HEALTHCARE/DENTAL,0,2,false,true,true,false
+c7d4d5d7-7ada-5d41-8885-3c287bb3de41,240a8509-d7db-5df0-a8a2-55b17767d041,Eyecare,EXPENSE/HEALTHCARE/EYECARE,0,2,false,true,true,false
+d4dc1b12-4456-5592-ad63-ab2415625461,240a8509-d7db-5df0-a8a2-55b17767d041,G.P. & Misc Specialist,EXPENSE/HEALTHCARE/G.P. & MISC SPECIALIST,0,2,false,true,true,false
+015fe390-e07d-5923-8d27-d943b31c4315,240a8509-d7db-5df0-a8a2-55b17767d041,Hospital,EXPENSE/HEALTHCARE/HOSPITAL,0,2,false,true,true,false
+4eb13895-9b2d-57e4-8c41-43d052cf56fd,240a8509-d7db-5df0-a8a2-55b17767d041,Pathology,EXPENSE/HEALTHCARE/PATHOLOGY,0,2,false,true,true,false
+e48bf8a0-401f-50a3-b9c7-0f4acfe331d8,240a8509-d7db-5df0-a8a2-55b17767d041,Pharmacy Item,EXPENSE/HEALTHCARE/PHARMACY ITEM,0,2,false,true,true,false
+84836165-983e-59f1-8c93-83df2775ac72,240a8509-d7db-5df0-a8a2-55b17767d041,Physician,EXPENSE/HEALTHCARE/PHYSICIAN,0,2,false,true,true,false
+fec3ffd6-899f-57fe-aaf8-21d75a9b543e,240a8509-d7db-5df0-a8a2-55b17767d041,Podiatry,EXPENSE/HEALTHCARE/PODIATRY,0,2,false,true,true,false
+c56a50e2-f52b-5012-893d-5f4e9e81581d,240a8509-d7db-5df0-a8a2-55b17767d041,Prescriptions,EXPENSE/HEALTHCARE/PRESCRIPTIONS,0,2,false,true,true,false
+d22ac048-d72c-5900-a440-67e3c1823e47,240a8509-d7db-5df0-a8a2-55b17767d041,Supplements,EXPENSE/HEALTHCARE/SUPPLEMENTS,0,2,false,true,true,false
+de1202b8-0bdd-5e7c-be0f-263268070524,943d7363-ed80-573f-a8ad-deadb6c5753f,Furnishings,EXPENSE/HOUSEHOLD/FURNISHINGS,0,2,false,true,true,false
+41265ce7-277c-5a42-b3ad-a81f056ae829,943d7363-ed80-573f-a8ad-deadb6c5753f,General Items,EXPENSE/HOUSEHOLD/GENERAL ITEMS,0,2,false,true,true,false
+538e1063-2701-5bdc-9e90-989de47ca239,943d7363-ed80-573f-a8ad-deadb6c5753f,House Cleaning,EXPENSE/HOUSEHOLD/HOUSE CLEANING,0,2,false,true,true,false
+725a4d35-f674-5256-872f-edd301bffe4b,943d7363-ed80-573f-a8ad-deadb6c5753f,House Maintenance,EXPENSE/HOUSEHOLD/HOUSE MAINTENANCE,0,2,false,true,true,false
+09d0e908-19a2-5a80-bff1-e49575dc4646,943d7363-ed80-573f-a8ad-deadb6c5753f,Linen,EXPENSE/HOUSEHOLD/LINEN,0,2,false,true,true,false
+e8d9df2c-ad13-5819-a922-aa03c9e48209,943d7363-ed80-573f-a8ad-deadb6c5753f,Plants and Associated,EXPENSE/HOUSEHOLD/PLANTS AND ASSOCIATED,0,2,false,true,true,false
+7fd5af85-7e99-5c46-928c-23b682e1cdf5,943d7363-ed80-573f-a8ad-deadb6c5753f,Pool,EXPENSE/HOUSEHOLD/POOL,0,2,false,true,true,false
+168ca464-611e-50b4-989a-071ff91fe08b,943d7363-ed80-573f-a8ad-deadb6c5753f,Rent,EXPENSE/HOUSEHOLD/RENT,0,2,false,true,true,false
+115d7235-d361-5cc2-ba8b-85ca28f368a1,943d7363-ed80-573f-a8ad-deadb6c5753f,Yard Service,EXPENSE/HOUSEHOLD/YARD SERVICE,0,2,false,true,true,false
+1bf7f243-839c-55f4-a81a-59ae4c1801ea,7abbb8be-3b6f-559a-828c-c75382c8b05d,Car/Vehicle,EXPENSE/INSURANCE/CAR_VEHICLE,0,2,false,true,true,false
+8d8d45e1-9448-5007-98e8-67c30a8ab38f,7abbb8be-3b6f-559a-828c-c75382c8b05d,Extended Warranty,EXPENSE/INSURANCE/EXTENDED WARRANTY,0,2,false,true,true,false
+31c42b98-0c08-55b9-9bd1-ac4a82e1451c,7abbb8be-3b6f-559a-828c-c75382c8b05d,Health Insurance,EXPENSE/INSURANCE/HEALTH INSURANCE,0,2,false,true,true,false
+1334de30-c035-5991-82cb-af385de894b5,7abbb8be-3b6f-559a-828c-c75382c8b05d,Home,EXPENSE/INSURANCE/HOME,0,2,false,true,true,false
+f9d38608-5152-5f5a-b434-d25f7f986afd,7abbb8be-3b6f-559a-828c-c75382c8b05d,Homeowner's/Renter's,EXPENSE/INSURANCE/HOMEOWNER'S_RENTER'S,0,2,false,true,true,false
+02209074-6135-5003-9b55-9638cc3db23c,7abbb8be-3b6f-559a-828c-c75382c8b05d,Life,EXPENSE/INSURANCE/LIFE,0,2,false,true,true,false
+80cc77c3-617a-5862-a976-6ff802f2d99d,7abbb8be-3b6f-559a-828c-c75382c8b05d,Pet,EXPENSE/INSURANCE/PET,0,2,false,true,true,false
+ef676a14-090c-5bb2-8bdb-c3fe31a70d0b,7abbb8be-3b6f-559a-828c-c75382c8b05d,Travel,EXPENSE/INSURANCE/TRAVEL,0,2,false,true,true,false
+b62deb1e-22e0-57cc-80e0-0cffa4742572,00b3af88-80db-5c35-8afa-a3060261b362,Home Improvement,EXPENSE/INVESTMENT/HOME IMPROVEMENT,0,2,false,true,true,false
+6a2a0b2c-3434-58e1-90d2-c9a976702831,00b3af88-80db-5c35-8afa-a3060261b362,Management Fee,EXPENSE/INVESTMENT/MANAGEMENT FEE,0,2,false,true,true,false
+4a8ceb35-6206-5ac7-8fa2-931ee785573e,d03a16fc-df77-5627-97d1-1a6864887e7f,Non-Reimbursed,EXPENSE/JOB EXPENSE/NON-REIMBURSED,0,2,false,true,true,false
+306c5a3b-b3df-534a-ab52-46ef21b9dade,d03a16fc-df77-5627-97d1-1a6864887e7f,Reimbursed,EXPENSE/JOB EXPENSE/REIMBURSED,0,2,false,true,true,false
+b4e52233-a580-5b0d-a9c1-5e86834db629,825b14a9-8777-5841-9145-3c57aed908bb,Child Care,EXPENSE/KIDS/CHILD CARE,0,2,false,true,true,false
+a764d215-295f-5330-8e6d-5fda2c34b97a,825b14a9-8777-5841-9145-3c57aed908bb,Misc,EXPENSE/KIDS/MISC,0,2,false,true,true,false
+7b432b8c-7797-5356-bf59-61fc48310de4,825b14a9-8777-5841-9145-3c57aed908bb,Pocket Money,EXPENSE/KIDS/POCKET MONEY,0,2,false,true,true,false
+b086900c-cf94-56ad-be10-a975301db7db,825b14a9-8777-5841-9145-3c57aed908bb,Toys,EXPENSE/KIDS/TOYS,0,2,false,true,true,false
+ccaada95-e424-5eda-92ee-30c9f4600dbc,63ea4634-2c5a-519c-bb57-8a03f2d16d65,Books & Magazines,EXPENSE/LEISURE/BOOKS & MAGAZINES,0,2,false,true,true,false
+ec89d6a3-fbb8-5378-8f9f-491741b8b4ee,63ea4634-2c5a-519c-bb57-8a03f2d16d65,Computer Games,EXPENSE/LEISURE/COMPUTER GAMES,0,2,false,true,true,false
+21e30844-1af5-5ec1-b4bb-906faad5ac56,63ea4634-2c5a-519c-bb57-8a03f2d16d65,Cultural Events,EXPENSE/LEISURE/CULTURAL EVENTS,0,2,false,true,true,false
+f1299371-a721-5e83-982b-84155988a4a7,63ea4634-2c5a-519c-bb57-8a03f2d16d65,Sporting Events,EXPENSE/LEISURE/SPORTING EVENTS,0,2,false,true,true,false
+a95d9b81-cf7b-5ac9-9fc8-850478f96c51,63ea4634-2c5a-519c-bb57-8a03f2d16d65,Toys & Games,EXPENSE/LEISURE/TOYS & GAMES,0,2,false,true,true,false
+c11b1b94-67a8-5e4d-b5f2-107fa3bf69d5,f15ebc6f-41e3-536c-897b-c2643503e17e,Books,EXPENSE/MISCELLANEOUS/BOOKS,0,2,false,true,true,false
+7d2b02a1-c482-5ed3-b2c7-978ea03b22fb,f15ebc6f-41e3-536c-897b-c2643503e17e,Legal,EXPENSE/MISCELLANEOUS/LEGAL,0,2,false,true,true,false
+5b297343-38c0-56b1-926e-cef08b24de93,f15ebc6f-41e3-536c-897b-c2643503e17e,License/Passport Renewal,EXPENSE/MISCELLANEOUS/LICENSE_PASSPORT RENEWAL,0,2,false,true,true,false
+ab98cca2-26d6-52c9-aa82-171b3ed432d5,f15ebc6f-41e3-536c-897b-c2643503e17e,Lottery,EXPENSE/MISCELLANEOUS/LOTTERY,0,2,false,true,true,false
+fa8f763f-43fe-5c2e-9787-9fab8c66fd2f,f15ebc6f-41e3-536c-897b-c2643503e17e,Memberships,EXPENSE/MISCELLANEOUS/MEMBERSHIPS,0,2,false,true,true,false
+c86f9b3b-053d-56c8-8517-ed66e78bce8a,f15ebc6f-41e3-536c-897b-c2643503e17e,Musical Instrument,EXPENSE/MISCELLANEOUS/MUSICAL INSTRUMENT,0,2,false,true,true,false
+466f6637-7b9c-5c67-9b9c-a42cda937a77,f15ebc6f-41e3-536c-897b-c2643503e17e,Party,EXPENSE/MISCELLANEOUS/PARTY,0,2,false,true,true,false
+8ba4c7d3-f99f-5a01-bdac-d0655fa4e29d,f15ebc6f-41e3-536c-897b-c2643503e17e,Photos,EXPENSE/MISCELLANEOUS/PHOTOS,0,2,false,true,true,false
+febdbf6c-666a-5576-814e-060a6201cedb,f15ebc6f-41e3-536c-897b-c2643503e17e,Postal,EXPENSE/MISCELLANEOUS/POSTAL,0,2,false,true,true,false
+22e6395d-1d7e-5047-8e0e-3ce5bba6bad6,f15ebc6f-41e3-536c-897b-c2643503e17e,Stationary,EXPENSE/MISCELLANEOUS/STATIONARY,0,2,false,true,true,false
+c63535d6-fb69-531c-a840-a90f82b8cda0,f15ebc6f-41e3-536c-897b-c2643503e17e,Storage,EXPENSE/MISCELLANEOUS/STORAGE,0,2,false,true,true,false
+e89126cc-e83a-55ec-bff0-4d96cb38e0ca,de891214-f726-5f2a-bb07-9899339e8ef4,Beauty/Vanity,EXPENSE/PERSONAL CARE/BEAUTY_VANITY,0,2,false,true,true,false
+124dd6fd-aa88-5af7-9c37-f8df61c31501,de891214-f726-5f2a-bb07-9899339e8ef4,Hair,EXPENSE/PERSONAL CARE/HAIR,0,2,false,true,true,false
+a0fb46c1-131a-52b6-99d6-e6413a576e45,52fff94d-a9bd-547e-8dc4-1d425d0ac8b9,Grooming,EXPENSE/PET CARE/GROOMING,0,2,false,true,true,false
+f9a64930-f132-591d-ad01-800253b2a6fd,52fff94d-a9bd-547e-8dc4-1d425d0ac8b9,Pet Food,EXPENSE/PET CARE/PET FOOD,0,2,false,true,true,false
+f8e6281d-96fd-58e9-ac7c-918e60f06b03,52fff94d-a9bd-547e-8dc4-1d425d0ac8b9,Supplies,EXPENSE/PET CARE/SUPPLIES,0,2,false,true,true,false
+2984307f-9cba-5837-91cd-4befb6c1e64c,52fff94d-a9bd-547e-8dc4-1d425d0ac8b9,Veterinarian,EXPENSE/PET CARE/VETERINARIAN,0,2,false,true,true,false
+437642b5-1a54-5125-b3f1-7c735a937063,ab80125d-5024-556e-8546-b1db5421ce45,Sport Teams & Lessons,EXPENSE/SPORT/SPORT TEAMS & LESSONS,0,2,false,true,true,false
+8eb2cd60-fef5-5ed2-b941-b8eb75fa7c72,ab80125d-5024-556e-8546-b1db5421ce45,Sporting Goods,EXPENSE/SPORT/SPORTING GOODS,0,2,false,true,true,false
+c6707dff-c5c9-5011-95d5-ab599df97bac,802a3e7e-b9bc-5222-9ccb-5fa3186a241d,Income Tax,EXPENSE/TAX & ACCOUNTING/INCOME TAX,0,2,false,true,true,false
+0ed12ed5-ba4b-5592-a76f-e652ad7faee7,802a3e7e-b9bc-5222-9ccb-5fa3186a241d,Local Income Tax,EXPENSE/TAX & ACCOUNTING/LOCAL INCOME TAX,0,2,false,true,true,false
+1785c434-8272-5fad-8fe7-b781ee5a03aa,802a3e7e-b9bc-5222-9ccb-5fa3186a241d,Other Taxes,EXPENSE/TAX & ACCOUNTING/OTHER TAXES,0,2,false,true,true,false
+3fab21be-c6bb-5811-8aed-f5b0f321e1fa,802a3e7e-b9bc-5222-9ccb-5fa3186a241d,Real Estate Taxes,EXPENSE/TAX & ACCOUNTING/REAL ESTATE TAXES,0,2,false,true,true,false
+3d82ee7e-98f0-5c33-a6bc-cdede9dac0bc,802a3e7e-b9bc-5222-9ccb-5fa3186a241d,State Income Tax,EXPENSE/TAX & ACCOUNTING/STATE INCOME TAX,0,2,false,true,true,false
+f91dc165-a1be-51d1-823f-63d21c51c93a,0dd11749-b47d-506f-ab96-9f1a3790ca52,Ferry,EXPENSE/TRANSPORT/FERRY,0,2,false,true,true,false
+f2c306da-e4df-55d6-9345-c9922f587f80,0dd11749-b47d-506f-ab96-9f1a3790ca52,Public Transport,EXPENSE/TRANSPORT/PUBLIC TRANSPORT,0,2,false,true,true,false
+c689076f-9613-5db4-a9fc-fbeaa42fbdc2,0dd11749-b47d-506f-ab96-9f1a3790ca52,Taxi & Rideshare,EXPENSE/TRANSPORT/TAXI,0,2,false,true,true,false
+4c66eab7-b7cd-58b5-ac0f-4d2784c47188,4c8a3028-7f8d-5071-b12c-624693ee4608,Car Hire,EXPENSE/TRAVEL/VACATION/CAR HIRE,0,2,false,true,true,false
+b0543926-5be9-5f9e-9bb3-1048236d187e,4c8a3028-7f8d-5071-b12c-624693ee4608,Lodging/Hotel,EXPENSE/TRAVEL/VACATION/LODGING/HOTEL,0,2,false,true,true,false
+099143d1-de97-5186-919b-0ecad7cfecfa,4c8a3028-7f8d-5071-b12c-624693ee4608,Associated Travel Expense,EXPENSE/TRAVEL_VACATION/ASSOCIATED TRAVEL EXPENSE,0,2,false,true,true,false
+a215f138-4a4a-50e7-bd6a-1b8d5ec61e05,4c8a3028-7f8d-5071-b12c-624693ee4608,Ski Hire,EXPENSE/TRAVEL_VACATION/SKI HIRE,0,2,false,true,true,false
+2376e39e-9e7c-5e33-8ea0-8242bb96771a,4c8a3028-7f8d-5071-b12c-624693ee4608,Travel,EXPENSE/TRAVEL_VACATION/TRAVEL,0,2,false,true,true,false
+8c233838-763c-5216-91ca-b8c26ba101e7,4c8a3028-7f8d-5071-b12c-624693ee4608,Vacation Event,EXPENSE/TRAVEL_VACATION/VACATION EVENT,0,2,false,true,true,false
+8eb69396-6b47-5a61-a4e7-d86785607ef6,a1ef6b05-e9f0-5486-9bf2-b4044565eb2e,Capital Gains,INCOME/INVESTMENT INCOME/CAPITAL GAINS,0,2,false,true,true,false
+c86d784e-aabe-534f-9906-85efe9b2105d,a1ef6b05-e9f0-5486-9bf2-b4044565eb2e,Dividends,INCOME/INVESTMENT INCOME/DIVIDENDS,0,2,false,true,true,false
+04db0d97-4421-55fe-982d-b6310843193e,a1ef6b05-e9f0-5486-9bf2-b4044565eb2e,Interest,INCOME/INVESTMENT INCOME/INTEREST,0,2,false,true,true,false
+48d49dc7-0688-5f85-94de-5f893a81699d,ca189fd7-bcfc-5662-a33a-7a2ab9221ecf,Gifts Received,INCOME/OTHER INCOME/GIFTS RECEIVED,0,2,false,true,true,false
+70a41690-2366-5974-8774-821022590ca1,ca189fd7-bcfc-5662-a33a-7a2ab9221ecf,Government Bonus,INCOME/OTHER INCOME/GOVERNMENT BONUS,0,2,false,true,true,false
+1d63b611-0c7d-581b-aff2-908c590079d5,ca189fd7-bcfc-5662-a33a-7a2ab9221ecf,Inheritance,INCOME/OTHER INCOME/INHERITANCE,0,2,false,true,true,false
+1f9a0338-9795-58a2-829c-93c3a2b77cc9,ca189fd7-bcfc-5662-a33a-7a2ab9221ecf,Lotteries,INCOME/OTHER INCOME/LOTTERIES,0,2,false,true,true,false
+22cda201-4c4a-5cf8-8f57-2f4512efd86d,ca189fd7-bcfc-5662-a33a-7a2ab9221ecf,Rebate,INCOME/OTHER INCOME/REBATE,0,2,false,true,true,false
+ae3af308-6135-56b0-8a7b-631340c9c0c3,ca189fd7-bcfc-5662-a33a-7a2ab9221ecf,Sale of Asset,INCOME/OTHER INCOME/SALE OF ASSET,0,2,false,true,true,false
+d6716804-4b51-50a9-8877-5db4ccd7a83e,ca189fd7-bcfc-5662-a33a-7a2ab9221ecf,State & Local Tax Refund,INCOME/OTHER INCOME/STATE & LOCAL TAX REFUND,0,2,false,true,true,false
+fc284c9e-000e-5973-93f8-3fc0284bd9d2,ca189fd7-bcfc-5662-a33a-7a2ab9221ecf,Tax Returns,INCOME/OTHER INCOME/TAX RETURNS,0,2,false,true,true,false
+896157de-ef1f-5f4f-919c-c5a9d0fb76a2,ca189fd7-bcfc-5662-a33a-7a2ab9221ecf,Unemployment Compensation,INCOME/OTHER INCOME/UNEMPLOYMENT COMPENSATION,0,2,false,true,true,false
+cd5b536e-bb90-5c61-8649-6d5b48ead43f,1982d338-cdbf-5c5c-87bf-6647efafb70a,Pensions & Annuities,INCOME/RETIREMENT INCOME/PENSIONS & ANNUITIES,0,2,false,true,true,false
+8b976cb7-f9ad-5814-b690-be51b1b3fc2b,1982d338-cdbf-5c5c-87bf-6647efafb70a,Social Security Benefits,INCOME/RETIREMENT INCOME/SOCIAL SECURITY BENEFITS,0,2,false,true,true,false
+d5cd0305-cddc-5998-8cf2-fc06290b05b8,1982d338-cdbf-5c5c-87bf-6647efafb70a,Super/IRA Distributions,INCOME/RETIREMENT INCOME/SUPER/IRA DISTRIBUTIONS,0,2,false,true,true,false
+fdb1559e-7c9e-516a-b0f8-cb3a1e294093,3a05cf56-f45f-573b-9e83-ce615dc84a51,Gross Pay,INCOME/WAGES & SALARY/GROSS PAY,0,2,false,true,true,false
+938c3e06-f123-53d1-a4d2-d23a306049d6,3a05cf56-f45f-573b-9e83-ce615dc84a51,Net Pay,INCOME/WAGES & SALARY/NET PAY,0,2,false,true,true,false
+8de10f32-0b72-5d2c-a769-1e99213d1d23,3a05cf56-f45f-573b-9e83-ce615dc84a51,Other,INCOME/WAGES & SALARY/OTHER,0,2,false,true,true,false
+81a4bfb1-a7f4-5f69-81a0-5e280c397408,3a05cf56-f45f-573b-9e83-ce615dc84a51,Overtime,INCOME/WAGES & SALARY/OVERTIME,0,2,false,true,true,false
+bf6c387f-6d93-519b-88d9-79fc610cdfdf,3a05cf56-f45f-573b-9e83-ce615dc84a51,Per Diem,INCOME/WAGES & SALARY/PER DIEM,0,2,false,true,true,false
+351f9157-a469-5041-a90c-a7cef656d319,3a05cf56-f45f-573b-9e83-ce615dc84a51,Variable Pay,INCOME/WAGES & SALARY/VARIABLE PAY,0,2,false,true,true,false

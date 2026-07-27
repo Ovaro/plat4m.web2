@@ -26,7 +26,7 @@
   --app-colours-background-low-dark: var(--ps-colors-background-dark-1);
   --app-colours-background-high-light: var(--ps-colors-background-light-3);
   --app-colours-background-med-light: var(--ps-colors-background-light-2);
-  --app-colours-background-low-light: var(--ps-colors-background-light-1);
+  --app-colours-background-low-light: var(--ps-colors-background-light-3);
   --app-colours-border-low-dark: var(--ps-colors-border-low-on-dark);
   --app-colours-border-high-dark: var(--ps-colors-border-high-on-dark);
   --app-colours-border-low-light: var(--ps-colors-border-low-on-light);
@@ -298,6 +298,70 @@ Generic styles
   background-color: #fff;
 }
 
+.theme-dark .form-control,
+.theme-dark input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+.theme-dark textarea,
+.theme-dark select,
+.theme-dark .p-inputtext,
+.theme-dark .p-inputnumber-input,
+.theme-dark .p-autocomplete-input,
+.theme-dark .p-password-input {
+  border-color: var(--app-colours-border-low-dark) !important;
+  background-color: var(--app-colours-background-med-dark) !important;
+  color: var(--app-colours-primary-text-dark) !important;
+}
+
+.theme-dark .form-control:focus,
+.theme-dark input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):focus,
+.theme-dark textarea:focus,
+.theme-dark select:focus,
+.theme-dark .p-inputtext:focus,
+.theme-dark .p-inputnumber-input:focus,
+.theme-dark .p-autocomplete-input:focus,
+.theme-dark .p-password-input:focus {
+  border-color: var(--app-colours-primary) !important;
+  background-color: var(--app-colours-background-med-dark) !important;
+  color: var(--app-colours-primary-text-dark) !important;
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--app-colours-primary) 28%, transparent) !important;
+}
+
+.theme-dark .form-control::placeholder,
+.theme-dark input::placeholder,
+.theme-dark textarea::placeholder,
+.theme-dark .p-inputtext::placeholder,
+.theme-dark .p-inputnumber-input::placeholder,
+.theme-dark .p-autocomplete-input::placeholder,
+.theme-dark .p-password-input::placeholder {
+  color: var(--app-colours-secondary-text-dark) !important;
+  opacity: 1;
+}
+
+.theme-dark .form-control:disabled,
+.theme-dark .form-control[readonly],
+.theme-dark input:disabled,
+.theme-dark input[readonly],
+.theme-dark textarea:disabled,
+.theme-dark textarea[readonly],
+.theme-dark select:disabled,
+.theme-dark .p-inputtext:disabled {
+  background-color: var(--app-colours-background-high-dark) !important;
+  color: var(--app-colours-secondary-text-dark) !important;
+  opacity: 1;
+}
+
+.theme-dark input:-webkit-autofill,
+.theme-dark input:-webkit-autofill:hover,
+.theme-dark input:-webkit-autofill:focus,
+.theme-dark textarea:-webkit-autofill,
+.theme-dark textarea:-webkit-autofill:hover,
+.theme-dark textarea:-webkit-autofill:focus,
+.theme-dark select:-webkit-autofill,
+.theme-dark select:-webkit-autofill:hover,
+.theme-dark select:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--app-colours-primary-text-dark) !important;
+  box-shadow: 0 0 0 1000px var(--app-colours-background-med-dark) inset !important;
+}
+
 .readonly {
   background-color: #eee;
   opacity: 1;
@@ -454,6 +518,7 @@ Generic styles
 
 .theme-light .account-group {
   background: var(--app-colours-background-high-light);
+  border: solid 1px rgba(0, 0, 0, 0.1);
 }
 
 .theme-dark .account-group {
@@ -477,15 +542,22 @@ Generic styles
   background: var(--app-colours-background-med-light);
   -webkit-transition: all var(--ps-motion-speed-normal);
   transition: all var(--ps-motion-speed-normal);
+  border-radius: 10px;
+  border: solid 1px rgba(0, 0, 0, 0.12);
 }
 
 .standard-page-container {
+  box-sizing: border-box;
   padding: 1.5%;
-  height: 100%;
+  min-height: 100%;
 }
 
 .theme-dark .standard-page-container {
-  background: var(--app-colours-background-high-dark);
+  background: var(--app-colours-background-med-dark);
+  -webkit-transition: all var(--ps-motion-speed-normal);
+  transition: all var(--ps-motion-speed-normal);
+  border-radius: 10px;
+  border: solid 1px rgba(0, 0, 0, 0.12);
 }
 
 .theme-dark .account-group-header {
@@ -758,6 +830,72 @@ angular-cli removes postcss-rtl processed inline css, processed rules must be ad
   color: var(--ps-colors-text-icon-low-on-dark);
   border-color: var(--ps-colors-text-icon-low-on-dark);
   background-color: var(--app-colours-background-high-dark);
+}
+
+.theme-dark .btn-outline-secondary,
+.theme-dark .btn-secondary,
+.theme-dark .btn-light,
+.theme-dark .manage-button:not(.manage-button--primary):not(.manage-button--danger),
+.theme-dark .investment-refresh-button,
+.theme-dark .transactions-closed-toggle,
+.theme-dark .transactions-favourite-toggle,
+.theme-dark .transactions-filter-toggle,
+.theme-dark .transactions-columns-toggle,
+.theme-dark .transactions-import-button,
+.theme-dark .transactions-add-button,
+.theme-dark .transaction-editor__mode-button,
+.theme-dark .transaction-editor__field-action,
+.theme-dark .transaction-editor__split-button,
+.theme-dark .transaction-editor__split-category-add,
+.theme-dark .transaction-editor__split-add {
+  border-color: var(--app-colours-border-low-dark) !important;
+  background-color: var(--app-colours-background-med-dark) !important;
+  color: var(--app-colours-primary-text-dark) !important;
+}
+
+.theme-dark .btn-outline-secondary:hover:not(:disabled),
+.theme-dark .btn-outline-secondary:focus-visible:not(:disabled),
+.theme-dark .btn-secondary:hover:not(:disabled),
+.theme-dark .btn-secondary:focus-visible:not(:disabled),
+.theme-dark .btn-light:hover:not(:disabled),
+.theme-dark .btn-light:focus-visible:not(:disabled),
+.theme-dark .manage-button:not(.manage-button--primary):not(.manage-button--danger):hover:not(:disabled),
+.theme-dark .manage-button:not(.manage-button--primary):not(.manage-button--danger):focus-visible:not(:disabled),
+.theme-dark .investment-refresh-button:hover:not(:disabled),
+.theme-dark .investment-refresh-button:focus-visible:not(:disabled),
+.theme-dark .transactions-closed-toggle:hover:not(:disabled),
+.theme-dark .transactions-closed-toggle:focus-visible:not(:disabled),
+.theme-dark .transactions-favourite-toggle:hover:not(:disabled),
+.theme-dark .transactions-favourite-toggle:focus-visible:not(:disabled),
+.theme-dark .transactions-filter-toggle:hover:not(:disabled),
+.theme-dark .transactions-filter-toggle:focus-visible:not(:disabled),
+.theme-dark .transactions-columns-toggle:hover:not(:disabled),
+.theme-dark .transactions-columns-toggle:focus-visible:not(:disabled),
+.theme-dark .transactions-import-button:hover:not(:disabled),
+.theme-dark .transactions-import-button:focus-visible:not(:disabled),
+.theme-dark .transactions-add-button:hover:not(:disabled),
+.theme-dark .transactions-add-button:focus-visible:not(:disabled),
+.theme-dark .transaction-editor__mode-button:hover:not(:disabled),
+.theme-dark .transaction-editor__mode-button:focus-visible:not(:disabled),
+.theme-dark .transaction-editor__field-action:hover:not(:disabled),
+.theme-dark .transaction-editor__field-action:focus-visible:not(:disabled),
+.theme-dark .transaction-editor__split-button:hover:not(:disabled),
+.theme-dark .transaction-editor__split-button:focus-visible:not(:disabled),
+.theme-dark .transaction-editor__split-category-add:hover:not(:disabled),
+.theme-dark .transaction-editor__split-category-add:focus-visible:not(:disabled),
+.theme-dark .transaction-editor__split-add:hover:not(:disabled),
+.theme-dark .transaction-editor__split-add:focus-visible:not(:disabled) {
+  border-color: var(--app-colours-border-high-dark) !important;
+  background-color: var(--app-colours-background-high-dark) !important;
+  color: var(--app-colours-primary-text-dark) !important;
+}
+
+.theme-dark .btn-outline-secondary:disabled,
+.theme-dark .btn-secondary:disabled,
+.theme-dark .btn-light:disabled,
+.theme-dark .manage-button:disabled,
+.theme-dark .investment-refresh-button:disabled {
+  opacity: 0.65;
 }
 
 .theme-light .transaction-editor__type-toggle.p-togglebutton {
@@ -1053,7 +1191,8 @@ angular-cli removes postcss-rtl processed inline css, processed rules must be ad
 
 .theme-light .db-panel {
   background-color: var(--app-colours-background-high-light);
-  border: 0px solid #ced4da;
+  //border: 0px solid #ced4da;
+  border: solid 1px rgba(0, 0, 0, 0.1);
 }
 
 .db-panel.selected {
@@ -1061,8 +1200,9 @@ angular-cli removes postcss-rtl processed inline css, processed rules must be ad
 }
 
 .theme-dark .db-panel {
-  background-color: var(--app-colours-background-med-dark);
-  border: 0px solid black;
+  background-color: var(--app-colours-background-low-dark);
+  //border: 0px solid black;
+  //border: solid 1px rgba(0, 0, 0, 0.1);
 }
 
 /*

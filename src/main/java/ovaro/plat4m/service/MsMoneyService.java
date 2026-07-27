@@ -107,6 +107,7 @@ public class MsMoneyService {
 
     private FinanceSecurityService securityService;
     private FinanceTransactionEditorLookupCacheService editorLookupCacheService;
+    private FinanceCategoryTemplateService categoryTemplateService;
 
     public static final String TABLE_TRN = "TRN";
     public static final String TABLE_ACCOUNT = "ACCT";
@@ -142,6 +143,7 @@ public class MsMoneyService {
         FinanceLotRepository lotRepository,
         FinanceSecurityService securityService,
         FinanceTransactionEditorLookupCacheService editorLookupCacheService,
+        FinanceCategoryTemplateService categoryTemplateService,
         SimpMessageSendingOperations messagingTemplate
     ) {
         this.accountRepository = accountRepository;
@@ -160,6 +162,7 @@ public class MsMoneyService {
         this.lotRepository = lotRepository;
         this.securityService = securityService;
         this.editorLookupCacheService = editorLookupCacheService;
+        this.categoryTemplateService = categoryTemplateService;
         this.messagingTemplate = messagingTemplate;
     }
 
@@ -1238,6 +1241,7 @@ public class MsMoneyService {
 
         FinanceImportStatus fiStatus = new FinanceImportStatus();
         fiStatus.setTaskName("syncCategories");
+        this.categoryTemplateService.ensureDefaultCategoriesForUser(user);
 
         Map<Integer, com.le.sunriise.mnyobject.Category> categories = CategoryImplUtil.getCategories(oDB.getDb());
 
@@ -1246,6 +1250,8 @@ public class MsMoneyService {
         log.debug("Importing all since: " + source.getLastSyncDateTime());
         List<FinanceCategory> updateParent = new ArrayList<FinanceCategory>();
         List<SourceLink> newSlinks = new ArrayList<SourceLink>();
+        Map<String, SourceLink> existingCategorySourceLinks = getSourceLinksForType(user, source, TABLE_CATEGORY);
+        Map<Integer, FinanceCategory> canonicalCategoryMatches = resolveCanonicalCategoryMatches(user, categories);
         for (com.le.sunriise.mnyobject.Category original : categories.values()) {
             log.debug(
                 "Processing Category : " +
@@ -1258,6 +1264,34 @@ public class MsMoneyService {
                     ZonedDateTime.ofInstant(original.getSerialDate().toInstant(), ZoneId.systemDefault())
             );
             fiStatus.setNumInput(fiStatus.getNumInput() + 1);
+            FinanceCategory canonicalCategory = canonicalCategoryMatches.get(original.getId());
+            if (canonicalCategory != null) {
+                if (!existingCategorySourceLinks.containsKey(original.getId().toString())) {
+                    SourceLink nsl = createSourceLink(
+                        user,
+                        source,
+                        canonicalCategory.getId().toString(),
+                        original.getId().toString(),
+                        trimSguid(original.getGuid()),
+                        TABLE_CATEGORY,
+                        true
+                    );
+                    newSlinks.add(nsl);
+                    existingCategorySourceLinks.put(original.getId().toString(), nsl);
+                }
+                fiStatus.setNumUpdated(fiStatus.getNumUpdated() + 1);
+                log.info(
+                    "Category: " +
+                        original.getName() +
+                        " mapped to canonical category " +
+                        canonicalCategory.getKnownCategoryKey() +
+                        " (" +
+                        canonicalCategory.getId() +
+                        ")."
+                );
+                continue;
+            }
+
             FinanceCategory category = null;
             Optional<SourceLink> sl = Optional.empty();
             if (
@@ -1355,6 +1389,99 @@ public class MsMoneyService {
             category.setSourceParentId(oldCategory.getParentId());
         }
         return category;
+    }
+
+    private Map<Integer, FinanceCategory> resolveCanonicalCategoryMatches(
+        User user,
+        Map<Integer, com.le.sunriise.mnyobject.Category> sourceCategories
+    ) {
+        Map<String, FinanceCategory> canonicalCategoriesByKey = new HashMap<String, FinanceCategory>();
+        List<FinanceCategory> platformCategories = this.categoryRepository.findVisibleByClassificationIdAndUserGuidOrSystem(
+            0,
+            user.getGuid().toString()
+        );
+
+        for (FinanceCategory category : platformCategories) {
+            if (!Boolean.TRUE.equals(category.getSystemCategory()) && trimToNull(category.getKnownCategoryKey()) == null) {
+                continue;
+            }
+
+            String categoryKey = normalizeCategoryKey(category.getKnownCategoryKey());
+            if (categoryKey == null) {
+                categoryKey = normalizeCategoryKey(buildPlatformCategoryPath(category));
+            }
+            if (categoryKey != null) {
+                canonicalCategoriesByKey.put(categoryKey, category);
+            }
+        }
+
+        Map<Integer, FinanceCategory> matches = new HashMap<Integer, FinanceCategory>();
+        for (com.le.sunriise.mnyobject.Category sourceCategory : sourceCategories.values()) {
+            if (!Integer.valueOf(0).equals(sourceCategory.getClassificationId())) {
+                continue;
+            }
+
+            String sourceCategoryKey = normalizeCategoryKey(buildSourceCategoryPath(sourceCategory, sourceCategories));
+            FinanceCategory match = canonicalCategoriesByKey.get(sourceCategoryKey);
+            if (match != null) {
+                matches.put(sourceCategory.getId(), match);
+            }
+        }
+        return matches;
+    }
+
+    private String buildSourceCategoryPath(
+        com.le.sunriise.mnyobject.Category category,
+        Map<Integer, com.le.sunriise.mnyobject.Category> categories
+    ) {
+        if (category.getParentId() == null) {
+            return sanitizeCategoryKeySegment(category.getName());
+        }
+
+        com.le.sunriise.mnyobject.Category parent = categories.get(category.getParentId());
+        if (parent == null) {
+            return sanitizeCategoryKeySegment(category.getName());
+        }
+
+        return buildSourceCategoryPath(parent, categories) + "/" + sanitizeCategoryKeySegment(category.getName());
+    }
+
+    private String buildPlatformCategoryPath(FinanceCategory category) {
+        if (category.getParent() == null) {
+            return sanitizeCategoryKeySegment(category.getName());
+        }
+
+        return buildPlatformCategoryPath(category.getParent()) + "/" + sanitizeCategoryKeySegment(category.getName());
+    }
+
+    private String sanitizeCategoryKeySegment(String value) {
+        String normalized = trimToNull(value);
+        return normalized == null ? "" : normalized.replace('/', '_');
+    }
+
+    private String normalizeCategoryKey(String value) {
+        String normalized = trimToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+
+        normalized = normalized.replace('\\', '/').replace(':', '/').replaceAll("\\s*/\\s*", "/").replaceAll("/+", "/");
+        if (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        if (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized.isBlank() ? null : normalized.toUpperCase();
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     public FinanceImportStatus syncPayees(StopWatch sw, User user, OpenedDb oDB, MnyContext mnyContext, Source source) throws IOException {

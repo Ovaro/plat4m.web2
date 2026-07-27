@@ -244,6 +244,7 @@
                     </div>
 
                     <div class="AppLoginMain__errorText m-b" [hidden]="!registrationError">{{ registrationError }}</div>
+                    <div class="AppLoginMain__errorText m-b" [hidden]="!registrationWarning">{{ registrationWarning }}</div>
                     <button
                       [disabled]="registering || !isCreateAccountEnabled()"
                       [hidden]="!checkedEmail || userFound"

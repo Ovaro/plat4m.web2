@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260724000200-1" author="codex">
+        <addColumn tableName="fin_account">
+            <column name="generated" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_batch_id" type="uuid"/>
+            <column name="generated_label" type="varchar(255)"/>
+        </addColumn>
+        <addColumn tableName="fin_transaction">
+            <column name="generated" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_batch_id" type="uuid"/>
+            <column name="generated_label" type="varchar(255)"/>
+        </addColumn>
+        <addColumn tableName="fin_payee">
+            <column name="generated" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_batch_id" type="uuid"/>
+            <column name="generated_label" type="varchar(255)"/>
+        </addColumn>
+        <addColumn tableName="fin_category">
+            <column name="generated" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_batch_id" type="uuid"/>
+            <column name="generated_label" type="varchar(255)"/>
+        </addColumn>
+        <addColumn tableName="fin_user_security">
+            <column name="generated" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_batch_id" type="uuid"/>
+            <column name="generated_label" type="varchar(255)"/>
+        </addColumn>
+        <addColumn tableName="fin_security_price">
+            <column name="generated" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_batch_id" type="uuid"/>
+            <column name="generated_label" type="varchar(255)"/>
+        </addColumn>
+        <addColumn tableName="fin_lot">
+            <column name="generated" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_batch_id" type="uuid"/>
+            <column name="generated_label" type="varchar(255)"/>
+        </addColumn>
+        <addColumn tableName="fin_institution">
+            <column name="generated" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_batch_id" type="uuid"/>
+            <column name="generated_label" type="varchar(255)"/>
+        </addColumn>
+        <addColumn tableName="glb_source_link">
+            <column name="generated" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_batch_id" type="uuid"/>
+            <column name="generated_label" type="varchar(255)"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

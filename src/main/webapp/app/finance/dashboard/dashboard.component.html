@@ -13,7 +13,7 @@
         </ng-template>
     </p-splitter> -->
 
-  <div class="row m-t">
+  <div class="row">
     <div class="col-sm">
       <div class="row">
         <div class="col"></div>
@@ -35,13 +35,28 @@
   </div>
 
   <jhi-history-chart-dialog #historyChartDialog></jhi-history-chart-dialog>
+  <jhi-dashboard-panel-config-dialog
+    #panelConfigDialog
+    [resources]="allResources"
+    (savePanel)="savePanelDefinition($event)"
+  ></jhi-dashboard-panel-config-dialog>
 
-  <gridster #gridster [options]="options" class="gridster-plat4m">
-    <gridster-item [item]="item" *ngFor="let item of dashboard" style="background-color: unset" (click)="onClick(item)">
-      <app-parent-dynamic [widget]="item" [resizeEvent]="resizeEvent"></app-parent-dynamic>
-      <!-- <div>Hello! {{item | json}}</div> -->
-    </gridster-item>
-  </gridster>
+  <div *ngIf="dashboardConfigWarning" class="dashboard-config-warning" role="alert">
+    {{ dashboardConfigWarning }}
+  </div>
+
+  <div #dashboardGridFrame class="dashboard-grid-frame">
+    <gridstack #gridstack [options]="options" class="dashboard-gridstack" (changeCB)="onGridChange($event)">
+      <gridstack-item *ngFor="let item of dashboard" [options]="item">
+        <jhi-dashboard-panel-host
+          [widget]="item"
+          [resizeEvent]="resizeEvent"
+          (panelClick)="onClick($event)"
+          (configureClick)="configurePanel($event)"
+        ></jhi-dashboard-panel-host>
+      </gridstack-item>
+    </gridstack>
+  </div>
   <!-- <div class="p-splitter p-component p-splitter-vertical" > -->
   <!-- style="height: 100%" -->
   <!-- <div class="p-splitter-panel p-splitter-panel-nested" >  -->

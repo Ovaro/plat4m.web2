@@ -61,6 +61,9 @@ public class FinanceAccount implements Serializable {
     private LocalDate dateInterestRateChanged;
     private ZonedDateTime serialDateTime;
     private Integer maxPayments;
+    private boolean generated = false;
+    private UUID generatedBatchId;
+    private String generatedLabel;
 
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "institution_id", referencedColumnName = "id")
@@ -91,6 +94,9 @@ public class FinanceAccount implements Serializable {
         this.dateInterestRateChanged = toCopy.getDateInterestRateChanged();
         this.serialDateTime = toCopy.getSerialDateTime();
         this.maxPayments = toCopy.getMaxPayments();
+        this.generated = toCopy.isGenerated();
+        this.generatedBatchId = toCopy.getGeneratedBatchId();
+        this.generatedLabel = toCopy.getGeneratedLabel();
         this.currencyCode = toCopy.getCurrencyCode();
         this.userGuid = toCopy.getUserGuid();
         this.institution = toCopy.getInstitution();
@@ -294,5 +300,29 @@ public class FinanceAccount implements Serializable {
 
     public void setInstitution(FinanceInstitution institution) {
         this.institution = institution;
+    }
+
+    public boolean isGenerated() {
+        return generated;
+    }
+
+    public void setGenerated(boolean generated) {
+        this.generated = generated;
+    }
+
+    public UUID getGeneratedBatchId() {
+        return generatedBatchId;
+    }
+
+    public void setGeneratedBatchId(UUID generatedBatchId) {
+        this.generatedBatchId = generatedBatchId;
+    }
+
+    public String getGeneratedLabel() {
+        return generatedLabel;
+    }
+
+    public void setGeneratedLabel(String generatedLabel) {
+        this.generatedLabel = generatedLabel;
     }
 }

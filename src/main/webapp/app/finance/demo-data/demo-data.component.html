@@ -1,0 +1,242 @@
+<div class="demo-data-page">
+  <div class="demo-data-header">
+    <div>
+      <h1>Generate Demo Data</h1>
+      <p>Create a generated household data set for platform demonstrations.</p>
+    </div>
+    @if (generateResult) {
+      <div class="batch-note">
+        <span>Batch</span>
+        <strong>{{ generateResult.generatedBatchId }}</strong>
+      </div>
+    }
+  </div>
+
+  <jhi-alert-error></jhi-alert-error>
+  @if (errorMessage) {
+    <div class="alert alert-danger">{{ errorMessage }}</div>
+  }
+  @if (statusMessage) {
+    <div class="alert alert-info">{{ statusMessage }}</div>
+  }
+  @if (successMessage) {
+    <div class="alert alert-success">
+      {{ successMessage }}
+    </div>
+  }
+
+  <section class="demo-section batches-section">
+    <div class="section-heading">
+      <h2>Generated Batches</h2>
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        (click)="loadBatches()"
+        [disabled]="loadingBatches || deletingBatchId !== null"
+      >
+        <fa-icon icon="sync" [fixedWidth]="true"></fa-icon>
+        <span>Refresh</span>
+      </button>
+    </div>
+    @if (loadingBatches) {
+      <p class="muted-copy">Loading generated batches...</p>
+    } @else if (!hasBatches) {
+      <p class="muted-copy">No generated demo batches yet.</p>
+    } @else {
+      <div class="batch-list">
+        @for (batch of batches; track batch.generatedBatchId) {
+          <div class="batch-row">
+            <div>
+              <strong>{{ batch.generatedLabel }}</strong>
+              <span>{{ batch.accountCount }} accounts - {{ batch.transactionCount }} transactions - {{ batch.payeeCount }} payees</span>
+              <small>{{ batch.generatedBatchId }}</small>
+            </div>
+            <div class="batch-accounts">
+              @for (name of batch.accountNames; track name) {
+                <span>{{ name }}</span>
+              }
+            </div>
+            <button
+              type="button"
+              class="btn btn-outline-danger btn-sm"
+              (click)="deleteBatch(batch)"
+              [disabled]="deletingBatchId === batch.generatedBatchId || loadingPreview || generating"
+            >
+              <fa-icon icon="trash-alt" [fixedWidth]="true"></fa-icon>
+              <span>{{ deletingBatchId === batch.generatedBatchId ? 'Deleting...' : 'Delete' }}</span>
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="demo-section">
+    <h2>Persona</h2>
+    <div class="persona-grid">
+      @for (persona of options.personas; track persona) {
+        <label class="persona-option" [class.selected]="request.persona === persona">
+          <input type="radio" name="persona" [value]="persona" [(ngModel)]="request.persona" (change)="applyPersonaDefaults()" />
+          <span>{{ persona }}</span>
+        </label>
+      }
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>Variants</h2>
+    <div class="variant-grid">
+      <label>
+        <input type="checkbox" [(ngModel)]="request.domesticStocks" (change)="variantChanged()" [disabled]="request.noInvestments" />
+        Domestic stocks
+      </label>
+      <label>
+        <input type="checkbox" [(ngModel)]="request.internationalStocks" (change)="variantChanged()" [disabled]="request.noInvestments" />
+        Domestic and international stocks
+      </label>
+      <label>
+        <input type="checkbox" [(ngModel)]="request.realEstateInvestor" (change)="variantChanged()" />
+        Real estate investor
+      </label>
+      <label>
+        <input type="checkbox" [(ngModel)]="request.homeOwner" (change)="variantChanged()" />
+        Home owner
+      </label>
+      <label>
+        <input type="checkbox" [(ngModel)]="request.renter" (change)="variantChanged()" [disabled]="request.homeOwner" />
+        Renter
+      </label>
+      <label>
+        <input type="checkbox" [(ngModel)]="request.privateSchool" />
+        Private school
+      </label>
+      <label>
+        <input type="checkbox" [(ngModel)]="request.noInvestments" (change)="variantChanged()" />
+        No investments
+      </label>
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>Accounts</h2>
+    <div class="account-table">
+      <div class="account-row heading">
+        <span>Include</span>
+        <span>Account</span>
+        <span>Count</span>
+        <span>Years</span>
+        <span>Density</span>
+        <span>Starting value</span>
+        <span>Stocks</span>
+        <span>Trading</span>
+        <span>Hints</span>
+      </div>
+      @for (account of request.accounts; track account.accountType) {
+        <div class="account-row">
+          <label class="include-cell">
+            <input type="checkbox" [(ngModel)]="account.include" />
+          </label>
+          <strong>{{ account.accountType | titlecase }}</strong>
+          <input type="number" class="form-control" [(ngModel)]="account.accountCount" min="1" max="5" />
+          <select [(ngModel)]="account.years" class="form-select">
+            @for (years of options.yearOptions; track years) {
+              <option [ngValue]="years">{{ years }}</option>
+            }
+          </select>
+          <select [(ngModel)]="account.density" class="form-select">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+          <input type="number" class="form-control" [(ngModel)]="account.startingValue" />
+          @if (account.accountType === 'investment') {
+            <input type="number" class="form-control" [(ngModel)]="account.stockCount" min="1" max="12" />
+          } @else {
+            <span class="muted-copy">-</span>
+          }
+          @if (account.accountType === 'investment') {
+            <select [(ngModel)]="account.tradingProfile" class="form-select">
+              <option value="buy_hold">Buy and hold</option>
+              <option value="core_satellite">Core / satellite</option>
+              <option value="limited_trading">Limited trading</option>
+              <option value="active_trading">Active trading</option>
+              <option value="day_trader">Day trader</option>
+            </select>
+          } @else {
+            <span class="muted-copy">-</span>
+          }
+          <input type="text" class="form-control" [(ngModel)]="account.hints" placeholder="Optional" />
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="demo-section">
+    <h2>AI Hints</h2>
+    <div class="hints-grid">
+      <label>
+        Currency
+        <input type="text" class="form-control" [(ngModel)]="request.currencyCode" maxlength="3" />
+      </label>
+      <label>
+        Spending %
+        <input type="number" class="form-control" [(ngModel)]="request.spendingRatePercent" min="30" max="80" />
+      </label>
+      <label class="ai-toggle">
+        <input type="checkbox" [(ngModel)]="request.useAiHints" />
+        Use AI to interpret hints
+      </label>
+      <label>
+        Extra hints
+        <textarea class="form-control" rows="3" [(ngModel)]="request.hints"></textarea>
+      </label>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button type="button" class="btn btn-outline-primary" (click)="preview()" [disabled]="loadingPreview || generating">
+      <fa-icon icon="eye" [fixedWidth]="true"></fa-icon>
+      <span>{{ loadingPreview ? 'Previewing...' : 'Preview' }}</span>
+    </button>
+    <button type="button" class="btn btn-primary" (click)="generate()" [disabled]="generating || loadingPreview">
+      <fa-icon icon="database" [fixedWidth]="true"></fa-icon>
+      <span>{{ generating ? 'Generating...' : 'Generate Demo Data' }}</span>
+    </button>
+  </div>
+
+  @if (previewResult || generateResult) {
+    <section class="demo-section result-section">
+      <h2>{{ previewResult ? 'Preview' : 'Generated Data' }}</h2>
+      @if (currentResult; as result) {
+        <div class="result-grid">
+          <div>
+            <span>Accounts</span>
+            <strong>{{ result.accountCount }}</strong>
+          </div>
+          <div>
+            <span>Transactions</span>
+            <strong>{{ result.transactionCount }}</strong>
+          </div>
+          <div>
+            <span>Payees</span>
+            <strong>{{ result.payeeCount }}</strong>
+          </div>
+          <div>
+            <span>Securities</span>
+            <strong>{{ result.securityCount }}</strong>
+          </div>
+        </div>
+        <div class="account-list">
+          @for (name of result.accountNames; track name) {
+            <span>{{ name }}</span>
+          }
+        </div>
+        <ul>
+          @for (note of result.notes; track note) {
+            <li>{{ note }}</li>
+          }
+        </ul>
+      }
+    </section>
+  }
+</div>

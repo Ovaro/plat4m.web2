@@ -21,6 +21,10 @@ public interface FinanceAccountRepository extends JpaRepository<FinanceAccount, 
     List<FinanceAccount> findAllByUserGuidAndTypeAndClosed(String userGuid, Integer type, boolean closed);
     List<FinanceAccount> findAllByUserGuidAndType(String userGuid, Integer type);
     List<FinanceAccount> findAllByUserGuidAndClosed(String userGuid, boolean closed);
+    List<FinanceAccount> findAllByUserGuidAndGeneratedTrueOrderBySerialDateTimeDescNameAsc(String userGuid);
+    List<FinanceAccount> findAllByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
+    long countByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
+    void deleteAllByUserGuidAndGeneratedTrueAndGeneratedBatchId(String userGuid, UUID generatedBatchId);
     Optional<FinanceAccount> findById(UUID uuid);
     Optional<FinanceAccount> findByIdAndUserGuid(UUID uuid, String userGuid);
 
